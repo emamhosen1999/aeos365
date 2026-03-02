@@ -1,7 +1,6 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {Head, usePage} from '@inertiajs/react';
-import {motion} from 'framer-motion';
-import {Card, Input, Select, SelectItem, Spinner} from "@heroui/react";
+import {Button, Card, Input, Select, SelectItem, Spinner} from "@heroui/react";
 import {
     BuildingOffice2Icon,
     CheckCircleIcon,
@@ -10,17 +9,44 @@ import {
     UserGroupIcon,
     XCircleIcon
 } from '@heroicons/react/24/outline';
-import PageHeader from '@/Components/PageHeader.jsx';
 import StatsCards from '@/Components/StatsCards.jsx';
 import App from '@/Layouts/App.jsx';
+import StandardPageLayout from '@/Layouts/StandardPageLayout.jsx';
 import DesignationTable from '@/Tables/HRM/DesignationTable.jsx';
 import DesignationForm from '@/Forms/HRM/DesignationForm.jsx';
 import DeleteDesignationForm from '@/Forms/HRM/DeleteDesignationForm.jsx';
+import {usePermissions} from '@/Hooks/usePermissions.js';
+import {useThemeRadius} from '@/Hooks/useThemeRadius.js';
 import axios from 'axios';
 import {showToast} from '@/utils/toastUtils.jsx';
+import { useHRMAC } from '@/Hooks/useHRMAC';
 
 const Designations = ({ title, initialDesignations, departments, managers, parentDesignations, allDesignations, stats: initialStats, filters: initialFilters }) => {
     const { auth } = usePage().props;
+    const { can } = usePermissions();
+    const themeRadius = useThemeRadius();
+    const { canCreate, canUpdate, canDelete, isSuperAdmin } = useHRMAC();
+    
+    // Manual responsive state management (HRMAC pattern)
+    const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
+    
+    useEffect(() => {
+        const checkScreenSize = () => {
+            setIsMobile(window.innerWidth < 640);
+            setIsTablet(window.innerWidth < 768);
+        };
+        
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
+    
+    // Permissions using HRMAC
+    // TODO: Update with correct HRMAC path once module hierarchy is defined for HRM
+    const canCreateDesignation = canCreate('hrm.designations') || isSuperAdmin();
+    const canEditDesignation = canUpdate('hrm.designations') || isSuperAdmin();
+    const canDeleteDesignation = canDelete('hrm.designations') || isSuperAdmin();
 
     const [designationsData, setDesignationsData] = useState(initialDesignations || { data: [] });
     const [loading, setLoading] = useState(false);
@@ -43,7 +69,7 @@ const Designations = ({ title, initialDesignations, departments, managers, paren
     const [filters, setFilters] = useState({
         search: initialFilters?.search || '',
         status: initialFilters?.status || 'all',
-        department: initialFilters?.department || defaultDepartment,
+        department: initialFilters?.department || 'all',
         parentDesignation: initialFilters?.parentDesignation || 'all'
     });
     const [showFilters, setShowFilters] = useState(false);
@@ -56,25 +82,14 @@ const Designations = ({ title, initialDesignations, departments, managers, paren
         total: 0, active: 0, inactive: 0, parent_designations: 0
     });
 
-    // Add responsive handling
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-    
-    useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-    const canCreateDesignation = auth.permissions?.includes('designations.create') || false;
-    const canEditDesignation = auth.permissions?.includes('designations.update') || false;
-    const canDeleteDesignation = auth.permissions?.includes('designations.delete') || false;
-
-
+    // Permission check helpers (using HRMAC above)
+    const hasEditPermission = canEditDesignation;
+    const hasDeletePermission = canDeleteDesignation;
 
     const fetchDesignations = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await axios.get(route('designations.json'), {
+            const response = await axios.get(route('hrm.designations.json'), {
                 params: {
                     page: pagination.currentPage,
                     per_page: pagination.perPage,
@@ -96,7 +111,7 @@ const Designations = ({ title, initialDesignations, departments, managers, paren
 
     const fetchDesignationStats = useCallback(async () => {
         try {
-            const response = await axios.get(route('designations.stats'));
+            const response = await axios.get(route('hrm.designations.stats'));
             if (response.status === 200) {
                 setStats(response.data.stats);
             }
@@ -194,122 +209,27 @@ const Designations = ({ title, initialDesignations, departments, managers, paren
     const actionButtons = useMemo(() => {
         const buttons = [];
         if (canCreateDesignation) {
-            buttons.push({
-                label: isMobile ? "Add" : "Add Designation",
-                icon: <PlusIcon className="w-4 h-4" />,
-                onPress: () => openModal('add_designation'),
-                className: "bg-linear-to-r from-(--theme-primary) to-(--theme-secondary) text-white font-medium hover:opacity-90"
-            });
+            buttons.push(
+                <Button
+                    key="add"
+                    color="primary"
+                    variant="shadow"
+                    size={isMobile ? 'sm' : 'md'}
+                    startContent={<PlusIcon className="w-4 h-4" />}
+                    onPress={() => openModal('add_designation')}
+                    className="font-medium"
+                    style={{ fontFamily: `var(--fontFamily, "Inter")` }}
+                >
+                    {isMobile ? "Add" : "Add Designation"}
+                </Button>
+            );
         }
         return buttons;
     }, [canCreateDesignation, isMobile]);
 
     return (
-        <App>
+        <>
             <Head title={title} />
-            <div className="flex justify-center p-4">
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8 }}
-                >
-                    <Card className="shadow-lg">
-                        <PageHeader
-                            title="Designation Management"
-                            subtitle="Manage company designations and hierarchy"
-                            icon={<BuildingOffice2Icon className="w-8 h-8" />}
-                            variant="default"
-                            actionButtons={actionButtons}
-                        >
-                            <div className="p-4 sm:p-6">
-                                <StatsCards stats={statsCards} className="mb-6" />
-                                {/* Search and Filters Section */}
-                                <div className="mb-6 space-y-4">
-                                    {/* Search */}
-                                    <div className="flex-1">
-                                        <Input
-                                            label="Search Designations"
-                                            placeholder="Search by title..."
-                                            value={filters.search}
-                                            onValueChange={(value) => handleFilterChange('search', value)}
-                                            startContent={<MagnifyingGlassIcon className="w-4 h-4 text-default-400" />}
-                                            variant="bordered"
-                                            size={isMobile ? "sm" : "md"}
-                                            classNames={{
-                                                base: "w-full",
-                                                input: "bg-transparent",
-                                                inputWrapper: "border-default-200 hover:border-default-300",
-                                            }}
-                                            style={{
-                                                fontFamily: `var(--fontFamily, "Inter")`,
-                                            }}
-                                        />
-                                    </div>
-
-                                    {/* Filters */}
-                                    <div className="flex flex-wrap gap-3">
-                                        <Select
-                                            label="Department"
-                                            selectedKeys={filters.department ? [filters.department] : []}
-                                            onSelectionChange={(keys) => handleFilterChange('department', Array.from(keys)[0])}
-                                            variant="bordered"
-                                            size={isMobile ? "sm" : "md"}
-                                            className="w-48"
-                                            style={{
-                                                fontFamily: `var(--fontFamily, "Inter")`,
-                                            }}
-                                        >
-                                            <SelectItem key="all">All Departments</SelectItem>
-                                            {departments?.map((dept) => (
-                                                <SelectItem key={String(dept.id)}>
-                                                    {dept.name}
-                                                </SelectItem>
-                                            ))}
-                                        </Select>
-
-                                        <Select
-                                            label="Status"
-                                            selectedKeys={filters.status ? [filters.status] : []}
-                                            onSelectionChange={(keys) => handleFilterChange('status', Array.from(keys)[0])}
-                                            variant="bordered"
-                                            size={isMobile ? "sm" : "md"}
-                                            className="w-32"
-                                            style={{
-                                                fontFamily: `var(--fontFamily, "Inter")`,
-                                            }}
-                                        >
-                                            <SelectItem key="all">All Status</SelectItem>
-                                            <SelectItem key="active">Active</SelectItem>
-                                            <SelectItem key="inactive">Inactive</SelectItem>
-                                        </Select>
-                                    </div>
-                                </div>
-                                <div>
-                                    {loading ? (
-                                        <div className="text-center py-6">
-                                            <Spinner size="lg" />
-                                            <p className="mt-4 text-default-500">Loading...</p>
-                                        </div>
-                                    ) : (
-                                        <DesignationTable
-                                            designations={designationsData}
-                                            loading={loading}
-                                            onEdit={canEditDesignation ? (designation) => openModal('edit_designation', designation) : undefined}
-                                            onDelete={canDeleteDesignation ? (designation) => openModal('delete_designation', designation) : undefined}
-                                            onView={(designation) => openModal('view_designation', designation)}
-                                            pagination={pagination}
-                                            onPageChange={handlePageChange}
-                                            onRowsPerPageChange={handleRowsPerPageChange}
-                                            canEditDesignation={canEditDesignation}
-                                            canDeleteDesignation={canDeleteDesignation}
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                        </PageHeader>
-                    </Card>
-                </motion.div>
-            </div>
 
             {(modalState.type === 'add_designation' || modalState.type === 'edit_designation') && (
                 <DesignationForm
@@ -330,8 +250,107 @@ const Designations = ({ title, initialDesignations, departments, managers, paren
                     designation={modalState.designation}
                 />
             )}
-        </App>
+
+            <StandardPageLayout
+                ariaLabel="Designation Management"
+                title="Designation Management"
+                subtitle="Manage company designations and hierarchy"
+                icon={BuildingOffice2Icon}
+                actions={<div className="flex items-center gap-2">{actionButtons}</div>}
+                stats={<StatsCards stats={statsCards} />}
+                filters={
+                    <div className="space-y-4">
+                        {/* Search */}
+                        <div className="flex-1">
+                            <Input
+                                placeholder="Search by title..."
+                                value={filters.search}
+                                onValueChange={(value) => handleFilterChange('search', value)}
+                                startContent={<MagnifyingGlassIcon className="w-4 h-4 text-default-400" />}
+                                variant="bordered"
+                                size={isMobile ? "sm" : "md"}
+                                radius={themeRadius}
+                                classNames={{
+                                    inputWrapper: "bg-default-100"
+                                }}
+                                style={{
+                                    fontFamily: `var(--fontFamily, "Inter")`,
+                                }}
+                            />
+                        </div>
+
+                        {/* Filters */}
+                        <div className="flex flex-wrap gap-3">
+                            <Select
+                                label="Department"
+                                selectedKeys={filters.department ? [filters.department] : []}
+                                onSelectionChange={(keys) => handleFilterChange('department', Array.from(keys)[0])}
+                                variant="bordered"
+                                size={isMobile ? "sm" : "md"}
+                                radius={themeRadius}
+                                className="w-48"
+                                classNames={{
+                                    trigger: "bg-default-100"
+                                }}
+                                style={{
+                                    fontFamily: `var(--fontFamily, "Inter")`,
+                                }}
+                            >
+                                <SelectItem key="all">All Departments</SelectItem>
+                                {departments?.map((dept) => (
+                                    <SelectItem key={String(dept.id)}>
+                                        {dept.name}
+                                    </SelectItem>
+                                ))}
+                            </Select>
+
+                            <Select
+                                label="Status"
+                                selectedKeys={filters.status ? [filters.status] : []}
+                                onSelectionChange={(keys) => handleFilterChange('status', Array.from(keys)[0])}
+                                variant="bordered"
+                                size={isMobile ? "sm" : "md"}
+                                radius={themeRadius}
+                                className="w-32"
+                                classNames={{
+                                    trigger: "bg-default-100"
+                                }}
+                                style={{
+                                    fontFamily: `var(--fontFamily, "Inter")`,
+                                }}
+                            >
+                                <SelectItem key="all">All Status</SelectItem>
+                                <SelectItem key="active">Active</SelectItem>
+                                <SelectItem key="inactive">Inactive</SelectItem>
+                            </Select>
+                        </div>
+                    </div>
+                }
+            >
+                {loading ? (
+                    <div className="text-center py-6">
+                        <Spinner size="lg" />
+                        <p className="mt-4 text-default-500">Loading...</p>
+                    </div>
+                ) : (
+                    <DesignationTable
+                        designations={designationsData}
+                        loading={loading}
+                        onEdit={canEditDesignation ? (designation) => openModal('edit_designation', designation) : undefined}
+                        onDelete={canDeleteDesignation ? (designation) => openModal('delete_designation', designation) : undefined}
+                        onView={(designation) => openModal('view_designation', designation)}
+                        pagination={pagination}
+                        onPageChange={handlePageChange}
+                        onRowsPerPageChange={handleRowsPerPageChange}
+                        canEditDesignation={canEditDesignation}
+                        canDeleteDesignation={canDeleteDesignation}
+                    />
+                )}
+            </StandardPageLayout>
+        </>
     );
 };
+
+Designations.layout = (page) => <App children={page} />;
 
 export default Designations;

@@ -10,21 +10,26 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 /**
- * My Leave Balance Widget for Core Dashboard
+ * My Leave Balance Widget for Employee Dashboard
  *
  * Shows quick summary of user's leave balances.
  * This is a SUMMARY widget - quick stats, not detailed breakdown.
  *
- * Appears on: Core Dashboard (/dashboard)
- * Does NOT appear on: HRM Dashboard (which has full leave calendar)
+ * Appears on: HRM Employee Dashboard (/hrm/employee/dashboard)
  */
 class MyLeaveBalanceWidget extends AbstractDashboardWidget
 {
-    protected string $position = 'stats_row';
-    protected int $order = 20;
+    protected string $position = 'main_right';
+
+    protected int $order = 2;
+
     protected int|string $span = 1;
+
     protected CoreWidgetCategory $category = CoreWidgetCategory::SUMMARY;
-    protected array $requiredPermissions = ['leaves.own.view'];
+
+    protected array $requiredPermissions = ['hrm.leaves']; // HRMAC format: module.submodule
+
+    protected array $dashboards = ['hrm.employee'];
 
     public function getKey(): string
     {
@@ -56,7 +61,7 @@ class MyLeaveBalanceWidget extends AbstractDashboardWidget
     {
         return $this->safeResolve(function () {
             $user = Auth::user();
-            if (!$user) {
+            if (! $user) {
                 return ['totalRemaining' => 0, 'breakdown' => []];
             }
 
@@ -66,7 +71,7 @@ class MyLeaveBalanceWidget extends AbstractDashboardWidget
                 ->where('leave_allocations.user_id', $user->id)
                 ->where('leave_allocations.year', now()->year)
                 ->select([
-                    'leave_settings.type as leave_type',
+                    'leave_settings.name as leave_type',
                     'leave_allocations.allocated_days',
                     'leave_allocations.used_days',
                     DB::raw('(leave_allocations.allocated_days - leave_allocations.used_days) as remaining_days'),
@@ -77,7 +82,7 @@ class MyLeaveBalanceWidget extends AbstractDashboardWidget
 
             return [
                 'totalRemaining' => $totalRemaining,
-                'breakdown' => $balances->map(fn($b) => [
+                'breakdown' => $balances->map(fn ($b) => [
                     'type' => $b->leave_type,
                     'remaining' => $b->remaining_days,
                     'allocated' => $b->allocated_days,

@@ -1,0 +1,21 @@
+{
+    "name": "aero-rfi",
+    "short_name": "rfi",
+    "namespace": "Aero\\Rfi",
+    "provider": "Aero\\Rfi\\AeroRfiServiceProvider",
+    "version": "1.0.0",
+    "description": "Aero RFI (Request for Inspection) Management Module - Daily Works, Objections, Work Locations",
+    "category": "project_management",
+    "dependencies": {
+        "aero-core": "^1.0"
+    },
+    "routes": {
+        "web": "routes/web.php"
+    },
+    "migrations": {
+        "path": "database/migrations"
+    },
+    "config": {
+        "enabled": true
+    }
+}

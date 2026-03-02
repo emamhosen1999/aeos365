@@ -2,10 +2,10 @@
 
 namespace Aero\HRM\Http\Controllers\Employee;
 
+use Aero\Core\Models\User;
+use Aero\HRM\Http\Controllers\Controller;
 use Aero\HRM\Http\Requests\HR\StoreEmployeeDocumentRequest;
 use Aero\HRM\Models\EmployeePersonalDocument;
-use Aero\HRM\Http\Controllers\Controller;
-use Aero\Core\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +35,7 @@ class EmployeeDocumentController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return Inertia::render('Pages/HRM/Documents/EmployeeDocuments', [
+        return Inertia::render('HRM/Documents/EmployeeDocuments', [
             'title' => 'Employee Documents',
             'employee' => $user->only(['id', 'name', 'email', 'employee_id', 'profile_image_url']),
             'documents' => $documents,

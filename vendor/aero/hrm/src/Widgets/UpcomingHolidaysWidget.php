@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Upcoming Holidays Widget for Core Dashboard
+ * Upcoming Holidays Widget
  *
  * Displays upcoming company holidays:
  * - Holiday name
@@ -18,14 +18,21 @@ use Illuminate\Support\Facades\Schema;
  * - Days remaining
  *
  * This is a DISPLAY widget - static information.
+ * Appears on: HRM Employee Dashboard (/hrm/employee/dashboard)
  */
 class UpcomingHolidaysWidget extends AbstractDashboardWidget
 {
-    protected string $position = 'sidebar';
-    protected int $order = 24;
+    protected string $position = 'main_left';
+
+    protected int $order = 3;
+
     protected int|string $span = 1;
+
     protected CoreWidgetCategory $category = CoreWidgetCategory::DISPLAY;
+
     protected array $requiredPermissions = [];
+
+    protected array $dashboards = ['hrm.employee'];
 
     public function getKey(): string
     {
@@ -53,11 +60,18 @@ class UpcomingHolidaysWidget extends AbstractDashboardWidget
     }
 
     /**
-     * Holidays widget is always enabled.
+     * Check if widget is enabled.
+     * Super Administrators bypass ALL checks.
      */
     public function isEnabled(): bool
     {
-        return true;
+        // Super Admin bypass - always enabled, bypasses ALL checks
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        // Display widget - only requires module to be active
+        return $this->isModuleActive();
     }
 
     /**
@@ -78,7 +92,7 @@ class UpcomingHolidaysWidget extends AbstractDashboardWidget
                 foreach ($upcomingHolidays as $holiday) {
                     $holidayDate = \Carbon\Carbon::parse($holiday->date);
                     $daysRemaining = now()->diffInDays($holidayDate, false);
-                    
+
                     $holidays[] = [
                         'id' => $holiday->id,
                         'name' => $holiday->name,

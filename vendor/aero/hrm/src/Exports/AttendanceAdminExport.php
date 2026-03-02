@@ -2,9 +2,10 @@
 
 namespace Aero\HRM\Exports;
 
+use Aero\Core\Models\User;
+use Aero\HRM\Models\Employee;
 use Aero\HRM\Models\Holiday;
 use Aero\HRM\Models\LeaveSetting;
-use Aero\Core\Models\User;
 use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -20,9 +21,10 @@ class AttendanceAdminExport
         $to = $from->copy()->endOfMonth();
         $monthName = $from->format('F Y');
 
+        // Get all active employees' user IDs
+        $employeeUserIds = Employee::active()->pluck('user_id');
         $users = User::with(['attendances', 'leaves'])
-            ->role('Employee')
-            ->where('active', 1)
+            ->whereIn('id', $employeeUserIds)
             ->get();
 
         $leaveTypes = LeaveSetting::all();

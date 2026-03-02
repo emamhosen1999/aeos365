@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { hasRoute, safeRoute, safeNavigate, safePost, safePut, safeDelete } from '@/utils/routeUtils';
 import { motion } from 'framer-motion';
+import { useThemeRadius } from '@/Hooks/useThemeRadius.js';
 import {
     Button,
     Input,
@@ -24,8 +25,30 @@ import {
 import App from '@/Layouts/App';
 import { showToast } from '@/utils/toastUtils';
 import axios from 'axios';
+import { useHRMAC } from '@/Hooks/useHRMAC';
 
 const CreateEvent = () => {
+    const { auth } = usePage().props;
+    const themeRadius = useThemeRadius();
+    const { canCreate, canUpdate, canDelete, isSuperAdmin } = useHRMAC();
+    
+    // Manual responsive state management (HRMAC pattern)
+    const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
+    
+    useEffect(() => {
+        const checkScreenSize = () => {
+            setIsMobile(window.innerWidth < 640);
+            setIsTablet(window.innerWidth < 768);
+        };
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
+    
+    // Permissions using HRMAC
+    // TODO: Update with correct HRMAC path once module hierarchy is defined for Events
+    const canCreateEvent = canCreate('events.events-management') || isSuperAdmin();
     const [data, setData] = useState({
         title: '',
         slug: '',
@@ -196,19 +219,6 @@ const CreateEvent = () => {
         if (radiusValue <= 16) return 'lg';
         return 'full';
     };
-
-    const [isMobile, setIsMobile] = useState(false);
-    const [isTablet, setIsTablet] = useState(false);
-
-    useEffect(() => {
-        const checkScreenSize = () => {
-            setIsMobile(window.innerWidth < 640);
-            setIsTablet(window.innerWidth < 768);
-        };
-        checkScreenSize();
-        window.addEventListener('resize', checkScreenSize);
-        return () => window.removeEventListener('resize', checkScreenSize);
-    }, []);
 
     return (
         <>

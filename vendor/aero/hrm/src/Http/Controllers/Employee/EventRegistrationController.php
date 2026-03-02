@@ -2,10 +2,10 @@
 
 namespace Aero\HRM\Http\Controllers\Employee;
 
+use Aero\HRM\Http\Controllers\Controller;
 use Aero\HRM\Models\Event;
 use Aero\HRM\Models\EventActivityLog;
 use Aero\HRM\Models\EventRegistration;
-use Aero\HRM\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -25,7 +25,7 @@ class EventRegistrationController extends Controller
             ->latest()
             ->paginate(20);
 
-        return Inertia::render('Pages/HRM/Events/Registrations/Index', [
+        return Inertia::render('HRM/Events/Registrations/Index', [
             'event' => $event,
             'registrations' => $registrations,
         ]);
@@ -39,7 +39,7 @@ class EventRegistrationController extends Controller
 
         $registration->load('subEvents');
 
-        return Inertia::render('Pages/HRM/Events/Registrations/Show', [
+        return Inertia::render('HRM/Events/Registrations/Show', [
             'event' => $event,
             'registration' => $registration,
         ]);
@@ -303,7 +303,7 @@ class EventRegistrationController extends Controller
 
         $registration->load(['subEvents', 'event']);
 
-        return Inertia::render('Pages/HRM/Events/Registrations/PrintToken', [
+        return Inertia::render('HRM/Events/Registrations/PrintToken', [
             'event' => $event,
             'registration' => $registration,
         ]);

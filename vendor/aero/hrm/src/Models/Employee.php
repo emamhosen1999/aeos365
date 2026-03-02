@@ -2,13 +2,15 @@
 
 namespace Aero\HRM\Models;
 
-use Aero\Core\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * Employee Model
@@ -17,8 +19,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * This is the central model for the Employee Information System (EIS).
  *
  * Architecture:
- * - User: Authentication/login data only (email, password, OAuth, 2FA)
- * - Employee: Employment data (department, designation, salary, profile info)
+ * - User: Authentication/login data, user profile image (identity)
+ * - Employee: Employment data, employee image (HR/work purposes: badges, org charts)
+ *
+ * Media Collections:
+ * - employee_images: Official employee photo for HR purposes (badges, org charts)
+ * - employee_documents: Employment-related documents
  *
  * Flow:
  * 1. User is created (invited or registered)
@@ -52,10 +58,28 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $religion
  * @property string|null $marital_status
  * @property string|null $blood_group
+ *
+ * Accessors:
+ * @property-read string $name
+ * @property-read string $full_name
+ * @property-read User $user
+ * @property-read Department|null $department
+ * @property-read Designation|null $designation
+ * @property-read Employee|null $manager
  */
-class Employee extends Model
+class Employee extends Model implements HasMedia
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, InteractsWithMedia, SoftDeletes;
+
+    /**
+     * Create a new factory instance for the model.
+     *
+     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     */
+    protected static function newFactory()
+    {
+        return \Aero\HRM\Database\Factories\EmployeeFactory::new();
+    }
 
     /**
      * The table associated with the model.
@@ -174,7 +198,7 @@ class Employee extends Model
      */
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo($this->getUserModel(), 'user_id');
     }
 
     /**
@@ -198,7 +222,7 @@ class Employee extends Model
      */
     public function manager(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'manager_id');
+        return $this->belongsTo($this->getUserModel(), 'manager_id');
     }
 
     /**
@@ -615,5 +639,114 @@ class Employee extends Model
         $data['employment_type'] = $data['employment_type'] ?? 'full_time';
 
         return static::create($data);
+    }
+
+    // =========================================================================
+    // MEDIA LIBRARY
+    // =========================================================================
+
+    /**
+     * Register media collections for the Employee model.
+     *
+     * Media Collections:
+     * - employee_images: Official employee photo for HR purposes (badges, org charts, ID cards)
+     * - employee_documents: Employment-related documents (contracts, certificates)
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('employee_images')
+            ->singleFile()
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp'])
+            ->useFallbackUrl('/images/default-employee-avatar.png');
+
+        $this->addMediaCollection('employee_documents')
+            ->acceptsMimeTypes(['application/pdf', 'image/jpeg', 'image/png']);
+    }
+
+    /**
+     * Register media conversions for optimized image sizes.
+     */
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('thumb')
+            ->width(100)
+            ->height(100)
+            ->sharpen(10)
+            ->performOnCollections('employee_images');
+
+        $this->addMediaConversion('medium')
+            ->width(300)
+            ->height(300)
+            ->sharpen(5)
+            ->performOnCollections('employee_images');
+
+        $this->addMediaConversion('large')
+            ->width(600)
+            ->height(600)
+            ->performOnCollections('employee_images');
+    }
+
+    /**
+     * Get the employee's image URL.
+     *
+     * This is the official HR photo used for badges, org charts, etc.
+     * Different from User's profile_image which is for authentication/identity.
+     *
+     * @param  string  $conversion  The image conversion size (thumb, medium, large, or empty for original)
+     * @return string|null The image URL or null if no image
+     */
+    public function getEmployeeImageUrl(string $conversion = ''): ?string
+    {
+        $media = $this->getFirstMedia('employee_images');
+
+        if (! $media) {
+            return null;
+        }
+
+        return $conversion ? $media->getUrl($conversion) : $media->getUrl();
+    }
+
+    /**
+     * Get the employee's image URL with fallback to user's profile image.
+     *
+     * Falls back to the linked User's profile image if no employee image exists.
+     *
+     * @param  string  $conversion  The image conversion size
+     * @return string The image URL (employee image, user profile image, or default avatar)
+     */
+    public function getEmployeeImageUrlWithFallback(string $conversion = ''): string
+    {
+        $employeeImage = $this->getEmployeeImageUrl($conversion);
+        if ($employeeImage) {
+            return $employeeImage;
+        }
+
+        return '/images/default-employee-avatar.png';
+    }
+
+    /**
+     * Check if the employee has an image.
+     */
+    public function hasEmployeeImage(): bool
+    {
+        return $this->hasMedia('employee_images');
+    }
+
+    /**
+     * Get the employee image URL attribute for easy access.
+     *
+     * Usage: $employee->employee_image_url
+     */
+    public function getEmployeeImageUrlAttribute(): ?string
+    {
+        return $this->getEmployeeImageUrl();
+    }
+
+    /**
+     * Resolve the user model class without importing cross-package models.
+     */
+    protected function getUserModel(): string
+    {
+        return config('hrm.user_model', config('auth.providers.users.model'));
     }
 }

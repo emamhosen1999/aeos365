@@ -7,12 +7,50 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Leave Model
+ *
+ * @property int $id
+ * @property int $user_id
+ * @property int|null $leave_setting_id
+ * @property string $leave_type
+ * @property string $from_date
+ * @property string $to_date
+ * @property int $no_of_days
+ * @property int|null $approved_by
+ * @property string $reason
+ * @property string $status
+ * @property array|null $approval_chain
+ * @property int $current_approval_level
+ * @property \Carbon\Carbon|null $approved_at
+ * @property string|null $rejection_reason
+ * @property int|null $rejected_by
+ * @property \Carbon\Carbon|null $submitted_at
+ * @property \Carbon\Carbon|null $created_at
+ * @property \Carbon\Carbon|null $updated_at
+ * @property-read User $user
+ * @property-read User $employee Note: Returns User model, not Employee
+ * @property-read LeaveSetting|null $leaveSetting
+ * @property-read User|null $approver
+ * @property-read string $status_color
+ */
 class Leave extends Model
 {
     use HasFactory;
 
+    /**
+     * Create a new factory instance for the model.
+     *
+     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     */
+    protected static function newFactory()
+    {
+        return \Aero\HRM\Database\Factories\LeaveFactory::new();
+    }
+
     protected $fillable = [
         'user_id',
+        'leave_setting_id',
         'leave_type',
         'from_date',
         'to_date',
@@ -30,6 +68,7 @@ class Leave extends Model
 
     protected $casts = [
         'id' => 'integer',
+        'leave_setting_id' => 'integer',
         'leave_type' => 'string',
         'from_date' => 'date', // Simplified casting
         'to_date' => 'date',   // Simplified casting

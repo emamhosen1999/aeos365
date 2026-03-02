@@ -2,13 +2,13 @@
 
 namespace Aero\Platform\Http\Controllers\Settings;
 
+use Aero\Core\Models\SystemSetting;
+use Aero\Platform\Http\Controllers\Controller;
 use Aero\Platform\Http\Requests\UpdateSystemSettingRequest;
 use Aero\Platform\Http\Resources\SystemSettingResource;
-use Aero\Core\Models\SystemSetting;
+use Aero\Platform\Services\MailService;
 use Aero\Platform\Services\Notification\RuntimeSmsConfigService;
 use Aero\Platform\Services\Settings\SystemSettingService;
-use Aero\Platform\Services\MailService;
-use Aero\Platform\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -30,7 +30,7 @@ class SystemSettingController extends Controller
             return new SystemSettingResource($setting);
         }
 
-        return Inertia::render('Pages/Core/Settings/SystemSettings', [
+        return Inertia::render('Core/Settings/SystemSettings', [
             'title' => 'System Settings',
             'systemSettings' => SystemSettingResource::make($setting)->resolve(),
         ]);

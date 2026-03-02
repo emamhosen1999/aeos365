@@ -3,6 +3,7 @@ import { Head, Link, usePage, router } from '@inertiajs/react';
 import axios from 'axios';
 import App from '@/Layouts/App';
 import { motion, AnimatePresence } from 'framer-motion';
+import {useThemeRadius} from '@/Hooks/useThemeRadius.js';
 import { 
   Button, 
   Chip, 
@@ -90,20 +91,14 @@ import {
 } from '@heroicons/react/24/solid';
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// THEME UTILITIES
+// PLATFORM MODULE - Dynamic from Backend
 // ═══════════════════════════════════════════════════════════════════════════════
+// All module data comes from the Platform package's config and widget registry.
+// No hardcoded module definitions - widgets provide all necessary data.
 
-const getThemeRadius = () => {
-  if (typeof window === 'undefined') return 'lg';
-  const rootStyles = getComputedStyle(document.documentElement);
-  const borderRadius = rootStyles.getPropertyValue('--borderRadius')?.trim() || '12px';
-  const radiusValue = parseInt(borderRadius);
-  if (radiusValue === 0) return 'none';
-  if (radiusValue <= 4) return 'sm';
-  if (radiusValue <= 8) return 'md';
-  if (radiusValue <= 12) return 'lg';
-  return 'xl';
-};
+// ═══════════════════════════════════════════════════════════════════════════════
+// COMPONENTS - All data from Backend Widgets
+// ═══════════════════════════════════════════════════════════════════════════════
 
 // Consistent card styling - matches tenant dashboard
 const getCardStyle = (accentColor = 'var(--theme-primary)') => ({
@@ -144,117 +139,13 @@ const getItemStyle = (accentColor = 'var(--theme-primary)') => ({
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// DEFAULT DATA
+// PLATFORM MODULE - Dynamic from Backend
 // ═══════════════════════════════════════════════════════════════════════════════
-
-const defaultPlatformStats = {
-  totalTenants: 156,
-  activeTenants: 148,
-  totalUsers: 12840,
-  activeUsers: 9650,
-  mrr: 428500,
-  arr: 5142000,
-  mrrGrowth: 12.5,
-  churnRate: 2.1,
-  avgRevenuePerTenant: 2748,
-  totalStorage: '2.8 TB',
-  apiCalls: '48.2M',
-  uptime: 99.98,
-};
-
-const defaultModules = [
-  { id: 'hr', name: 'HR Management', icon: UserGroupIcon, activeCount: 142, color: '#0ea5e9', status: 'active' },
-  { id: 'project', name: 'Project Management', icon: ClipboardDocumentCheckIcon, activeCount: 128, color: '#8b5cf6', status: 'active' },
-  { id: 'crm', name: 'CRM', icon: UsersIcon, activeCount: 98, color: '#10b981', status: 'active' },
-  { id: 'dms', name: 'Document Management', icon: DocumentTextIcon, activeCount: 134, color: '#f59e0b', status: 'active' },
-  { id: 'quality', name: 'Quality Control', icon: BeakerIcon, activeCount: 76, color: '#ef4444', status: 'active' },
-  { id: 'compliance', name: 'Compliance', icon: ShieldCheckIcon, activeCount: 89, color: '#06b6d4', status: 'active' },
-  { id: 'finance', name: 'Finance & Accounting', icon: BanknotesIcon, activeCount: 112, color: '#84cc16', status: 'active' },
-  { id: 'scm', name: 'Supply Chain', icon: TruckIcon, activeCount: 67, color: '#f97316', status: 'active' },
-  { id: 'pos', name: 'Point of Sale', icon: CreditCardIcon, activeCount: 45, color: '#ec4899', status: 'active' },
-  { id: 'lms', name: 'Learning Management', icon: AcademicCapIcon, activeCount: 54, color: '#6366f1', status: 'beta' },
-  { id: 'helpdesk', name: 'Helpdesk', icon: LifebuoyIcon, activeCount: 82, color: '#14b8a6', status: 'active' },
-  { id: 'analytics', name: 'Analytics', icon: ChartBarIcon, activeCount: 156, color: '#a855f7', status: 'active' },
-];
-
-const defaultSubscriptionPlans = [
-  { name: 'Starter', count: 45, mrr: 22500, color: '#94a3b8', price: 500 },
-  { name: 'Growth', count: 62, mrr: 124000, color: '#0ea5e9', price: 2000 },
-  { name: 'Professional', count: 38, mrr: 190000, color: '#8b5cf6', price: 5000 },
-  { name: 'Enterprise', count: 11, mrr: 110000, color: '#f59e0b', price: 10000 },
-];
-
-const defaultTenantsByRegion = [
-  { region: 'Asia Pacific', count: 68, percentage: 43.6, growth: 18.2 },
-  { region: 'North America', count: 42, percentage: 26.9, growth: 12.5 },
-  { region: 'Europe', count: 31, percentage: 19.9, growth: 8.7 },
-  { region: 'Middle East', count: 10, percentage: 6.4, growth: 24.3 },
-  { region: 'Others', count: 5, percentage: 3.2, growth: 5.1 },
-];
-
-const defaultRecentTenants = [
-  { id: 1, name: 'Nexus Technologies', domain: 'nexus', plan: 'Enterprise', status: 'active', users: 245, createdAt: '2 hours ago', logo: null },
-  { id: 2, name: 'Global Logistics Inc', domain: 'globallog', plan: 'Professional', status: 'trial', users: 89, createdAt: '5 hours ago', logo: null },
-  { id: 3, name: 'HealthCare Plus', domain: 'hcplus', plan: 'Growth', status: 'active', users: 156, createdAt: '1 day ago', logo: null },
-  { id: 4, name: 'EduTech Solutions', domain: 'edutech', plan: 'Starter', status: 'pending', users: 34, createdAt: '2 days ago', logo: null },
-  { id: 5, name: 'FinServ Corp', domain: 'finserv', plan: 'Enterprise', status: 'active', users: 312, createdAt: '3 days ago', logo: null },
-];
-
-const defaultSystemHealth = {
-  cpu: 42,
-  memory: 68,
-  disk: 54,
-  network: 23,
-  database: 31,
-  cache: 45,
-  queue: 12,
-  services: [
-    { name: 'API Gateway', status: 'healthy', latency: '23ms' },
-    { name: 'Authentication', status: 'healthy', latency: '15ms' },
-    { name: 'Database Cluster', status: 'healthy', latency: '8ms' },
-    { name: 'Cache Server', status: 'healthy', latency: '2ms' },
-    { name: 'Queue Worker', status: 'healthy', latency: '45ms' },
-    { name: 'File Storage', status: 'warning', latency: '156ms' },
-    { name: 'Email Service', status: 'healthy', latency: '89ms' },
-    { name: 'Search Engine', status: 'healthy', latency: '34ms' },
-  ],
-};
-
-const defaultRecentActivity = [
-  { type: 'tenant_created', message: 'New tenant "Nexus Technologies" registered', time: '2 hours ago', icon: BuildingOffice2Icon, color: 'success' },
-  { type: 'subscription_upgraded', message: 'Global Logistics upgraded to Professional plan', time: '4 hours ago', icon: ArrowTrendingUpIcon, color: 'primary' },
-  { type: 'alert', message: 'High API usage detected for tenant "DataFlow"', time: '6 hours ago', icon: ExclamationTriangleIcon, color: 'warning' },
-  { type: 'maintenance', message: 'Scheduled maintenance completed successfully', time: '8 hours ago', icon: WrenchScrewdriverIcon, color: 'secondary' },
-  { type: 'subscription_cancelled', message: 'Tenant "OldCorp" subscription ended', time: '1 day ago', icon: XCircleIcon, color: 'danger' },
-  { type: 'module_enabled', message: 'LMS module enabled for 12 tenants', time: '1 day ago', icon: CubeIcon, color: 'primary' },
-];
-
-const defaultAlerts = [
-  { id: 1, severity: 'critical', title: 'Database Connection Pool Near Limit', description: 'Connection pool at 85% capacity', time: '5 min ago' },
-  { id: 2, severity: 'warning', title: 'Storage Usage High', description: 'Tenant "DataFlow" using 95% of allocated storage', time: '15 min ago' },
-  { id: 3, severity: 'info', title: 'Scheduled Maintenance', description: 'System maintenance scheduled for Dec 03, 02:00 UTC', time: '1 hour ago' },
-];
-
-const defaultBillingOverview = {
-  totalRevenue: 5142000,
-  pendingPayments: 45600,
-  failedPayments: 12300,
-  refunds: 8500,
-  invoicesPending: 23,
-  invoicesOverdue: 5,
-};
-
-const defaultQuickActions = [
-  { label: 'Create Tenant', icon: BuildingOffice2Icon, href: '/admin/tenants/create', color: 'primary' },
-  { label: 'View Tickets', icon: LifebuoyIcon, href: '/admin/support', color: 'warning' },
-  { label: 'System Logs', icon: CommandLineIcon, href: '/admin/logs', color: 'secondary' },
-  { label: 'Billing', icon: CreditCardIcon, href: '/admin/billing', color: 'success' },
-  { label: 'Analytics', icon: ChartBarIcon, href: '/admin/analytics', color: 'primary' },
-  { label: 'Settings', icon: Cog6ToothIcon, href: '/admin/settings', color: 'default' },
-];
+// All module data comes from the Platform package's config and widget registry.
+// No hardcoded module definitions - widgets provide all necessary data.
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// COMPONENTS
+// COMPONENTS - All data from Backend Widgets
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const DiagonalAccent = ({ color = 'var(--theme-primary)' }) => (
@@ -270,6 +161,15 @@ const DiagonalAccent = ({ color = 'var(--theme-primary)' }) => (
 
 // Platform Status Hero
 const PlatformStatusHero = ({ stats, loading, themeRadius, onRefresh, refreshing, systemStatus }) => {
+  const { auth } = usePage().props;
+  const now = new Date();
+  const hour = now.getHours();
+  
+  // Determine greeting based on time of day
+  const greeting = hour >= 5 && hour < 12 ? 'Good Morning' :
+                   hour >= 12 && hour < 17 ? 'Good Afternoon' :
+                   hour >= 17 && hour < 21 ? 'Good Evening' : 'Hello';
+  
   const getStatusConfig = (status) => {
     switch (status) {
       case 'operational': return { color: 'success', label: 'All Systems Operational', icon: SignalIcon };
@@ -298,13 +198,13 @@ const PlatformStatusHero = ({ stats, loading, themeRadius, onRefresh, refreshing
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-1">
-            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground truncate">Platform Command Center</h1>
+            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground truncate">{greeting}, {auth?.user?.name || 'Admin'}!</h1>
             <Chip color={statusConfig.color} variant="flat" size="sm" startContent={<StatusIcon className="h-3 w-3" />} className="flex-shrink-0">
               {statusConfig.label}
             </Chip>
           </div>
           <p className="text-xs sm:text-sm text-default-500 truncate">
-            Multi-tenant operations suite · Last sync: {new Date().toLocaleTimeString()}
+            Platform Command Center · Last sync: {now.toLocaleTimeString()}
           </p>
         </div>
       </div>
@@ -335,26 +235,26 @@ const PlatformStatusHero = ({ stats, loading, themeRadius, onRefresh, refreshing
         <>
           <div className="p-3 sm:p-4 text-center" style={getItemStyle()}>
             <p className="text-[10px] sm:text-xs text-default-500 uppercase tracking-wide mb-1 truncate">Active Tenants</p>
-            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">{stats.activeTenants}</p>
+            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">{stats?.activeTenants ?? 0}</p>
             <p className="text-[10px] sm:text-xs text-success flex items-center justify-center gap-1 mt-1">
-              <ArrowTrendingUpIcon className="h-3 w-3 flex-shrink-0" /> <span className="truncate">+{stats.newThisWeek ?? 0} this week</span>
+              <ArrowTrendingUpIcon className="h-3 w-3 flex-shrink-0" /> <span className="truncate">+{stats?.newThisWeek ?? 0} this week</span>
             </p>
           </div>
           <div className="p-3 sm:p-4 text-center" style={getItemStyle()}>
             <p className="text-[10px] sm:text-xs text-default-500 uppercase tracking-wide mb-1 truncate">Platform Admins</p>
-            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">{stats.totalAdmins ?? stats.activeUsers?.toLocaleString() ?? 0}</p>
-            <p className="text-[10px] sm:text-xs text-default-400 mt-1 truncate">{stats.activeAdmins ?? 0} active</p>
+            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">{stats?.totalAdmins ?? stats?.activeUsers?.toLocaleString() ?? 0}</p>
+            <p className="text-[10px] sm:text-xs text-default-400 mt-1 truncate">{stats?.activeAdmins ?? 0} active</p>
           </div>
           <div className="p-3 sm:p-4 text-center" style={getItemStyle('var(--theme-success)')}>
             <p className="text-[10px] sm:text-xs text-default-500 uppercase tracking-wide mb-1 truncate">Monthly Revenue</p>
-            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-success">{stats.formatted?.mrr ?? `$${(stats.mrr/1000).toFixed(0)}K`}</p>
+            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-success">{stats?.formatted?.mrr ?? `$${((stats?.mrr ?? 0)/1000).toFixed(0)}K`}</p>
             <p className="text-[10px] sm:text-xs text-success flex items-center justify-center gap-1 mt-1">
-              <ArrowTrendingUpIcon className="h-3 w-3 flex-shrink-0" /> <span>+{stats.mrrGrowth}%</span>
+              <ArrowTrendingUpIcon className="h-3 w-3 flex-shrink-0" /> <span>+{stats?.mrrGrowth ?? 0}%</span>
             </p>
           </div>
           <div className="p-3 sm:p-4 text-center" style={getItemStyle()}>
             <p className="text-[10px] sm:text-xs text-default-500 uppercase tracking-wide mb-1 truncate">Platform Uptime</p>
-            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">{stats.uptime}%</p>
+            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">{stats?.uptime ?? 100}%</p>
             <p className="text-[10px] sm:text-xs text-default-400 mt-1 truncate">Last 30 days</p>
           </div>
         </>
@@ -525,48 +425,6 @@ const SubscriptionDistributionCard = ({ plans, loading, themeRadius }) => {
     </Card>
   );
 };
-
-// Geographic Distribution
-const GeographicDistributionCard = ({ regions, loading }) => (
-  <Card style={getCardStyle('var(--theme-secondary)')}>
-    <CardHeader className="border-b p-3 sm:p-4" style={getHeaderStyle('var(--theme-secondary)')}>
-      <div className="min-w-0">
-        <p className="text-[10px] sm:text-xs uppercase tracking-wide text-default-500">Geographic Reach</p>
-        <h3 className="text-base sm:text-lg font-semibold text-foreground truncate">Tenants by Region</h3>
-      </div>
-    </CardHeader>
-    <CardBody className="p-3 sm:p-4 space-y-2 sm:space-y-3">
-      {loading ? (
-        Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-10 sm:h-12 rounded-lg" />)
-      ) : (
-        regions.map((region) => (
-          <div key={region.region} className="flex items-center gap-2 sm:gap-4 p-1.5 sm:p-2 transition-all hover:bg-content2/50 rounded-lg">
-            <div className="w-16 sm:w-24 flex-shrink-0">
-              <p className="text-xs sm:text-sm font-medium text-foreground truncate" title={region.region}>{region.region}</p>
-            </div>
-            <Progress 
-              value={region.percentage} 
-              color="secondary"
-              className="flex-1 h-1.5 sm:h-2"
-            />
-            <div className="flex items-center gap-1.5 sm:gap-3 text-xs sm:text-sm flex-shrink-0">
-              <span className="text-default-500 w-8 sm:w-12 text-right">{region.count}</span>
-              <Chip 
-                size="sm" 
-                variant="flat" 
-                color="success"
-                className="text-[10px] sm:text-xs px-1 sm:px-2"
-                startContent={<ArrowTrendingUpIcon className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
-              >
-                {region.growth}%
-              </Chip>
-            </div>
-          </div>
-        ))
-      )}
-    </CardBody>
-  </Card>
-);
 
 // Recent Tenants Table
 const RecentTenantsCard = ({ tenants, loading, themeRadius }) => {
@@ -931,7 +789,6 @@ const Dashboard = ({ stats = {}, dynamicWidgets = {}, title = 'Admin Dashboard' 
   const platformStatsWidget = dynamicWidgets['platform.stats'] ?? {};
   const recentTenantsWidget = dynamicWidgets['platform.recent_tenants'] ?? {};
   const systemAlertsWidget = dynamicWidgets['platform.system_alerts'] ?? {};
-  const welcomeWidget = dynamicWidgets['platform.welcome'] ?? {};
   const subscriptionWidget = dynamicWidgets['platform.subscription_distribution'] ?? {};
   const quickActionsWidget = dynamicWidgets['platform.quick_actions'] ?? {};
   const systemHealthWidget = dynamicWidgets['platform.system_health'] ?? {};
@@ -939,47 +796,39 @@ const Dashboard = ({ stats = {}, dynamicWidgets = {}, title = 'Admin Dashboard' 
   const billingOverviewWidget = dynamicWidgets['platform.billing_overview'] ?? {};
   const moduleUsageWidget = dynamicWidgets['platform.module_usage'] ?? {};
   
-  // Build platform stats from controller data with fallback to defaults
+  // Build platform stats from controller data only - no defaults
   const platformStats = {
-    totalTenants: stats.totalTenants ?? platformStatsWidget.data?.totalTenants ?? defaultPlatformStats.totalTenants,
-    activeTenants: stats.activeTenants ?? platformStatsWidget.data?.activeTenants ?? defaultPlatformStats.activeTenants,
-    totalUsers: stats.totalUsers ?? platformStatsWidget.data?.totalUsers ?? defaultPlatformStats.totalUsers,
-    activeUsers: stats.activeUsers ?? platformStatsWidget.data?.activeUsers ?? defaultPlatformStats.activeUsers,
-    mrr: stats.mrr ?? platformStatsWidget.data?.mrr ?? defaultPlatformStats.mrr,
-    arr: stats.arr ?? platformStatsWidget.data?.arr ?? defaultPlatformStats.arr,
-    mrrGrowth: stats.mrrGrowth ?? platformStatsWidget.data?.mrrGrowth ?? defaultPlatformStats.mrrGrowth,
-    churnRate: stats.churnRate ?? defaultPlatformStats.churnRate,
-    avgRevenuePerTenant: stats.avgRevenuePerTenant ?? platformStatsWidget.data?.avgRevenuePerTenant ?? defaultPlatformStats.avgRevenuePerTenant,
-    totalStorage: stats.totalStorage ?? defaultPlatformStats.totalStorage,
-    apiCalls: stats.apiCalls ?? defaultPlatformStats.apiCalls,
-    uptime: stats.uptime ?? defaultPlatformStats.uptime,
+    totalTenants: stats?.totalTenants ?? platformStatsWidget.data?.totalTenants ?? 0,
+    activeTenants: stats?.activeTenants ?? platformStatsWidget.data?.activeTenants ?? 0,
+    totalUsers: stats?.totalUsers ?? platformStatsWidget.data?.totalUsers ?? 0,
+    activeUsers: stats?.activeUsers ?? platformStatsWidget.data?.activeUsers ?? 0,
+    mrr: stats?.mrr ?? platformStatsWidget.data?.mrr ?? 0,
+    arr: stats?.arr ?? platformStatsWidget.data?.arr ?? 0,
+    mrrGrowth: stats?.mrrGrowth ?? platformStatsWidget.data?.mrrGrowth ?? 0,
+    churnRate: stats?.churnRate ?? 0,
+    avgRevenuePerTenant: stats?.avgRevenuePerTenant ?? platformStatsWidget.data?.avgRevenuePerTenant ?? 0,
+    totalStorage: stats?.totalStorage ?? '0 GB',
+    apiCalls: stats?.apiCalls ?? '0',
+    uptime: stats?.uptime ?? 100,
   };
 
-  // Map widget data to component props - now using real widget data with fallbacks
-  const modules = moduleUsageWidget.data?.modules ?? defaultModules;
-  const subscriptionPlans = subscriptionWidget.data?.plans ?? defaultSubscriptionPlans;
-  const tenantsByRegion = defaultTenantsByRegion; // TODO: Create TenantGeographyWidget
-  const recentTenants = recentTenantsWidget.data?.tenants ?? defaultRecentTenants;
-  const systemHealth = systemHealthWidget.data ?? defaultSystemHealth;
-  const recentActivity = recentActivityWidget.data?.activities ?? defaultRecentActivity;
-  const alerts = systemAlertsWidget.data?.alerts ?? defaultAlerts;
-  const billingOverview = billingOverviewWidget.data ?? defaultBillingOverview;
-  const quickActions = quickActionsWidget.data?.actions ?? defaultQuickActions;
+  // Extract widget data directly - widgets provide all data, no hardcoded fallbacks
+  const modules = moduleUsageWidget.data?.modules ?? [];
+  const subscriptionPlans = subscriptionWidget.data?.plans ?? [];
+  const recentTenants = recentTenantsWidget.data?.tenants ?? [];
+  const systemHealth = systemHealthWidget.data ?? {};
+  const recentActivity = recentActivityWidget.data?.activities ?? [];
+  const alerts = systemAlertsWidget.data?.alerts ?? [];
+  const billingOverview = billingOverviewWidget.data ?? {};
+  const quickActions = quickActionsWidget.data?.actions ?? [];
   
   // System status from health widget or stats
-  const systemStatus = systemHealth?.status ?? stats.systemStatus ?? 'operational';
+  const systemStatus = systemHealth?.status ?? stats?.systemStatus ?? 'operational';
 
-  const [themeRadius, setThemeRadius] = useState('lg');
+  const themeRadius = useThemeRadius();
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-
-  useEffect(() => {
-    const updateRadius = () => setThemeRadius(getThemeRadius());
-    updateRadius();
-    window.addEventListener('resize', updateRadius);
-    return () => window.removeEventListener('resize', updateRadius);
-  }, []);
 
   // Auto-refresh every 5 minutes
   useEffect(() => {
@@ -1027,13 +876,10 @@ const Dashboard = ({ stats = {}, dynamicWidgets = {}, title = 'Admin Dashboard' 
         animate="visible"
         className="w-full h-full p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6"
       >
-        {/* Platform Status Hero */}
-        <motion.div variants={itemVariants}>
-          <PlatformStatusHero 
-            stats={platformStats} 
-            loading={loading} 
-            themeRadius={themeRadius}
-            onRefresh={handleRefresh}
+
+      {/* Platform Status Hero */}
+      <motion.div variants={itemVariants}>
+        <PlatformStatusHero 
             refreshing={refreshing}
             systemStatus={systemStatus}
           />
@@ -1068,23 +914,15 @@ const Dashboard = ({ stats = {}, dynamicWidgets = {}, title = 'Admin Dashboard' 
           </div>
         </motion.div>
 
-        {/* Three Column Layout: Geographic + Billing + Quick Actions */}
+        {/* Two Column Layout: Billing + Quick Actions */}
         <motion.div variants={itemVariants}>
-          <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <GeographicDistributionCard regions={tenantsByRegion} loading={loading} />
-            {canViewBilling ? (
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
+            {canViewBilling && Object.keys(billingOverview).length > 0 && (
               <BillingOverviewCard billing={billingOverview} loading={loading} themeRadius={themeRadius} />
-            ) : (
-              <Card className="border border-divider">
-                <CardBody className="flex items-center justify-center h-full py-12">
-                  <div className="text-center text-default-400">
-                    <CurrencyDollarIcon className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">Billing data requires elevated permissions</p>
-                  </div>
-                </CardBody>
-              </Card>
             )}
-            <QuickActionsCard actions={quickActions} themeRadius={themeRadius} />
+            {quickActions.length > 0 && (
+              <QuickActionsCard actions={quickActions} themeRadius={themeRadius} />
+            )}
           </div>
         </motion.div>
 

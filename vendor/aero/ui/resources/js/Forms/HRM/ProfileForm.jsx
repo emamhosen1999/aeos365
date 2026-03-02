@@ -13,28 +13,44 @@ import {
 import React, {useEffect, useState} from "react";
 import {Camera, X} from 'lucide-react';
 import {showToast} from "@/utils/toastUtils";
+import { safeRoute } from "@/utils/routeUtils";
+import { router } from "@inertiajs/react";
 import ProfileAvatar from '@/Components/ProfileAvatar';
+
+// Helper function to format date for HTML date input (YYYY-MM-DD)
+const formatDateForInput = (dateValue) => {
+    if (!dateValue) return '';
+    // If already in YYYY-MM-DD format, return as is
+    if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+        return dateValue;
+    }
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return '';
+    return date.toISOString().split('T')[0];
+};
 
 const ProfileForm = ({user, allUsers, departments, designations,setUser, open, closeModal }) => {
 
+    // Map employee data to form fields
+    // The 'user' prop now contains employee data with user fields from relationship
     const [initialUserData, setInitialUserData] = useState({
-        id: user.id,
+        id: user.user_id || user.id, // Use user_id from employee, fallback to id
         name: user.name || '',
         gender: user.gender || '',
-        birthday: user.birthday || '',
-        date_of_joining: user.date_of_joining || '',
+        birthday: formatDateForInput(user.birthday),
+        date_of_joining: formatDateForInput(user.date_of_joining),
         address: user.address || '',
-        employee_id: user.employee_id || '',
+        employee_id: user.employee_code || user.employee_id || '', // Map employee_code
         phone: user.phone || '',
         email: user.email || '',
-        department: user.department_id || user.department || '',
-        designation: user.designation_id || user.designation || '',
-        report_to: user.report_to_id || user.report_to || '',
+        department: user.department_id || user.department?.id || '',
+        designation: user.designation_id || user.designation?.id || '',
+        report_to: user.manager_id || user.report_to_id || user.report_to || '',
     });
 
 
     const [changedUserData, setChangedUserData] = useState({
-        id: user.id,
+        id: user.user_id || user.id, // Use user_id from employee, fallback to id
     });
 
     const [dataChanged, setDataChanged] = useState(false);
@@ -78,7 +94,7 @@ const ProfileForm = ({user, allUsers, departments, designations,setUser, open, c
                     formData.append('profile_image', file);
                     formData.append('ruleSet', 'profile_image');
 
-                    const response = await axios.post(route('profile.update'), formData, {
+                    const response = await axios.post(safeRoute('profile.update', {}, '/hrm/profile/update'), formData, {
                         headers: {
                             'Content-Type': 'multipart/form-data',
                         }
@@ -159,6 +175,15 @@ const ProfileForm = ({user, allUsers, departments, designations,setUser, open, c
     };
 
     const handleChange = (key, value) => {
+        // Clear the error for this field when user makes a change (Bug #34 fix)
+        if (errors[key]) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[key];
+                return newErrors;
+            });
+        }
+
         setInitialUserData((prevUser) => {
             const updatedData = { ...prevUser, [key]: value };
 
@@ -253,13 +278,18 @@ const ProfileForm = ({user, allUsers, departments, designations,setUser, open, c
         setProcessing(true);
 
         try {
-            const response = await axios.post(route('profile.update'), {
+            const response = await axios.post(safeRoute('profile.update', {}, '/hrm/profile/update'), {
                 ruleSet: 'profile',
                 ...initialUserData,
             });
 
             if (response.status === 200) {
-                setUser(response.data.user);
+                // The controller returns 'employee' data (with user fields embedded)
+                // Use employee data if available, fallback to user data for backward compatibility
+                const updatedData = response.data.employee || response.data.user;
+                if (updatedData) {
+                    setUser(updatedData);
+                }
                 showToast.success(response.data.messages?.length > 0 ? response.data.messages.join(' ') : 'Profile information updated successfully', {
                     icon: '🟢',
                     style: {
@@ -272,6 +302,9 @@ const ProfileForm = ({user, allUsers, departments, designations,setUser, open, c
                     }
                 });
                 closeModal();
+                
+                // Reload the page to get fresh data from the server
+                router.reload({ only: ['employee', 'user'] });
             }
         } catch (error) {
             setProcessing(false);

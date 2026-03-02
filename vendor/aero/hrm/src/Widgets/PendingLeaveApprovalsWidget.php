@@ -9,21 +9,26 @@ use Aero\Core\Contracts\CoreWidgetCategory;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Pending Leave Approvals Widget for Core Dashboard
+ * Pending Leave Approvals Widget
  *
  * Shows count of leaves pending manager/HR approval.
  * This is an ALERT widget - needs attention.
  *
- * Appears on: Core Dashboard (/dashboard) for managers/HR
- * Does NOT appear on: HRM Dashboard (which has full approval queue)
+ * Appears on: HRM Manager Dashboard (/hrm/dashboard)
  */
 class PendingLeaveApprovalsWidget extends AbstractDashboardWidget
 {
     protected string $position = 'sidebar';
+
     protected int $order = 10;
+
     protected int|string $span = 1;
+
     protected CoreWidgetCategory $category = CoreWidgetCategory::ALERT;
-    protected array $requiredPermissions = ['leaves.approve'];
+
+    protected array $requiredPermissions = ['hrm.leaves']; // HRMAC format: module.submodule
+
+    protected array $dashboards = ['hrm'];
 
     public function getKey(): string
     {
@@ -55,7 +60,7 @@ class PendingLeaveApprovalsWidget extends AbstractDashboardWidget
     {
         return $this->safeResolve(function () {
             $user = auth()->user();
-            if (!$user) {
+            if (! $user) {
                 return ['count' => 0, 'urgent' => 0, 'items' => []];
             }
 
@@ -64,8 +69,13 @@ class PendingLeaveApprovalsWidget extends AbstractDashboardWidget
                 ->join('users', 'leaves.user_id', '=', 'users.id')
                 ->where('leaves.status', 'pending');
 
-            // If user is a department manager, only show their department
-            if ($user->can('leaves.approve') && !$user->can('leaves.approve.all')) {
+            // Super Admin and users with manage action see all pending leaves
+            // Department managers only see their department's leaves
+            $isSuperAdmin = $this->isSuperAdmin();
+            $canManageAll = $this->userHasModuleAccess('hrm', 'leaves', 'manage');
+
+            if (! $isSuperAdmin && ! $canManageAll) {
+                // Filter to user's department only
                 $query->where('users.department_id', $user->department_id);
             }
 
@@ -92,7 +102,7 @@ class PendingLeaveApprovalsWidget extends AbstractDashboardWidget
                 'count' => $pendingCount,
                 'urgent' => $urgentCount,
                 'items' => $recentPending->toArray(),
-                'link' => route('hrm.leaves.admin'), // Link to full list
+                'link' => route('hrm.leaves'), // Link to full list
             ];
         }, ['count' => 0, 'urgent' => 0, 'items' => []]);
     }

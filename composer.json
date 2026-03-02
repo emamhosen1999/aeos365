@@ -21,8 +21,13 @@
         "php": "^8.2",
         "aero/core": "@dev",
         "aero/hrm": "@dev",
+        "aero/hrmac": "@dev",
         "aero/platform": "@dev",
+        "aero/project": "@dev",
         "aero/ui": "@dev",
+        "aero/rfi": "@dev",
+        "aero/compliance": "@dev",
+        "aero/quality": "@dev",
         "jenssegers/agent": "^2.6",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1"

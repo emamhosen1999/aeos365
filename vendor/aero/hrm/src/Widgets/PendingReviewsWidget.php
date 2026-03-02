@@ -10,15 +10,23 @@ use Aero\Core\Contracts\CoreWidgetCategory;
 /**
  * Pending Reviews Widget
  *
- * Displays pending performance reviews for the user.
+ * Displays pending performance reviews for managers.
+ *
+ * Appears on: HRM Manager Dashboard (/hrm/dashboard)
  */
 class PendingReviewsWidget extends AbstractDashboardWidget
 {
     protected string $position = 'sidebar';
+
     protected int $order = 80;
+
     protected int|string $span = 1;
+
     protected CoreWidgetCategory $category = CoreWidgetCategory::ACTION;
+
     protected array $requiredPermissions = ['hrm.performance.reviews.view'];
+
+    protected array $dashboards = ['hrm'];
 
     public function getKey(): string
     {
@@ -48,8 +56,8 @@ class PendingReviewsWidget extends AbstractDashboardWidget
     public function getData(): array
     {
         $user = auth()->user();
-        
-        if (!$user) {
+
+        if (! $user) {
             return [
                 'reviews' => [],
                 'self_assessments_due' => 0,
@@ -75,9 +83,23 @@ class PendingReviewsWidget extends AbstractDashboardWidget
         ]);
     }
 
+    /**
+     * Check if widget is enabled.
+     * Super Administrators bypass ALL checks.
+     */
     public function isEnabled(): bool
     {
-        return true;
+        // Super Admin bypass - always enabled, bypasses ALL checks
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (! $this->isModuleActive()) {
+            return false;
+        }
+
+        // Check HRM performance module access via HRMAC
+        return $this->userHasModuleAccess();
     }
 
     public function getPriority(): int

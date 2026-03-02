@@ -3,8 +3,8 @@
 namespace Aero\Platform\Http\Controllers\Auth;
 
 use Aero\Core\Models\User;
-use Aero\Platform\Services\Shared\Auth\DeviceAuthService;
 use Aero\Platform\Http\Controllers\Controller;
+use Aero\Platform\Services\Shared\Auth\DeviceAuthService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -50,7 +50,7 @@ class DeviceController extends Controller
         }
 
         // Otherwise return Inertia page for browser navigation
-        return Inertia::render('Pages/Core/UserDevices/Index', [
+        return Inertia::render('Core/UserDevices/Index', [
             'user' => $user,
             'devices' => $devices,
         ]);

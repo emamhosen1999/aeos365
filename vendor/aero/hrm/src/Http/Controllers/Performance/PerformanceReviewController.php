@@ -2,11 +2,11 @@
 
 namespace Aero\HRM\Http\Controllers\Performance;
 
+use Aero\HRM\Events\Performance\PerformanceReviewCompleted;
+use Aero\HRM\Http\Controllers\Controller;
 use Aero\HRM\Models\Department;
 use Aero\HRM\Models\PerformanceReview;
 use Aero\HRM\Models\PerformanceReviewTemplate;
-use Aero\HRM\Http\Controllers\Controller;
-use Aero\Core\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -20,7 +20,7 @@ class PerformanceReviewController extends Controller
     {
         // Get statistics for the dashboard
         $totalReviews = PerformanceReview::count();
-        $pendingReviews = PerformanceReview::where('status', 'pending')->count();
+        $pendingReviews = PerformanceReview::whereIn('status', ['self_assessment_pending', 'manager_review_pending'])->count();
         $completedReviews = PerformanceReview::where('status', 'completed')->count();
         $averageRating = PerformanceReview::whereNotNull('overall_rating')->avg('overall_rating');
 
@@ -33,11 +33,11 @@ class PerformanceReviewController extends Controller
         // Upcoming reviews
         $upcomingReviews = PerformanceReview::with(['employee', 'reviewer'])
             ->where('status', 'scheduled')
-            ->orderBy('review_date')
+            ->orderBy('review_period_start')
             ->take(5)
             ->get();
 
-        return Inertia::render('Pages/HRM/Dashboard', [
+        return Inertia::render('HRM/Dashboard', [
             'stats' => [
                 'totalReviews' => $totalReviews,
                 'pendingReviews' => $pendingReviews,
@@ -68,14 +68,32 @@ class PerformanceReviewController extends Controller
             ->when($request->department_id, function ($query, $departmentId) {
                 $query->where('department_id', $departmentId);
             })
-            ->orderBy($request->input('sort_by', 'review_date'), $request->input('sort_order', 'desc'))
-            ->paginate(10)
+            ->orderBy($request->input('sort_by', 'review_period_start'), $request->input('sort_order', 'desc'))
+            ->paginate($request->input('per_page', 10))
             ->withQueryString();
 
-        return Inertia::render('Pages/HRM/Performance/Index', [
+        // If this is an AJAX request, return JSON response
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'data' => $reviews->items(),
+                'total' => $reviews->total(),
+                'per_page' => $reviews->perPage(),
+                'current_page' => $reviews->currentPage(),
+                'last_page' => $reviews->lastPage(),
+                'from' => $reviews->firstItem(),
+                'to' => $reviews->lastItem(),
+                'prev_page_url' => $reviews->previousPageUrl(),
+                'next_page_url' => $reviews->nextPageUrl(),
+            ]);
+        }
+
+        return Inertia::render('HRM/Performance/Index', [
+            'title' => 'Performance Reviews',
             'reviews' => $reviews,
             'filters' => $request->only(['search', 'status', 'department_id', 'sort_by', 'sort_order']),
             'departments' => Department::select('id', 'name')->get(),
+            'employees' => \Aero\Core\Models\User::all(['id', 'name']),
+            'templates' => PerformanceReviewTemplate::where('is_active', true)->get(['id', 'name']),
             'statuses' => [
                 ['id' => 'scheduled', 'name' => 'Scheduled'],
                 ['id' => 'in_progress', 'name' => 'In Progress'],
@@ -87,13 +105,28 @@ class PerformanceReviewController extends Controller
     }
 
     /**
+     * Get performance review statistics.
+     */
+    public function stats()
+    {
+        $stats = [
+            'total' => PerformanceReview::count(),
+            'pending' => PerformanceReview::where('status', 'scheduled')->count(),
+            'in_progress' => PerformanceReview::where('status', 'in_progress')->count(),
+            'completed' => PerformanceReview::where('status', 'completed')->count(),
+        ];
+
+        return response()->json($stats);
+    }
+
+    /**
      * Show the form for creating a new performance review.
      */
     public function create()
     {
-        return Inertia::render('Pages/HRM/Performance/Create', [
-            'employees' => User::role('Employee')->get(['id', 'name']),
-            'reviewers' => User::role(['HR Manager', 'Department Manager', 'Team Lead'])->get(['id', 'name']),
+        return Inertia::render('HRM/Performance/Create', [
+            'employees' => \Aero\Core\Models\User::all(['id', 'name']),
+            'reviewers' => $this->getUsersWithPerformanceAccess(),
             'departments' => Department::all(['id', 'name']),
             'templates' => PerformanceReviewTemplate::where('is_active', true)->get(['id', 'name']),
         ]);
@@ -117,7 +150,7 @@ class PerformanceReviewController extends Controller
 
         $review = PerformanceReview::create($validated);
 
-        return redirect()->route('hr.performance.show', $review->id)
+        return redirect()->route('hrm.performance.show', $review->id)
             ->with('success', 'Performance review scheduled successfully.');
     }
 
@@ -131,10 +164,9 @@ class PerformanceReviewController extends Controller
             'reviewer',
             'department',
             'template',
-            'competencyRatings.competency.category',
         ])->findOrFail($id);
 
-        return Inertia::render('Pages/HRM/Performance/Show', [
+        return Inertia::render('HRM/Performance/Show', [
             'review' => $review,
         ]);
     }
@@ -149,13 +181,12 @@ class PerformanceReviewController extends Controller
             'reviewer',
             'department',
             'template',
-            'competencyRatings.competency.category',
         ])->findOrFail($id);
 
-        return Inertia::render('Pages/HRM/Performance/Edit', [
+        return Inertia::render('HRM/Performance/Edit', [
             'review' => $review,
-            'employees' => User::role('Employee')->get(['id', 'name']),
-            'reviewers' => User::role(['HR Manager', 'Department Manager', 'Team Lead'])->get(['id', 'name']),
+            'employees' => \Aero\Core\Models\User::all(['id', 'name']),
+            'reviewers' => $this->getUsersWithPerformanceAccess(),
             'departments' => Department::all(['id', 'name']),
             'templates' => PerformanceReviewTemplate::where('is_active', true)->get(['id', 'name']),
         ]);
@@ -188,7 +219,16 @@ class PerformanceReviewController extends Controller
 
         $review->update($validated);
 
-        return redirect()->route('hr.performance.show', $review->id)
+        // Dispatch PerformanceReviewCompleted event if status is completed
+        if ($validated['status'] === 'completed' && isset($validated['overall_rating'])) {
+            event(new PerformanceReviewCompleted(
+                $review,
+                $validated['overall_rating'],
+                $validated['comments'] ?? ''
+            ));
+        }
+
+        return redirect()->route('hrm.performance.show', $review->id)
             ->with('success', 'Performance review updated successfully.');
     }
 
@@ -200,7 +240,7 @@ class PerformanceReviewController extends Controller
         $review = PerformanceReview::findOrFail($id);
         $review->delete();
 
-        return redirect()->route('hr.performance.index')
+        return redirect()->route('hrm.performance.index')
             ->with('success', 'Performance review deleted successfully.');
     }
 
@@ -213,7 +253,7 @@ class PerformanceReviewController extends Controller
             ->orderBy('name')
             ->paginate(10);
 
-        return Inertia::render('Pages/HRM/Performance/Templates/Index', [
+        return Inertia::render('HRM/Performance/Templates/Index', [
             'templates' => $templates,
         ]);
     }
@@ -223,7 +263,7 @@ class PerformanceReviewController extends Controller
      */
     public function createTemplate()
     {
-        return Inertia::render('Pages/HRM/Performance/Templates/Create', [
+        return Inertia::render('HRM/Performance/Templates/Create', [
             'departments' => Department::all(['id', 'name']),
         ]);
     }
@@ -245,7 +285,7 @@ class PerformanceReviewController extends Controller
 
         $template = PerformanceReviewTemplate::create($validated);
 
-        return redirect()->route('hr.performance.templates.show', $template->id)
+        return redirect()->route('hrm.performance.templates.show', $template->id)
             ->with('success', 'Performance review template created successfully.');
     }
 
@@ -260,7 +300,7 @@ class PerformanceReviewController extends Controller
             'competencyCategories.competencies',
         ])->findOrFail($id);
 
-        return Inertia::render('Pages/HRM/Performance/Templates/Show', [
+        return Inertia::render('HRM/Performance/Templates/Show', [
             'template' => $template,
         ]);
     }
@@ -276,7 +316,7 @@ class PerformanceReviewController extends Controller
             'competencyCategories.competencies',
         ])->findOrFail($id);
 
-        return Inertia::render('Pages/HRM/Performance/Templates/Edit', [
+        return Inertia::render('HRM/Performance/Templates/Edit', [
             'template' => $template,
             'departments' => Department::all(['id', 'name']),
         ]);
@@ -299,7 +339,7 @@ class PerformanceReviewController extends Controller
 
         $template->update($validated);
 
-        return redirect()->route('hr.performance.templates.show', $template->id)
+        return redirect()->route('hrm.performance.templates.show', $template->id)
             ->with('success', 'Performance review template updated successfully.');
     }
 
@@ -311,7 +351,22 @@ class PerformanceReviewController extends Controller
         $template = PerformanceReviewTemplate::findOrFail($id);
         $template->delete();
 
-        return redirect()->route('hr.performance.templates.index')
+        return redirect()->route('hrm.performance.templates.index')
             ->with('success', 'Performance review template deleted successfully.');
+    }
+
+    /**
+     * Get users with performance module access for reviewer dropdowns.
+     */
+    protected function getUsersWithPerformanceAccess(): \Illuminate\Support\Collection
+    {
+        try {
+            return \Aero\HRMAC\Facades\HRMAC::getUsersWithSubModuleAccess('hrm', 'performance')
+                ->map(fn ($user) => ['id' => $user->id, 'name' => $user->name]);
+        } catch (\Exception $e) {
+            // Fallback to all active users
+            return \Aero\Core\Models\User::where('is_active', true)
+                ->get(['id', 'name']);
+        }
     }
 }

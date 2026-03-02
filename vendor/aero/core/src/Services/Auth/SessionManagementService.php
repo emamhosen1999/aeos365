@@ -6,9 +6,8 @@ namespace Aero\Core\Services\Auth;
 
 use Aero\Core\Models\User;
 use Aero\Core\Models\UserSession;
-use Carbon\Carbon;
+use Aero\Core\Services\AuditService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -52,18 +51,15 @@ class SessionManagementService
      */
     protected int $inactivityTimeout = 60;
 
-    public function __construct()
+    public function __construct(protected ?AuditService $auditService = null)
     {
         $this->maxSessions = config('auth.max_sessions', 5);
         $this->inactivityTimeout = config('auth.session_timeout', 60);
+        $this->auditService = $auditService ?? app(AuditService::class);
     }
 
     /**
      * Create a new session for a user.
-     *
-     * @param User $user
-     * @param Request $request
-     * @return UserSession
      */
     public function createSession(User $user, Request $request): UserSession
     {
@@ -89,13 +85,15 @@ class SessionManagementService
         // Store the plain token for response (only shown once)
         $session->plain_token = $sessionToken;
 
+        // Log session creation
+        $deviceName = $session->device_type.' - '.$session->browser;
+        $this->auditService?->logSessionCreated($user, $deviceName);
+
         return $session;
     }
 
     /**
      * Update session activity timestamp.
-     *
-     * @param string $sessionToken
      */
     public function touchSession(string $sessionToken): void
     {
@@ -109,7 +107,6 @@ class SessionManagementService
     /**
      * Get all active sessions for a user.
      *
-     * @param User $user
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public function getUserSessions(User $user)
@@ -135,23 +132,24 @@ class SessionManagementService
 
     /**
      * Terminate a specific session.
-     *
-     * @param User $user
-     * @param int $sessionId
-     * @return bool
      */
     public function terminateSession(User $user, int $sessionId): bool
     {
-        return UserSession::where('user_id', $user->id)
+        $result = UserSession::where('user_id', $user->id)
             ->where('id', $sessionId)
             ->delete() > 0;
+
+        if ($result) {
+            // Log session termination
+            $this->auditService?->logSessionTerminated($user, (string) $sessionId, true);
+        }
+
+        return $result;
     }
 
     /**
      * Terminate all sessions except the current one.
      *
-     * @param User $user
-     * @param int $currentSessionId
      * @return int Number of sessions terminated
      */
     public function terminateOtherSessions(User $user, int $currentSessionId): int
@@ -164,19 +162,23 @@ class SessionManagementService
     /**
      * Terminate all sessions for a user.
      *
-     * @param User $user
      * @return int Number of sessions terminated
      */
     public function terminateAllSessions(User $user): int
     {
-        return UserSession::where('user_id', $user->id)->delete();
+        $count = UserSession::where('user_id', $user->id)->count();
+        $deleted = UserSession::where('user_id', $user->id)->delete();
+
+        if ($deleted > 0) {
+            // Log all sessions terminated
+            $this->auditService?->logAllSessionsTerminated($user, $count);
+        }
+
+        return $deleted;
     }
 
     /**
      * Validate a session token.
-     *
-     * @param string $sessionToken
-     * @return UserSession|null
      */
     public function validateSession(string $sessionToken): ?UserSession
     {
@@ -193,9 +195,6 @@ class SessionManagementService
 
     /**
      * Get active session count for a user.
-     *
-     * @param User $user
-     * @return int
      */
     public function getActiveSessionCount(User $user): int
     {
@@ -216,8 +215,6 @@ class SessionManagementService
 
     /**
      * Enforce maximum session limit for a user.
-     *
-     * @param User $user
      */
     protected function enforceSessionLimit(User $user): void
     {
@@ -239,9 +236,6 @@ class SessionManagementService
 
     /**
      * Detect device type from user agent.
-     *
-     * @param string|null $userAgent
-     * @return string
      */
     protected function detectDeviceType(?string $userAgent): string
     {
@@ -264,9 +258,6 @@ class SessionManagementService
 
     /**
      * Detect browser from user agent.
-     *
-     * @param string|null $userAgent
-     * @return string
      */
     protected function detectBrowser(?string $userAgent): string
     {
@@ -294,9 +285,6 @@ class SessionManagementService
 
     /**
      * Detect platform/OS from user agent.
-     *
-     * @param string|null $userAgent
-     * @return string
      */
     protected function detectPlatform(?string $userAgent): string
     {
@@ -323,9 +311,6 @@ class SessionManagementService
 
     /**
      * Get approximate location from IP address.
-     *
-     * @param string|null $ip
-     * @return string|null
      */
     protected function getLocationFromIp(?string $ip): ?string
     {
@@ -345,7 +330,6 @@ class SessionManagementService
     /**
      * Get sessions that will expire soon (within X minutes).
      *
-     * @param int $minutes
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public function getSessionsExpiringSoon(int $minutes = 5)
@@ -357,9 +341,6 @@ class SessionManagementService
 
     /**
      * Get session statistics for a user.
-     *
-     * @param User $user
-     * @return array
      */
     public function getSessionStats(User $user): array
     {

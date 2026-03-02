@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { hasRoute, safeRoute, safeNavigate, safePost, safePut, safeDelete } from '@/utils/routeUtils';
 import { motion } from 'framer-motion';
+import { useThemeRadius } from '@/Hooks/useThemeRadius.js';
 import {
     Button,
     Chip,
@@ -30,12 +31,31 @@ import StatsCards from '@/Components/Common/StatsCards';
 import dayjs from 'dayjs';
 import { showToast } from '@/utils/toastUtils';
 import axios from 'axios';
+import { useHRMAC } from '@/Hooks/useHRMAC';
 
 const ShowEvent = ({ event, analytics }) => {
     const { auth } = usePage().props;
+    const themeRadius = useThemeRadius();
+    const { canCreate, canUpdate, canDelete, isSuperAdmin } = useHRMAC();
     
-    const canEdit = auth.permissions?.includes('event.update');
-    const canManageRegistrations = auth.permissions?.includes('event.registration.manage');
+    // Manual responsive state management (HRMAC pattern)
+    const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
+    
+    useEffect(() => {
+        const checkScreenSize = () => {
+            setIsMobile(window.innerWidth < 640);
+            setIsTablet(window.innerWidth < 768);
+        };
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
+    
+    // Permissions using HRMAC
+    // TODO: Update with correct HRMAC path once module hierarchy is defined
+    const canEdit = canUpdate('events.events-management') || isSuperAdmin();
+    const canManageRegistrations = canUpdate('events.events-management') || isSuperAdmin();
     
     const statsData = useMemo(() => [
         {
@@ -83,19 +103,6 @@ const ShowEvent = ({ event, analytics }) => {
         if (radiusValue <= 16) return 'lg';
         return 'full';
     };
-
-    const [isMobile, setIsMobile] = useState(false);
-    const [isTablet, setIsTablet] = useState(false);
-
-    useEffect(() => {
-        const checkScreenSize = () => {
-            setIsMobile(window.innerWidth < 640);
-            setIsTablet(window.innerWidth < 768);
-        };
-        checkScreenSize();
-        window.addEventListener('resize', checkScreenSize);
-        return () => window.removeEventListener('resize', checkScreenSize);
-    }, []);
     
     const handleTogglePublish = async () => {
         try {

@@ -1,57 +1,78 @@
 <?php
 
 /**
- * Installation Routes
+ * Unified Installation Routes (SaaS/Platform Mode)
  *
- * These routes are loaded WITHOUT domain restriction to ensure the installation
- * wizard works on any domain (before PLATFORM_DOMAIN is configured).
+ * These routes use the unified installation UI from aero-ui package.
+ * The UnifiedInstallationController detects SaaS mode automatically.
  *
- * After installation, routes redirect to the main landing page.
+ * For SaaS mode:
+ * - No license validation step (managed through platform subscriptions)
+ * - Platform settings instead of System settings
+ * - Creates LandlordUser instead of regular User
+ *
+ * Security notes:
+ * - Installation status is checked per-request in the controller methods,
+ *   NOT at route-registration time, so route:cache is safe.
+ * - All POST endpoints are rate-limited to prevent brute-force / enumeration.
+ * - The canonical lock file is storage/app/aeos.installed (single source of truth).
  */
 
-use Aero\Platform\Http\Controllers\InstallationController;
-use Aero\Platform\Http\Middleware\EnsureInstallationVerified;
+use Aero\Core\Http\Controllers\UnifiedInstallationController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-$isInstalled = file_exists(storage_path('app/aeos.installed'));
+Route::prefix('install')->name('installation.')->group(function () {
+    // -------------------------------------------------------------------------
+    // Routes accessible regardless of installation state
+    // -------------------------------------------------------------------------
 
-// Complete route (always available - works after installation)
-Route::get('/install/complete', [InstallationController::class, 'complete'])->name('installation.complete');
+    // /complete is only reachable post-install; the controller redirects to the
+    // install wizard if accessed before installation completes.
+    Route::get('/complete', [UnifiedInstallationController::class, 'complete'])->name('complete');
 
-Route::prefix('install')->name('installation.')->group(function () use ($isInstalled) {
-    if ($isInstalled) {
-        // Already installed - redirect to landing
-        Route::get('/', fn () => redirect('/'))
-            ->name('index');
-        Route::get('/{any}', fn () => Inertia::render('Platform/Installation/AlreadyInstalled'))
-            ->where('any', '^(?!complete).*$');
+    // -------------------------------------------------------------------------
+    // Installation wizard page routes (controller redirects away if installed)
+    // -------------------------------------------------------------------------
+    Route::get('/', [UnifiedInstallationController::class, 'welcome'])->name('index');
+    Route::get('/requirements', [UnifiedInstallationController::class, 'requirements'])->name('requirements');
+    Route::get('/database', [UnifiedInstallationController::class, 'database'])->name('database');
+    Route::get('/platform', [UnifiedInstallationController::class, 'settings'])->name('platform');
+    Route::get('/settings', [UnifiedInstallationController::class, 'settings'])->name('settings');
+    Route::get('/admin', [UnifiedInstallationController::class, 'admin'])->name('admin');
+    Route::get('/review', [UnifiedInstallationController::class, 'review'])->name('review');
+    Route::get('/processing', [UnifiedInstallationController::class, 'processing'])->name('processing');
 
-        return;
-    }
-
-    // Step 1: Welcome page
-    Route::get('/', [InstallationController::class, 'index'])->name('index');
-
-    // Step 2: Secret code verification
-    Route::get('/secret', [InstallationController::class, 'showSecretVerification'])->name('secret');
-    Route::post('/verify-secret', [InstallationController::class, 'verifySecret'])->name('verify-secret');
-
-    // Protected installation steps (require verified secret)
-    Route::middleware([EnsureInstallationVerified::class])->group(function () {
-        Route::get('/requirements', [InstallationController::class, 'showRequirements'])->name('requirements');
-        Route::get('/database', [InstallationController::class, 'showDatabase'])->name('database');
-        Route::post('/test-server', [InstallationController::class, 'testServerConnection'])->name('test-server');
-        Route::post('/create-database', [InstallationController::class, 'createDatabase'])->name('create-database');
-        Route::post('/test-database', [InstallationController::class, 'testDatabase'])->name('test-database');
-        Route::get('/platform', [InstallationController::class, 'showPlatform'])->name('platform');
-        Route::post('/save-platform', [InstallationController::class, 'savePlatform'])->name('save-platform');
-        Route::post('/test-email', [InstallationController::class, 'testEmail'])->name('test-email');
-        Route::post('/test-sms', [InstallationController::class, 'testSms'])->name('test-sms');
-        Route::get('/admin', [InstallationController::class, 'showAdmin'])->name('admin');
-        Route::post('/save-admin', [InstallationController::class, 'saveAdmin'])->name('save-admin');
-        Route::get('/review', [InstallationController::class, 'showReview'])->name('review');
-        Route::post('/install', [InstallationController::class, 'install'])->name('install');
-        Route::get('/progress', [InstallationController::class, 'getInstallationProgress'])->name('progress');
+    // -------------------------------------------------------------------------
+    // AJAX / API routes — all rate-limited to prevent brute-force & enumeration
+    // -------------------------------------------------------------------------
+    Route::middleware('throttle:30,1')->group(function () {
+        Route::get('/check-requirements', [UnifiedInstallationController::class, 'recheckRequirements'])->name('check-requirements');
+        Route::get('/progress', [UnifiedInstallationController::class, 'progress'])->name('progress');
     });
+
+    Route::middleware('throttle:10,1')->group(function () {
+        Route::post('/recheck-requirements', [UnifiedInstallationController::class, 'recheckRequirements'])->name('recheck-requirements');
+        Route::post('/test-server', [UnifiedInstallationController::class, 'testDatabaseServer'])->name('test-server');
+        Route::post('/test-database', [UnifiedInstallationController::class, 'testDatabaseServer'])->name('test-database');
+        Route::post('/list-databases', [UnifiedInstallationController::class, 'listDatabases'])->name('list-databases');
+        Route::post('/create-database', [UnifiedInstallationController::class, 'createDatabase'])->name('create-database');
+        Route::post('/save-database', [UnifiedInstallationController::class, 'saveDatabase'])->name('save-database');
+        Route::post('/save-platform', [UnifiedInstallationController::class, 'saveSettings'])->name('save-platform');
+        Route::post('/save-admin', [UnifiedInstallationController::class, 'saveAdmin'])->name('save-admin');
+        Route::post('/retry', [UnifiedInstallationController::class, 'retry'])->name('retry');
+        Route::post('/test-email', [UnifiedInstallationController::class, 'testEmail'])->name('test-email');
+        Route::post('/cleanup', [UnifiedInstallationController::class, 'cleanup'])->name('cleanup');
+    });
+
+    // Execute and install are strictly limited — 5 attempts per minute per IP
+    Route::middleware('throttle:5,1')->group(function () {
+        Route::post('/execute', [UnifiedInstallationController::class, 'execute'])->name('execute');
+        Route::post('/install', [UnifiedInstallationController::class, 'execute'])->name('install');
+    });
+
+    // Already-installed fallback — wildcard MUST be registered last so it only
+    // catches unknown sub-paths (e.g. /install/some-old-url).
+    Route::get('/{any}', [UnifiedInstallationController::class, 'alreadyInstalled'])
+        ->where('any', '.*')
+        ->name('already-installed');
 });

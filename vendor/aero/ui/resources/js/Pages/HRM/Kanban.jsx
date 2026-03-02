@@ -13,6 +13,8 @@ import {
 } from '@heroicons/react/24/outline';
 import App from '@/Layouts/App';
 import {showToast} from '@/utils/toastUtils';
+import {useThemeRadius} from '@/Hooks/useThemeRadius.js';
+import { useHRMAC } from '@/Hooks/useHRMAC';
 import axios from 'axios';
 import KanbanColumn from '@/Components/Recruitment/KanbanColumn';
 import CandidateCard from '@/Components/Recruitment/CandidateCard';
@@ -24,6 +26,17 @@ import CandidateCard from '@/Components/Recruitment/CandidateCard';
  * Tracks candidates through: Applied → Screening → Interview → Offer → Hired
  */
 const RecruitmentKanban = ({ job, hiringStages, applicationsByStage, departments, jobTypes }) => {
+    const themeRadius = useThemeRadius();
+    
+    // HRMAC permissions
+    const { canCreate, canUpdate, canDelete, hasAccess, isSuperAdmin } = useHRMAC();
+    
+    // TODO: Update these paths with actual HRMAC module hierarchy once defined
+    const canManageRecruitment = hasAccess('hrm.recruitment') || isSuperAdmin();
+    const canMoveCandidate = canUpdate('hrm.recruitment') || isSuperAdmin();
+    const canHireCandidate = canCreate('hrm.employees') || isSuperAdmin();
+    const canRejectCandidate = canDelete('hrm.recruitment.candidates') || isSuperAdmin();
+    
     const [activeId, setActiveId] = useState(null);
     const [stages, setStages] = useState([]);
     const [filters, setFilters] = useState({
@@ -37,26 +50,6 @@ const RecruitmentKanban = ({ job, hiringStages, applicationsByStage, departments
     const [viewMode, setViewMode] = useState('kanban'); // kanban or list
     const [loading, setLoading] = useState(false);
     const [detailModal, setDetailModal] = useState({ open: false, application: null });
-    const [themeRadius, setThemeRadius] = useState('lg');
-
-    // Theme utility
-    const getThemeRadius = () => {
-        if (typeof window === 'undefined') return 'lg';
-        const rootStyles = getComputedStyle(document.documentElement);
-        const borderRadius = rootStyles.getPropertyValue('--borderRadius')?.trim() || '12px';
-        const radiusValue = parseInt(borderRadius);
-        if (radiusValue === 0) return 'none';
-        if (radiusValue <= 4) return 'sm';
-        if (radiusValue <= 8) return 'md';
-        if (radiusValue <= 16) return 'lg';
-        return 'full';
-    };
-
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            setThemeRadius(getThemeRadius());
-        }
-    }, []);
 
     // Initialize stages with applications
     useEffect(() => {

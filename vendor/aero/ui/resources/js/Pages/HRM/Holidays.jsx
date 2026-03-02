@@ -1,11 +1,10 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {Head} from '@inertiajs/react';
 import {motion} from 'framer-motion';
 import {
     Button,
     Card,
     Chip,
-    DateInput,
     Input,
     Modal,
     ModalBody,
@@ -40,14 +39,36 @@ import {
 } from "@heroicons/react/24/outline";
 
 import App from "@/Layouts/App.jsx";
-import PageHeader from "@/Components/PageHeader.jsx";
+import StandardPageLayout from "@/Layouts/StandardPageLayout.jsx";
 import StatsCards from "@/Components/StatsCards.jsx";
+import {useThemeRadius} from '@/Hooks/useThemeRadius.js';
 import axios from 'axios';
 import {showToast} from '@/utils/toastUtils';
+import { useHRMAC } from '@/Hooks/useHRMAC';
 
 const HolidaysManagement = ({ title, holidays: initialHolidays, stats }) => {
-  const [isMobile] = useState(window.innerWidth < 640);
-  const [isTablet] = useState(window.innerWidth < 768);
+  const themeRadius = useThemeRadius();
+  
+  // Manual responsive state management (HRMAC pattern)
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+  
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 640);
+      setIsTablet(window.innerWidth < 768);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+  
+  // TODO: Update with proper HRMAC module hierarchy path once defined
+  const { canCreate, canUpdate, canDelete, isSuperAdmin } = useHRMAC();
+  const canCreateHoliday = canCreate('hrm.holidays') || isSuperAdmin();
+  const canEditHoliday = canUpdate('hrm.holidays') || isSuperAdmin();
+  const canDeleteHoliday = canDelete('hrm.holidays') || isSuperAdmin();
   
   const [holidays, setHolidays] = useState(initialHolidays);
   const [searchTerm, setSearchTerm] = useState('');
@@ -70,20 +91,43 @@ const HolidaysManagement = ({ title, holidays: initialHolidays, stats }) => {
   });
   const [loading, setLoading] = useState(false);
 
-  // Enhanced statistics
+  // Compute dynamic stats from current holidays state
+  const dynamicStats = useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    
+    const totalHolidays = holidays.length;
+    // Upcoming = all holidays with date > today (not limited to 90 days)
+    const upcomingHolidays = holidays.filter(h => new Date(h.date) > now).length;
+    const thisMonthHolidays = holidays.filter(h => {
+      const d = new Date(h.date);
+      return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    }).length;
+    const thisYearHolidays = holidays.filter(h => new Date(h.date).getFullYear() === currentYear).length;
+    
+    return {
+      total_holidays: totalHolidays,
+      upcoming_holidays: upcomingHolidays,
+      this_month_holidays: thisMonthHolidays,
+      this_year_holidays: thisYearHolidays
+    };
+  }, [holidays]);
+
+  // Enhanced statistics - use dynamic stats computed from current holidays state
   const enhancedStats = useMemo(() => [
     {
       title: "Total Holidays",
-      value: stats.total_holidays,
+      value: dynamicStats.total_holidays,
       icon: <GlobeAltIcon />,
       color: "text-blue-400",
       iconBg: "bg-blue-500/20",
       description: "All company holidays",
-      trend: `${stats.this_year_holidays} this year`
+      trend: `${dynamicStats.this_year_holidays} this year`
     },
     {
       title: "Upcoming",
-      value: stats.upcoming_holidays,
+      value: dynamicStats.upcoming_holidays,
       icon: <ClockIcon />,
       color: "text-green-400",
       iconBg: "bg-green-500/20",
@@ -92,7 +136,7 @@ const HolidaysManagement = ({ title, holidays: initialHolidays, stats }) => {
     },
     {
       title: "This Month",
-      value: stats.this_month_holidays,
+      value: dynamicStats.this_month_holidays,
       icon: <CalendarDaysIcon />,
       color: "text-purple-400",
       iconBg: "bg-purple-500/20",
@@ -101,21 +145,21 @@ const HolidaysManagement = ({ title, holidays: initialHolidays, stats }) => {
     },
     {
       title: "Working Days",
-      value: 365 - stats.total_holidays,
+      value: 365 - dynamicStats.total_holidays,
       icon: <BuildingOfficeIcon />,
       color: "text-orange-400",
       iconBg: "bg-orange-500/20",
       description: "Business days",
-      trend: `${Math.round(((365 - stats.total_holidays) / 365) * 100)}% of year`
+      trend: `${Math.round(((365 - dynamicStats.total_holidays) / 365) * 100)}% of year`
     }
-  ], [stats]);
+  ], [dynamicStats]);
 
   // Filtered holidays
   const filteredHolidays = useMemo(() => {
     return holidays.filter(holiday => {
       const matchesSearch = holiday.title.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesYear = selectedYear === 'all' || 
-        new Date(holiday.from_date).getFullYear().toString() === selectedYear;
+        new Date(holiday.date).getFullYear().toString() === selectedYear;
       
       return matchesSearch && matchesYear;
     });
@@ -123,7 +167,7 @@ const HolidaysManagement = ({ title, holidays: initialHolidays, stats }) => {
 
   // Get available years
   const availableYears = useMemo(() => {
-    const years = [...new Set(holidays.map(h => new Date(h.from_date).getFullYear()))];
+    const years = [...new Set(holidays.map(h => new Date(h.date).getFullYear()))];
     return years.sort((a, b) => b - a);
   }, [holidays]);
 
@@ -140,25 +184,37 @@ const HolidaysManagement = ({ title, holidays: initialHolidays, stats }) => {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      const response = selectedHoliday 
-        ? await axios.put(route('holiday.update', selectedHoliday.id), formData)
-        : await axios.post(route('holiday.store'), formData);
+      // Build submission data matching backend expectations
+      const submitData = {
+        title: formData.title,
+        description: formData.description,
+        fromDate: formData.from_date,
+        toDate: formData.to_date,
+        type: formData.type,
+        is_recurring: formData.is_recurring,
+        is_active: true
+      };
       
-      if (response.data.success) {
-        // Update holidays list
-        if (selectedHoliday) {
-          setHolidays(prev => prev.map(h => 
-            h.id === selectedHoliday.id ? response.data.holiday : h
-          ));
-        } else {
-          setHolidays(prev => [...prev, response.data.holiday]);
-        }
-        
-        showToast.success(selectedHoliday ? 'Holiday updated successfully!' : 'Holiday created successfully!');
+      // Add ID for update operations
+      if (selectedHoliday) {
+        submitData.id = selectedHoliday.id;
+      }
+      
+      // Both create and update use the same endpoint (POST holidays-add)
+      const response = await axios.post(route('hrm.holidays-add'), submitData);
+      
+      if (response.status === 200 && response.data.holidays) {
+        // Update holidays list with response data
+        setHolidays(response.data.holidays);
+        showToast.success(response.data.message || (selectedHoliday ? 'Holiday updated successfully!' : 'Holiday created successfully!'));
         handleModalClose();
       }
     } catch (error) {
-      showToast.error('Failed to save holiday. Please try again.');
+      if (error.response?.status === 422) {
+        showToast.error('Please check the form for validation errors.');
+      } else {
+        showToast.error(error.response?.data?.message || 'Failed to save holiday. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -170,13 +226,21 @@ const HolidaysManagement = ({ title, holidays: initialHolidays, stats }) => {
     
     setLoading(true);
     try {
-      await axios.delete(route('holiday.destroy', selectedHoliday.id));
-      setHolidays(prev => prev.filter(h => h.id !== selectedHoliday.id));
-      showToast.success('Holiday deleted successfully!');
+      const response = await axios.delete(route('hrm.holidays-delete'), {
+        data: { id: selectedHoliday.id }
+      });
+      
+      if (response.status === 200 && response.data.holidays) {
+        setHolidays(response.data.holidays);
+      } else {
+        setHolidays(prev => prev.filter(h => h.id !== selectedHoliday.id));
+      }
+      
+      showToast.success(response.data?.message || 'Holiday deleted successfully!');
       onDeleteClose();
       setSelectedHoliday(null);
     } catch (error) {
-      showToast.error('Failed to delete holiday. Please try again.');
+      showToast.error(error.response?.data?.message || 'Failed to delete holiday. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -199,10 +263,16 @@ const HolidaysManagement = ({ title, holidays: initialHolidays, stats }) => {
 
   const handleEdit = (holiday) => {
     setSelectedHoliday(holiday);
+    // Format dates for input fields (YYYY-MM-DD format)
+    const formatDate = (dateStr) => {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      return d.toISOString().split('T')[0];
+    };
     setFormData({
       title: holiday.title,
-      from_date: holiday.from_date,
-      to_date: holiday.to_date,
+      from_date: formatDate(holiday.date),
+      to_date: formatDate(holiday.end_date),
       description: holiday.description || '',
       type: holiday.type || 'public',
       is_recurring: holiday.is_recurring || false
@@ -228,8 +298,10 @@ const HolidaysManagement = ({ title, holidays: initialHolidays, stats }) => {
   // Render table cell
   const renderCell = useCallback((holiday, columnKey) => {
     const cellValue = holiday[columnKey];
-    const fromDate = new Date(holiday.from_date);
-    const toDate = new Date(holiday.to_date);
+    // Use 'date' and 'end_date' from Holiday model (not from_date/to_date)
+    // Fall back to 'date' if 'end_date' is null/empty
+    const fromDate = new Date(holiday.date);
+    const toDate = holiday.end_date ? new Date(holiday.end_date) : fromDate;
     const duration = Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24)) + 1;
     const isUpcoming = fromDate > new Date();
     const isOngoing = fromDate <= new Date() && toDate >= new Date();
@@ -256,7 +328,7 @@ const HolidaysManagement = ({ title, holidays: initialHolidays, stats }) => {
                 year: fromDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
               })}
             </span>
-            {holiday.from_date !== holiday.to_date && (
+            {holiday.end_date && holiday.date !== holiday.end_date && (
               <span className="text-tiny text-default-400">
                 to {toDate.toLocaleDateString('en-US', { 
                   month: 'short', 
@@ -320,149 +392,25 @@ const HolidaysManagement = ({ title, holidays: initialHolidays, stats }) => {
     }
   }, []);
 
+  // Action buttons
+  const actionButtons = [
+    <Button
+      key="add"
+      color="primary"
+      variant="shadow"
+      size={isMobile ? 'sm' : 'md'}
+      startContent={<PlusIcon className="w-4 h-4" />}
+      onPress={onAddOpen}
+      className="font-medium"
+      style={{ fontFamily: `var(--fontFamily, "Inter")` }}
+    >
+      {isMobile ? "Add" : "Add Holiday"}
+    </Button>
+  ];
+
   return (
     <>
       <Head title={title} />
-
-      <div className="flex justify-center p-2">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-        >
-          <Card className="shadow-lg">
-            <PageHeader
-              title="Company Holidays"
-              subtitle="Manage company-wide holidays and special occasions"
-              icon={<GlobeAltIcon className="w-8 h-8" />}
-              variant="default"
-              actionButtons={[
-                {
-                  label: isMobile ? "Add" : "Add Holiday",
-                  icon: <PlusIcon className="w-4 h-4" />,
-                  onClick: onAddOpen,
-                  className: "bg-linear-to-r from-(--theme-primary) to-(--theme-secondary) text-white font-medium hover:opacity-90"
-                }
-              ]}
-            >
-              <div className="p-4 sm:p-6">
-                {/* Statistics Cards */}
-                <StatsCards stats={enhancedStats} className="mb-6" />
-
-                {/* Filters */}
-                <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                  <div className="flex-1">
-                    <Input
-                      label="Search Holidays"
-                      placeholder="Search by holiday name..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      startContent={<MagnifyingGlassIcon className="w-4 h-4 text-default-400" />}
-                    />
-                  </div>
-
-                  <div className="flex gap-2 items-end">
-                    <Select
-                      label="Year"
-                      selectedKeys={[selectedYear]}
-                      onSelectionChange={(keys) => setSelectedYear(Array.from(keys)[0])}
-                      className="w-32"
-                    >
-                      <SelectItem key="all" value="all">All Years</SelectItem>
-                      {availableYears.map(year => (
-                        <SelectItem key={year.toString()} value={year.toString()}>
-                          {year}
-                        </SelectItem>
-                      ))}
-                    </Select>
-                    
-                    <Button
-                      isIconOnly={isMobile}
-                      variant="bordered"
-                      onPress={() => setShowFilters(!showFilters)}
-                      className={showFilters ? 'bg-purple-500/20' : 'bg-white/5'}
-                    >
-                      <FunnelIcon className="w-4 h-4" />
-                      {!isMobile && <span className="ml-1">Filters</span>}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Active Filters */}
-                {(searchTerm || selectedYear !== new Date().getFullYear().toString()) && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="mb-4 flex flex-wrap gap-2"
-                  >
-                      {searchTerm && (
-                        <Chip
-                          variant="flat"
-                          color="primary"
-                          size="sm"
-                          onClose={() => setSearchTerm('')}
-                        >
-                          Search: {searchTerm}
-                        </Chip>
-                      )}
-                      {selectedYear !== new Date().getFullYear().toString() && (
-                        <Chip
-                          variant="flat"
-                          color="secondary"
-                          size="sm"
-                          onClose={() => setSelectedYear(new Date().getFullYear().toString())}
-                        >
-                          Year: {selectedYear === 'all' ? 'All Years' : selectedYear}
-                        </Chip>
-                      )}
-                    </motion.div>
-                )}
-
-                {/* Holidays Table */}
-                <div className="bg-white/5 backdrop-blur-md rounded-lg border border-white/10 overflow-hidden">
-                  <div className="p-4 border-b border-white/10">
-                    <h3 className="text-lg font-semibold text-foreground">
-                      Company Holidays
-                      <span className="text-sm text-default-500 ml-2">
-                        ({filteredHolidays.length} {filteredHolidays.length === 1 ? 'holiday' : 'holidays'})
-                      </span>
-                    </h3>
-                  </div>
-                  
-                  <Table
-                    isStriped
-                    removeWrapper
-                    aria-label="Holidays table"
-                    classNames={{
-                      th: "bg-white/5 text-default-600 border-b border-white/10",
-                      td: "border-b border-white/5",
-                    }}
-                  >
-                    <TableHeader columns={columns}>
-                      {(column) => (
-                        <TableColumn 
-                          key={column.uid} 
-                          align={column.uid === "actions" ? "center" : "start"}
-                        >
-                          {column.name}
-                        </TableColumn>
-                      )}
-                    </TableHeader>
-                    <TableBody items={filteredHolidays}>
-                      {(item) => (
-                        <TableRow key={item.id}>
-                          {(columnKey) => <TableCell>{renderCell(item, columnKey)}</TableCell>}
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            </PageHeader>
-          </Card>
-        </motion.div>
-      </div>
 
       {/* Add/Edit Holiday Modal */}
       <Modal 
@@ -489,12 +437,14 @@ const HolidaysManagement = ({ title, holidays: initialHolidays, stats }) => {
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({...prev, title: e.target.value}))}
                 isRequired
+                radius={themeRadius}
               />
               
               <Select
                 label="Holiday Type"
                 selectedKeys={[formData.type]}
                 onSelectionChange={(keys) => setFormData(prev => ({...prev, type: Array.from(keys)[0]}))}
+                radius={themeRadius}
               >
                 {holidayCategories.map(category => (
                   <SelectItem key={category.key} value={category.key}>
@@ -503,19 +453,27 @@ const HolidaysManagement = ({ title, holidays: initialHolidays, stats }) => {
                 ))}
               </Select>
               
-              <DateInput
-                label="From Date"
-                value={formData.from_date}
-                onChange={(date) => setFormData(prev => ({...prev, from_date: date}))}
-                isRequired
-              />
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-foreground">From Date <span className="text-danger">*</span></label>
+                <input
+                  type="date"
+                  value={formData.from_date}
+                  onChange={(e) => setFormData(prev => ({...prev, from_date: e.target.value}))}
+                  required
+                  className="w-full px-3 py-2 rounded-lg border border-default-200 bg-default-100 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
               
-              <DateInput
-                label="To Date"
-                value={formData.to_date}
-                onChange={(date) => setFormData(prev => ({...prev, to_date: date}))}
-                isRequired
-              />
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-foreground">To Date <span className="text-danger">*</span></label>
+                <input
+                  type="date"
+                  value={formData.to_date}
+                  onChange={(e) => setFormData(prev => ({...prev, to_date: e.target.value}))}
+                  required
+                  className="w-full px-3 py-2 rounded-lg border border-default-200 bg-default-100 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
             </div>
             
             <Textarea
@@ -524,6 +482,7 @@ const HolidaysManagement = ({ title, holidays: initialHolidays, stats }) => {
               value={formData.description}
               onChange={(e) => setFormData(prev => ({...prev, description: e.target.value}))}
               rows={3}
+              radius={themeRadius}
             />
           </ModalBody>
           <ModalFooter>
@@ -570,6 +529,129 @@ const HolidaysManagement = ({ title, holidays: initialHolidays, stats }) => {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      <StandardPageLayout
+        ariaLabel="Holidays Management"
+        title="Company Holidays"
+        subtitle="Manage company-wide holidays and special occasions"
+        icon={GlobeAltIcon}
+        actions={<div className="flex items-center gap-2">{actionButtons}</div>}
+        stats={<StatsCards stats={enhancedStats} />}
+        filters={
+          <div className="space-y-4">
+            {/* Search and Year Filter */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <Input
+                  placeholder="Search by holiday name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  startContent={<MagnifyingGlassIcon className="w-4 h-4 text-default-400" />}
+                  variant="bordered"
+                  size={isMobile ? 'sm' : 'md'}
+                  radius={themeRadius}
+                  classNames={{
+                    inputWrapper: "bg-default-100"
+                  }}
+                />
+              </div>
+
+              <div className="flex gap-2 items-end">
+                <Select
+                  label="Year"
+                  selectedKeys={[selectedYear]}
+                  onSelectionChange={(keys) => setSelectedYear(Array.from(keys)[0])}
+                  className="w-32"
+                  variant="bordered"
+                  size={isMobile ? 'sm' : 'md'}
+                  radius={themeRadius}
+                  classNames={{
+                    trigger: "bg-default-100"
+                  }}
+                >
+                  <SelectItem key="all" value="all">All Years</SelectItem>
+                  {availableYears.map(year => (
+                    <SelectItem key={year.toString()} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </Select>
+                
+                <Button
+                  isIconOnly={isMobile}
+                  variant="bordered"
+                  onPress={() => setShowFilters(!showFilters)}
+                  color={showFilters ? 'primary' : 'default'}
+                  size={isMobile ? 'sm' : 'md'}
+                >
+                  <FunnelIcon className="w-4 h-4" />
+                  {!isMobile && <span className="ml-1">Filters</span>}
+                </Button>
+              </div>
+            </div>
+
+            {/* Active Filters */}
+            {(searchTerm || selectedYear !== new Date().getFullYear().toString()) && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="flex flex-wrap gap-2"
+              >
+                {searchTerm && (
+                  <Chip
+                    variant="flat"
+                    color="primary"
+                    size="sm"
+                    onClose={() => setSearchTerm('')}
+                  >
+                    Search: {searchTerm}
+                  </Chip>
+                )}
+                {selectedYear !== new Date().getFullYear().toString() && (
+                  <Chip
+                    variant="flat"
+                    color="secondary"
+                    size="sm"
+                    onClose={() => setSelectedYear(new Date().getFullYear().toString())}
+                  >
+                    Year: {selectedYear === 'all' ? 'All Years' : selectedYear}
+                  </Chip>
+                )}
+              </motion.div>
+            )}
+          </div>
+        }
+      >
+        {/* Holidays Table */}
+        <Table
+          isStriped
+          removeWrapper
+          aria-label="Holidays table"
+          classNames={{
+            th: "bg-default-100 text-default-600 border-b border-divider",
+            td: "border-b border-divider/50",
+          }}
+        >
+          <TableHeader columns={columns}>
+            {(column) => (
+              <TableColumn 
+                key={column.uid} 
+                align={column.uid === "actions" ? "center" : "start"}
+              >
+                {column.name}
+              </TableColumn>
+            )}
+          </TableHeader>
+          <TableBody items={filteredHolidays}>
+            {(item) => (
+              <TableRow key={item.id}>
+                {(columnKey) => <TableCell>{renderCell(item, columnKey)}</TableCell>}
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </StandardPageLayout>
     </>
   );
 };

@@ -8,7 +8,6 @@ use Aero\Platform\Models\WebhookLog;
 use Aero\Platform\Services\WebhookDeliveryService;
 use Aero\Platform\Services\WebhookEventDispatcher;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 /**
@@ -19,6 +18,7 @@ use Inertia\Inertia;
 class WebhookController extends Controller
 {
     protected WebhookDeliveryService $deliveryService;
+
     protected WebhookEventDispatcher $eventDispatcher;
 
     public function __construct(
@@ -54,7 +54,7 @@ class WebhookController extends Controller
             ]);
         }
 
-        return Inertia::render('Pages/Platform/Admin/Webhooks/WebhookManager', [
+        return Inertia::render('Platform/Admin/Webhooks/WebhookManager', [
             'title' => 'Webhooks',
             'webhooks' => $webhooks,
         ]);
@@ -151,7 +151,7 @@ class WebhookController extends Controller
     public function toggle(Request $request, $id)
     {
         $webhook = Webhook::findOrFail($id);
-        
+
         $webhook->update([
             'is_active' => $request->boolean('is_active'),
         ]);
@@ -168,7 +168,7 @@ class WebhookController extends Controller
     public function test($id)
     {
         $webhook = Webhook::findOrFail($id);
-        
+
         $result = $this->deliveryService->test($webhook);
 
         return response()->json([

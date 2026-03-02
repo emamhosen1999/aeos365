@@ -2,6 +2,9 @@
 
 namespace Aero\HRM\Http\Controllers\Employee;
 
+use Aero\Core\Models\User;
+use Aero\HRM\Http\Controllers\Controller;
+use Aero\HRM\Models\Employee;
 use Aero\HRM\Models\Payroll;
 use Aero\HRM\Models\PayrollAllowance;
 use Aero\HRM\Models\PayrollDeduction;
@@ -9,8 +12,6 @@ use Aero\HRM\Models\Payslip;
 use Aero\HRM\Services\PayrollCalculationService;
 use Aero\HRM\Services\PayrollReportService;
 use Aero\HRM\Services\PayslipService;
-use Aero\HRM\Http\Controllers\Controller;
-use Aero\Core\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,7 +26,7 @@ class PayrollController extends Controller
             ->latest()
             ->paginate(15);
 
-        return Inertia::render('Pages/HRM/Payroll/Index', [
+        return Inertia::render('HRM/Payroll/Index', [
             'title' => 'Payroll Management',
             'payrolls' => $payrolls,
             'stats' => $this->getPayrollStats(),
@@ -34,9 +35,15 @@ class PayrollController extends Controller
 
     public function create()
     {
-        $employees = User::role('Employee')->select('id', 'name', 'employee_id', 'email')->get();
+        $employees = Employee::active()->with('user:id,name,email')->get()
+            ->map(fn ($emp) => [
+                'id' => $emp->user_id,
+                'name' => $emp->user->name ?? '',
+                'employee_id' => $emp->employee_code,
+                'email' => $emp->user->email ?? '',
+            ]);
 
-        return Inertia::render('Pages/HRM/Payroll/Create', [
+        return Inertia::render('HRM/Payroll/Create', [
             'title' => 'Generate Payroll',
             'employees' => $employees,
             'allowanceTypes' => PayrollAllowance::allowanceTypes(),
@@ -144,7 +151,7 @@ class PayrollController extends Controller
         $payroll = Payroll::with(['employee', 'allowances', 'deductions', 'processedBy', 'payslip'])
             ->findOrFail($id);
 
-        return Inertia::render('Pages/HRM/Payroll/Show', [
+        return Inertia::render('HRM/Payroll/Show', [
             'title' => 'Payroll Details',
             'payroll' => $payroll,
         ]);
@@ -216,7 +223,7 @@ class PayrollController extends Controller
             'amount' => $deduction->amount,
         ])->toArray();
 
-        return Inertia::render('Pages/HRM/Payroll/Payslip', [
+        return Inertia::render('HRM/Payroll/Payslip', [
             'title' => 'Payslip',
             'payroll' => $payroll,
             'company' => $company,
@@ -255,7 +262,7 @@ class PayrollController extends Controller
             return redirect()->back()->with('error', 'Cannot edit processed payroll');
         }
 
-        return Inertia::render('Pages/HRM/Payroll/Edit', [
+        return Inertia::render('HRM/Payroll/Edit', [
             'title' => 'Edit Payroll',
             'payroll' => $payroll,
             'allowanceTypes' => PayrollAllowance::allowanceTypes(),
@@ -384,9 +391,15 @@ class PayrollController extends Controller
 
     public function bulk()
     {
-        $employees = User::role('Employee')->select('id', 'name', 'employee_id', 'email')->get();
+        $employees = Employee::active()->with('user:id,name,email')->get()
+            ->map(fn ($emp) => [
+                'id' => $emp->user_id,
+                'name' => $emp->user->name ?? '',
+                'employee_id' => $emp->employee_code,
+                'email' => $emp->user->email ?? '',
+            ]);
 
-        return Inertia::render('Pages/HRM/Payroll/Bulk', [
+        return Inertia::render('HRM/Payroll/Bulk', [
             'title' => 'Bulk Payroll Generation',
             'employees' => $employees,
         ]);
@@ -450,7 +463,7 @@ class PayrollController extends Controller
             ->latest()
             ->paginate(15);
 
-        return Inertia::render('Pages/HRM/Payroll/Payslips', [
+        return Inertia::render('HRM/Payroll/Payslips', [
             'title' => 'Payslips',
             'payslips' => $payslips,
         ]);
@@ -612,7 +625,7 @@ class PayrollController extends Controller
 
         $monthlyStats = $reportService->generateMonthlySummary($currentMonth, $currentYear);
 
-        return Inertia::render('Pages/HRM/Payroll/Reports', [
+        return Inertia::render('HRM/Payroll/Reports', [
             'title' => 'Payroll Reports',
             'monthlyStats' => $monthlyStats,
             'availableMonths' => $this->getAvailableMonths(),
@@ -723,5 +736,54 @@ class PayrollController extends Controller
             'pending_payrolls' => Payroll::where('status', 'draft')->count(),
             'average_salary' => Payroll::where('status', 'processed')->avg('net_salary'),
         ];
+    }
+
+    /**
+     * Show salary structures management page
+     */
+    public function structures()
+    {
+        return Inertia::render('HRM/Payroll/Structures', [
+            'title' => 'Salary Structures',
+        ]);
+    }
+
+    /**
+     * Show salary components management page
+     */
+    public function components()
+    {
+        return Inertia::render('HRM/Payroll/Components', [
+            'title' => 'Salary Components',
+        ]);
+    }
+
+    /**
+     * Show payroll run page
+     */
+    public function run()
+    {
+        $employees = Employee::active()->with('user:id,name,email')->get()
+            ->map(fn ($emp) => [
+                'id' => $emp->user_id,
+                'name' => $emp->user->name ?? '',
+                'employee_id' => $emp->employee_code,
+                'email' => $emp->user->email ?? '',
+            ]);
+
+        return Inertia::render('HRM/Payroll/Run', [
+            'title' => 'Payroll Run',
+            'employees' => $employees,
+        ]);
+    }
+
+    /**
+     * Show tax setup page
+     */
+    public function taxSetup()
+    {
+        return Inertia::render('HRM/Payroll/TaxSetup', [
+            'title' => 'Tax Setup',
+        ]);
     }
 }

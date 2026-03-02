@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 return [
     'code' => 'hrm',
@@ -17,7 +17,247 @@ return [
     'dependencies' => ['core'],
     'release_date' => '2024-01-01',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Self-Service Navigation Items
+    |--------------------------------------------------------------------------
+    |
+    | Employee-facing "My *" pages that appear under the unified "My Workspace"
+    | menu. These are automatically aggregated by NavigationRegistry.
+    |
+    */
+    'self_service' => [
+        [
+            'code' => 'my-dashboard',
+            'name' => 'My Dashboard',
+            'icon' => 'HomeIcon',
+            'route' => '/hrm/employee/dashboard',
+            'priority' => 1,
+        ],
+        [
+            'code' => 'my-attendance',
+            'name' => 'My Attendance',
+            'icon' => 'ClockIcon',
+            'route' => '/hrm/attendance-employee',
+            'priority' => 2,
+        ],
+        [
+            'code' => 'my-leaves',
+            'name' => 'My Leaves',
+            'icon' => 'CalendarIcon',
+            'route' => '/hrm/leaves-employee',
+            'priority' => 3,
+        ],
+        [
+            'code' => 'my-time-off',
+            'name' => 'My Time-Off',
+            'icon' => 'ArrowRightOnRectangleIcon',
+            'route' => '/hrm/self-service/time-off',
+            'priority' => 4,
+        ],
+        [
+            'code' => 'my-payslips',
+            'name' => 'My Payslips',
+            'icon' => 'BanknotesIcon',
+            'route' => '/hrm/self-service/payslips',
+            'priority' => 5,
+        ],
+        [
+            'code' => 'my-expenses',
+            'name' => 'My Expenses',
+            'icon' => 'ReceiptPercentIcon',
+            'route' => '/hrm/my-expenses',
+            'priority' => 6,
+        ],
+        [
+            'code' => 'my-documents',
+            'name' => 'My Documents',
+            'icon' => 'DocumentTextIcon',
+            'route' => '/hrm/self-service/documents',
+            'priority' => 7,
+        ],
+        [
+            'code' => 'my-benefits',
+            'name' => 'My Benefits',
+            'icon' => 'GiftIcon',
+            'route' => '/hrm/self-service/benefits',
+            'priority' => 8,
+        ],
+        [
+            'code' => 'my-trainings',
+            'name' => 'My Trainings',
+            'icon' => 'AcademicCapIcon',
+            'route' => '/hrm/self-service/trainings',
+            'priority' => 9,
+        ],
+        [
+            'code' => 'my-performance',
+            'name' => 'My Performance',
+            'icon' => 'ChartBarSquareIcon',
+            'route' => '/hrm/self-service/performance',
+            'priority' => 10,
+        ],
+        [
+            'code' => 'my-goals',
+            'name' => 'My Goals',
+            'icon' => 'FlagIcon',
+            'route' => '/hrm/goals',
+            'priority' => 11,
+        ],
+        [
+            'code' => 'my-career-path',
+            'name' => 'My Career Path',
+            'icon' => 'ArrowTrendingUpIcon',
+            'route' => '/hrm/self-service/career-path',
+            'priority' => 12,
+        ],
+        [
+            'code' => 'my-feedback',
+            'name' => 'My 360° Feedback',
+            'icon' => 'ArrowPathIcon',
+            'route' => '/hrm/feedback-360',
+            'priority' => 13,
+        ],
+    ],
+
     'submodules' => [
+        // Self Service (My Workspace items for HRM)
+        [
+            'code' => 'employee-self-service',
+            'name' => 'Self Service',
+            'description' => 'Employee self-service features (My Workspace HRM items)',
+            'icon' => 'UserCircleIcon',
+            'route' => '/hrm/employee/dashboard',
+            'priority' => 0,
+            'components' => [
+                [
+                    'code' => 'my-dashboard',
+                    'name' => 'My Dashboard',
+                    'type' => 'page',
+                    'route' => '/hrm/employee/dashboard',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Dashboard'],
+                    ],
+                ],
+                [
+                    'code' => 'my-attendance',
+                    'name' => 'My Attendance',
+                    'type' => 'page',
+                    'route' => '/hrm/attendance-employee',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Attendance'],
+                        ['code' => 'clock-in-out', 'name' => 'Clock In/Out'],
+                    ],
+                ],
+                [
+                    'code' => 'my-leaves',
+                    'name' => 'My Leaves',
+                    'type' => 'page',
+                    'route' => '/hrm/leaves-employee',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Leaves'],
+                        ['code' => 'apply', 'name' => 'Apply Leave'],
+                    ],
+                ],
+                [
+                    'code' => 'my-time-off',
+                    'name' => 'My Time-Off',
+                    'type' => 'page',
+                    'route' => '/hrm/self-service/time-off',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Time-Off'],
+                        ['code' => 'request', 'name' => 'Request Time-Off'],
+                    ],
+                ],
+                [
+                    'code' => 'my-payslips',
+                    'name' => 'My Payslips',
+                    'type' => 'page',
+                    'route' => '/hrm/self-service/payslips',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Payslips'],
+                        ['code' => 'download', 'name' => 'Download Payslip'],
+                    ],
+                ],
+                [
+                    'code' => 'my-expenses',
+                    'name' => 'My Expenses',
+                    'type' => 'page',
+                    'route' => '/hrm/my-expenses',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Expenses'],
+                        ['code' => 'submit', 'name' => 'Submit Expense'],
+                    ],
+                ],
+                [
+                    'code' => 'my-documents',
+                    'name' => 'My Documents',
+                    'type' => 'page',
+                    'route' => '/hrm/self-service/documents',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Documents'],
+                        ['code' => 'upload', 'name' => 'Upload Document'],
+                    ],
+                ],
+                [
+                    'code' => 'my-benefits',
+                    'name' => 'My Benefits',
+                    'type' => 'page',
+                    'route' => '/hrm/self-service/benefits',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Benefits'],
+                    ],
+                ],
+                [
+                    'code' => 'my-trainings',
+                    'name' => 'My Trainings',
+                    'type' => 'page',
+                    'route' => '/hrm/self-service/trainings',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Trainings'],
+                        ['code' => 'enroll', 'name' => 'Enroll Training'],
+                    ],
+                ],
+                [
+                    'code' => 'my-performance',
+                    'name' => 'My Performance',
+                    'type' => 'page',
+                    'route' => '/hrm/self-service/performance',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Performance'],
+                    ],
+                ],
+                [
+                    'code' => 'my-goals',
+                    'name' => 'My Goals',
+                    'type' => 'page',
+                    'route' => '/hrm/goals',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Goals'],
+                        ['code' => 'update', 'name' => 'Update Goals'],
+                    ],
+                ],
+                [
+                    'code' => 'my-career-path',
+                    'name' => 'My Career Path',
+                    'type' => 'page',
+                    'route' => '/hrm/self-service/career-path',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Career Path'],
+                    ],
+                ],
+                [
+                    'code' => 'my-feedback',
+                    'name' => 'My 360° Feedback',
+                    'type' => 'page',
+                    'route' => '/hrm/feedback-360',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Feedback'],
+                        ['code' => 'submit', 'name' => 'Submit Feedback'],
+                    ],
+                ],
+            ],
+        ],
         // 2.1 Employees (Original + Org Chart)
         [
             'code' => 'employees',
@@ -116,7 +356,7 @@ return [
                     'code' => 'custom-fields',
                     'name' => 'Custom Fields',
                     'type' => 'page',
-                    'route' => '/hrm/employees/custom-fields',
+                    'route' => '/hrm/employees',
                     'actions' => [
                         ['code' => 'manage', 'name' => 'Manage Custom Fields'],
                     ],
@@ -137,7 +377,7 @@ return [
                     'code' => 'daily-attendance',
                     'name' => 'Daily Attendance',
                     'type' => 'page',
-                    'route' => '/hrm/attendance/daily',
+                    'route' => '/hrm/attendance',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Attendance'],
                         ['code' => 'mark', 'name' => 'Mark Attendance'],
@@ -150,14 +390,14 @@ return [
                     'code' => 'monthly-calendar',
                     'name' => 'Monthly Attendance Calendar',
                     'type' => 'page',
-                    'route' => '/hrm/attendance/calendar',
+                    'route' => '/hrm/attendance',
                     'actions' => [['code' => 'view', 'name' => 'View Calendar']],
                 ],
                 [
                     'code' => 'attendance-logs',
                     'name' => 'Attendance Logs',
                     'type' => 'page',
-                    'route' => '/hrm/attendance/logs',
+                    'route' => '/hrm/attendance',
                     'actions' => [['code' => 'view', 'name' => 'View Attendance Logs']],
                 ],
                 [
@@ -176,7 +416,7 @@ return [
                     'code' => 'adjustment-requests',
                     'name' => 'Attendance Adjustment Requests',
                     'type' => 'page',
-                    'route' => '/hrm/attendance/adjustments',
+                    'route' => '/hrm/attendance',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Adjustment Requests'],
                         ['code' => 'approve', 'name' => 'Approve Adjustment'],
@@ -187,14 +427,14 @@ return [
                     'code' => 'device-rules',
                     'name' => 'Attendance Device/IP/Geo Rules',
                     'type' => 'page',
-                    'route' => '/hrm/attendance/rules',
+                    'route' => '/hrm/attendance',
                     'actions' => [['code' => 'manage', 'name' => 'Manage Attendance Rules']],
                 ],
                 [
                     'code' => 'overtime-rules',
                     'name' => 'Overtime Rules',
                     'type' => 'page',
-                    'route' => '/hrm/overtime/rules',
+                    'route' => '/hrm/overtime',
                     'actions' => [['code' => 'manage', 'name' => 'Manage Overtime Rules']],
                 ],
                 [
@@ -223,7 +463,7 @@ return [
                     'code' => 'leave-types',
                     'name' => 'Leave Types',
                     'type' => 'page',
-                    'route' => '/hrm/leaves/types',
+                    'route' => '/hrm/leaves', // Fixed: Use working leave management page
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Leave Types'],
                         ['code' => 'create', 'name' => 'Create Leave Type'],
@@ -235,7 +475,7 @@ return [
                     'code' => 'leave-balances',
                     'name' => 'Leave Balances',
                     'type' => 'page',
-                    'route' => '/hrm/leaves/balances',
+                    'route' => '/hrm/leaves', // Fixed: Use actual working route (LeaveController@index2)
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Leave Balances'],
                         ['code' => 'update', 'name' => 'Update Leave Balance'],
@@ -245,7 +485,7 @@ return [
                     'code' => 'leave-requests',
                     'name' => 'Leave Requests',
                     'type' => 'page',
-                    'route' => '/hrm/leaves/requests',
+                    'route' => '/hrm/leaves', // Fixed: Use actual working route (LeaveController@index2)
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Leave Requests'],
                         ['code' => 'create', 'name' => 'Create Leave Request'],
@@ -260,7 +500,7 @@ return [
                     'code' => 'conflict-checker', // Added
                     'name' => 'Conflict Checker',
                     'type' => 'feature',
-                    'route' => null, 
+                    'route' => null,
                     'actions' => [['code' => 'view', 'name' => 'Check Conflicts']],
                 ],
                 [
@@ -279,14 +519,14 @@ return [
                     'code' => 'leave-policies',
                     'name' => 'Leave Policies',
                     'type' => 'page',
-                    'route' => '/hrm/leaves/policies',
+                    'route' => '/hrm/leaves', // Fixed: Use working leave management page
                     'actions' => [['code' => 'manage', 'name' => 'Manage Leave Policies']],
                 ],
                 [
                     'code' => 'leave-accrual',
                     'name' => 'Leave Accrual Engine',
                     'type' => 'page',
-                    'route' => '/hrm/leaves/accrual',
+                    'route' => null, // Disabled: Not implemented yet
                     'actions' => [['code' => 'run', 'name' => 'Run Leave Accrual']],
                 ],
             ],
@@ -305,7 +545,7 @@ return [
                     'code' => 'salary-structures',
                     'name' => 'Salary Structures',
                     'type' => 'page',
-                    'route' => '/hrm/payroll/structures',
+                    'route' => '/hrm/payroll',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Salary Structures'],
                         ['code' => 'create', 'name' => 'Create Salary Structure'],
@@ -317,7 +557,7 @@ return [
                     'code' => 'salary-components',
                     'name' => 'Salary Components',
                     'type' => 'page',
-                    'route' => '/hrm/payroll/components',
+                    'route' => '/hrm/payroll',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Salary Components'],
                         ['code' => 'create', 'name' => 'Create Salary Component'],
@@ -329,7 +569,7 @@ return [
                     'code' => 'payroll-run',
                     'name' => 'Payroll Run',
                     'type' => 'page',
-                    'route' => '/hrm/payroll/run',
+                    'route' => '/hrm/payroll',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Payroll Runs'],
                         ['code' => 'execute', 'name' => 'Execute Payroll Run'],
@@ -342,7 +582,7 @@ return [
                     'code' => 'payslips',
                     'name' => 'Payslips',
                     'type' => 'page',
-                    'route' => '/hrm/payroll/payslips',
+                    'route' => '/hrm/payroll',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Payslips'],
                         ['code' => 'download', 'name' => 'Download Payslip'],
@@ -353,14 +593,14 @@ return [
                     'code' => 'tax-setup',
                     'name' => 'Tax Setup',
                     'type' => 'page',
-                    'route' => '/hrm/payroll/tax',
+                    'route' => '/hrm/payroll',
                     'actions' => [['code' => 'manage', 'name' => 'Manage Tax Rules']],
                 ],
                 [
                     'code' => 'tax-declarations', // Added
                     'name' => 'IT/Tax Declarations',
                     'type' => 'page',
-                    'route' => '/hrm/payroll/declarations',
+                    'route' => '/hrm/payroll',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Declarations'],
                         ['code' => 'verify', 'name' => 'Verify Proofs'],
@@ -370,7 +610,7 @@ return [
                     'code' => 'loans',
                     'name' => 'Loan & Advance Management',
                     'type' => 'page',
-                    'route' => '/hrm/payroll/loans',
+                    'route' => '/hrm/payroll',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Loans'],
                         ['code' => 'create', 'name' => 'Create Loan'],
@@ -382,7 +622,7 @@ return [
                     'code' => 'bank-file',
                     'name' => 'Bank File Generator',
                     'type' => 'page',
-                    'route' => '/hrm/payroll/bank-file',
+                    'route' => '/hrm/payroll',
                     'actions' => [['code' => 'generate', 'name' => 'Generate Bank File']],
                 ],
             ],
@@ -392,7 +632,7 @@ return [
         [
             'code' => 'expenses',
             'name' => 'Expenses & Claims',
-            'description' => 'Employee reimbursements and advances',
+            'description' => 'Employee expense claims with approval workflow',
             'icon' => 'ReceiptPercentIcon',
             'route' => '/hrm/expenses',
             'priority' => 5,
@@ -401,20 +641,35 @@ return [
                     'code' => 'expense-claims',
                     'name' => 'Expense Claims',
                     'type' => 'page',
-                    'route' => '/hrm/expenses/claims',
+                    'route' => '/hrm/expenses',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Claims'],
                         ['code' => 'create', 'name' => 'Create Claim'],
+                        ['code' => 'update', 'name' => 'Update Claim'],
+                        ['code' => 'delete', 'name' => 'Delete Claim'],
                         ['code' => 'approve', 'name' => 'Approve Claims'],
-                        ['code' => 'payout', 'name' => 'Process Payout'],
+                        ['code' => 'reject', 'name' => 'Reject Claims'],
+                    ],
+                ],
+                [
+                    'code' => 'my-expense-claims',
+                    'name' => 'My Expense Claims',
+                    'type' => 'page',
+                    'route' => '/hrm/my-expenses',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View My Claims'],
+                        ['code' => 'create', 'name' => 'Submit Claim'],
                     ],
                 ],
                 [
                     'code' => 'expense-categories',
                     'name' => 'Expense Categories',
                     'type' => 'page',
-                    'route' => '/hrm/expenses/categories',
-                    'actions' => [['code' => 'manage', 'name' => 'Manage Categories']],
+                    'route' => '/hrm/expenses',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Categories'],
+                        ['code' => 'manage', 'name' => 'Manage Categories'],
+                    ],
                 ],
             ],
         ],
@@ -423,7 +678,7 @@ return [
         [
             'code' => 'assets',
             'name' => 'Assets Management',
-            'description' => 'Track company assets assigned to employees',
+            'description' => 'Track and allocate company assets to employees',
             'icon' => 'ComputerDesktopIcon',
             'route' => '/hrm/assets',
             'priority' => 6,
@@ -432,21 +687,35 @@ return [
                     'code' => 'asset-inventory',
                     'name' => 'Asset Inventory',
                     'type' => 'page',
-                    'route' => '/hrm/assets/inventory',
+                    'route' => '/hrm/assets',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Assets'],
                         ['code' => 'create', 'name' => 'Add Asset'],
                         ['code' => 'update', 'name' => 'Update Asset'],
+                        ['code' => 'delete', 'name' => 'Delete Asset'],
+                        ['code' => 'allocate', 'name' => 'Allocate Asset'],
+                        ['code' => 'return', 'name' => 'Return Asset'],
                     ],
                 ],
                 [
-                    'code' => 'asset-allocation',
-                    'name' => 'Allocations',
+                    'code' => 'asset-allocations',
+                    'name' => 'Asset Allocations',
                     'type' => 'page',
-                    'route' => '/hrm/assets/allocations',
+                    'route' => '/hrm/assets',
                     'actions' => [
+                        ['code' => 'view', 'name' => 'View Allocations'],
                         ['code' => 'assign', 'name' => 'Assign Asset'],
                         ['code' => 'return', 'name' => 'Return Asset'],
+                    ],
+                ],
+                [
+                    'code' => 'asset-categories',
+                    'name' => 'Asset Categories',
+                    'type' => 'page',
+                    'route' => '/hrm/assets',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Categories'],
+                        ['code' => 'manage', 'name' => 'Manage Categories'],
                     ],
                 ],
             ],
@@ -456,29 +725,45 @@ return [
         [
             'code' => 'disciplinary',
             'name' => 'Disciplinary',
-            'description' => 'Warnings, grievances and actions',
+            'description' => 'Manage disciplinary cases, investigations, and warnings',
             'icon' => 'ExclamationTriangleIcon',
             'route' => '/hrm/disciplinary',
             'priority' => 7,
             'components' => [
                 [
-                    'code' => 'complaints',
-                    'name' => 'Complaints/Grievances',
+                    'code' => 'disciplinary-cases',
+                    'name' => 'Disciplinary Cases',
                     'type' => 'page',
-                    'route' => '/hrm/disciplinary/complaints',
+                    'route' => '/hrm/disciplinary',
                     'actions' => [
-                        ['code' => 'view', 'name' => 'View Complaints'],
-                        ['code' => 'resolve', 'name' => 'Resolve Complaint'],
+                        ['code' => 'view', 'name' => 'View Cases'],
+                        ['code' => 'create', 'name' => 'Create Case'],
+                        ['code' => 'update', 'name' => 'Update Case'],
+                        ['code' => 'delete', 'name' => 'Delete Case'],
+                        ['code' => 'investigate', 'name' => 'Start Investigation'],
+                        ['code' => 'take-action', 'name' => 'Take Action'],
+                        ['code' => 'close', 'name' => 'Close Case'],
+                        ['code' => 'appeal', 'name' => 'File Appeal'],
                     ],
                 ],
                 [
                     'code' => 'warnings',
-                    'name' => 'Warnings & Actions',
+                    'name' => 'Warnings',
                     'type' => 'page',
-                    'route' => '/hrm/disciplinary/warnings',
+                    'route' => '/hrm/disciplinary',
                     'actions' => [
+                        ['code' => 'view', 'name' => 'View Warnings'],
                         ['code' => 'issue', 'name' => 'Issue Warning'],
-                        ['code' => 'view', 'name' => 'View History'],
+                    ],
+                ],
+                [
+                    'code' => 'action-types',
+                    'name' => 'Action Types',
+                    'type' => 'page',
+                    'route' => '/hrm/disciplinary',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Action Types'],
+                        ['code' => 'manage', 'name' => 'Manage Action Types'],
                     ],
                 ],
             ],
@@ -497,7 +782,7 @@ return [
                     'code' => 'job-openings',
                     'name' => 'Job Openings',
                     'type' => 'page',
-                    'route' => '/hrm/recruitment/jobs',
+                    'route' => '/hrm/recruitment',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Job Openings'],
                         ['code' => 'create', 'name' => 'Create Job Opening'],
@@ -509,7 +794,7 @@ return [
                     'code' => 'applicants',
                     'name' => 'Applicants',
                     'type' => 'page',
-                    'route' => '/hrm/recruitment/applicants',
+                    'route' => '/hrm/recruitment',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Applicants'],
                         ['code' => 'create', 'name' => 'Create Applicant'],
@@ -524,7 +809,7 @@ return [
                     'code' => 'candidate-pipeline',
                     'name' => 'Candidate Pipelines',
                     'type' => 'page',
-                    'route' => '/hrm/recruitment/pipeline',
+                    'route' => '/hrm/recruitment',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Pipeline'],
                         ['code' => 'configure', 'name' => 'Configure Pipeline Stages'],
@@ -534,7 +819,7 @@ return [
                     'code' => 'interview-scheduling',
                     'name' => 'Interview Scheduling',
                     'type' => 'page',
-                    'route' => '/hrm/recruitment/interviews',
+                    'route' => '/hrm/recruitment',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Interview Schedules'],
                         ['code' => 'create', 'name' => 'Create Interview Schedule'],
@@ -546,14 +831,14 @@ return [
                     'code' => 'evaluation-scores',
                     'name' => 'Evaluation Scores',
                     'type' => 'page',
-                    'route' => '/hrm/recruitment/evaluations',
+                    'route' => '/hrm/recruitment',
                     'actions' => [['code' => 'manage', 'name' => 'Manage Evaluation Scores']],
                 ],
                 [
                     'code' => 'offer-letters',
                     'name' => 'Offer Letters',
                     'type' => 'page',
-                    'route' => '/hrm/recruitment/offers',
+                    'route' => '/hrm/recruitment',
                     'actions' => [
                         ['code' => 'create', 'name' => 'Create Offer Letter'],
                         ['code' => 'send', 'name' => 'Send Offer Letter'],
@@ -563,7 +848,7 @@ return [
                     'code' => 'portal-settings',
                     'name' => 'Public Job Portal Settings',
                     'type' => 'page',
-                    'route' => '/hrm/recruitment/portal',
+                    'route' => '/hrm/recruitment',
                     'actions' => [['code' => 'configure', 'name' => 'Configure Job Portal']],
                 ],
             ],
@@ -573,7 +858,7 @@ return [
         [
             'code' => 'performance',
             'name' => 'Performance',
-            'description' => 'KPIs, appraisals, 360Â° reviews, and performance tracking',
+            'description' => 'KPIs, appraisals, 360° reviews, and performance tracking',
             'icon' => 'ChartBarSquareIcon',
             'route' => '/hrm/performance',
             'priority' => 9,
@@ -582,7 +867,7 @@ return [
                     'code' => 'kpi-setup',
                     'name' => 'KPI Setup',
                     'type' => 'page',
-                    'route' => '/hrm/performance/kpis',
+                    'route' => '/hrm/performance',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View KPIs'],
                         ['code' => 'create', 'name' => 'Create KPI'],
@@ -594,7 +879,7 @@ return [
                     'code' => 'appraisal-cycles',
                     'name' => 'Appraisal Cycles',
                     'type' => 'page',
-                    'route' => '/hrm/performance/appraisals',
+                    'route' => '/hrm/performance',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Appraisal Cycles'],
                         ['code' => 'create', 'name' => 'Create Appraisal Cycle'],
@@ -604,9 +889,9 @@ return [
                 ],
                 [
                     'code' => 'reviews-360',
-                    'name' => '360Â° Reviews',
+                    'name' => '360° Reviews',
                     'type' => 'page',
-                    'route' => '/hrm/performance/360-reviews',
+                    'route' => '/hrm/performance',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View 360 Reviews'],
                         ['code' => 'submit', 'name' => 'Submit Review'],
@@ -618,21 +903,21 @@ return [
                     'code' => 'score-aggregation',
                     'name' => 'Score Aggregation',
                     'type' => 'page',
-                    'route' => '/hrm/performance/scores',
+                    'route' => '/hrm/performance',
                     'actions' => [['code' => 'view', 'name' => 'View Aggregated Scores']],
                 ],
                 [
                     'code' => 'promotion-recommendations',
                     'name' => 'Promotion Recommendations',
                     'type' => 'page',
-                    'route' => '/hrm/performance/promotions',
+                    'route' => '/hrm/performance',
                     'actions' => [['code' => 'state-change', 'name' => 'Change Promotion State']],
                 ],
                 [
                     'code' => 'performance-reports',
                     'name' => 'Performance Reports',
                     'type' => 'page',
-                    'route' => '/hrm/performance/reports',
+                    'route' => '/hrm/performance',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Performance Reports'],
                         ['code' => 'export', 'name' => 'Export Performance Reports'],
@@ -654,7 +939,7 @@ return [
                     'code' => 'training-programs',
                     'name' => 'Training Programs',
                     'type' => 'page',
-                    'route' => '/hrm/training/programs',
+                    'route' => '/hrm/training',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Training Programs'],
                         ['code' => 'create', 'name' => 'Create Training Program'],
@@ -666,7 +951,7 @@ return [
                     'code' => 'training-sessions',
                     'name' => 'Training Sessions',
                     'type' => 'page',
-                    'route' => '/hrm/training/sessions',
+                    'route' => '/hrm/training',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Training Sessions'],
                         ['code' => 'create', 'name' => 'Create Training Session'],
@@ -678,7 +963,7 @@ return [
                     'code' => 'trainers',
                     'name' => 'Trainers',
                     'type' => 'page',
-                    'route' => '/hrm/training/trainers',
+                    'route' => '/hrm/training',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Trainers'],
                         ['code' => 'create', 'name' => 'Create Trainer'],
@@ -690,21 +975,21 @@ return [
                     'code' => 'enrollment',
                     'name' => 'Enrollment',
                     'type' => 'page',
-                    'route' => '/hrm/training/enrollment',
+                    'route' => '/hrm/training',
                     'actions' => [['code' => 'manage', 'name' => 'Manage Training Enrollment']],
                 ],
                 [
                     'code' => 'training-attendance',
                     'name' => 'Attendance Tracking (Training)',
                     'type' => 'page',
-                    'route' => '/hrm/training/attendance',
+                    'route' => '/hrm/training',
                     'actions' => [['code' => 'mark', 'name' => 'Mark Training Attendance']],
                 ],
                 [
                     'code' => 'certifications',
                     'name' => 'Certification Issuance',
                     'type' => 'page',
-                    'route' => '/hrm/training/certifications',
+                    'route' => '/hrm/training',
                     'actions' => [
                         ['code' => 'generate', 'name' => 'Generate Certificate'],
                         ['code' => 'download', 'name' => 'Download Certificate'],
@@ -726,7 +1011,7 @@ return [
                     'code' => 'workforce-overview',
                     'name' => 'Workforce Overview',
                     'type' => 'page',
-                    'route' => '/hrm/analytics/workforce',
+                    'route' => '/hrm/analytics',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Workforce Overview'],
                         ['code' => 'export', 'name' => 'Export Workforce Data'],
@@ -736,7 +1021,7 @@ return [
                     'code' => 'turnover-analytics',
                     'name' => 'Turnover Analytics',
                     'type' => 'page',
-                    'route' => '/hrm/analytics/turnover',
+                    'route' => '/hrm/analytics',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Turnover Analytics'],
                         ['code' => 'export', 'name' => 'Export Turnover Data'],
@@ -746,7 +1031,7 @@ return [
                     'code' => 'attendance-insights',
                     'name' => 'Attendance Insights',
                     'type' => 'page',
-                    'route' => '/hrm/analytics/attendance',
+                    'route' => '/hrm/analytics',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Attendance Insights'],
                         ['code' => 'export', 'name' => 'Export Attendance Data'],
@@ -756,7 +1041,7 @@ return [
                     'code' => 'payroll-cost-analysis',
                     'name' => 'Payroll Cost Analysis',
                     'type' => 'page',
-                    'route' => '/hrm/analytics/payroll',
+                    'route' => '/hrm/analytics',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Payroll Analysis'],
                         ['code' => 'export', 'name' => 'Export Payroll Data'],
@@ -766,7 +1051,7 @@ return [
                     'code' => 'recruitment-funnel',
                     'name' => 'Recruitment Funnel Analytics',
                     'type' => 'page',
-                    'route' => '/hrm/analytics/recruitment',
+                    'route' => '/hrm/analytics',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Recruitment Funnel'],
                         ['code' => 'export', 'name' => 'Export Recruitment Data'],
@@ -776,7 +1061,7 @@ return [
                     'code' => 'performance-insights',
                     'name' => 'Performance Insights',
                     'type' => 'page',
-                    'route' => '/hrm/analytics/performance',
+                    'route' => '/hrm/analytics',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Performance Insights'],
                         ['code' => 'export', 'name' => 'Export Performance Data'],
@@ -784,6 +1069,323 @@ return [
                 ],
             ],
         ],
+
+        // 2.12 Succession Planning
+        [
+            'code' => 'succession-planning',
+            'name' => 'Succession Planning',
+            'description' => 'Identify and develop future leaders for critical positions',
+            'icon' => 'UserPlusIcon',
+            'route' => '/hrm/succession-planning',
+            'priority' => 12,
+            'components' => [
+                [
+                    'code' => 'succession-plans',
+                    'name' => 'Succession Plans',
+                    'type' => 'page',
+                    'route' => '/hrm/succession-planning',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Succession Plans'],
+                        ['code' => 'create', 'name' => 'Create Succession Plan'],
+                        ['code' => 'update', 'name' => 'Update Succession Plan'],
+                        ['code' => 'delete', 'name' => 'Delete Succession Plan'],
+                    ],
+                ],
+                [
+                    'code' => 'succession-candidates',
+                    'name' => 'Succession Candidates',
+                    'type' => 'page',
+                    'route' => '/hrm/succession-planning',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Candidates'],
+                        ['code' => 'manage', 'name' => 'Manage Candidates'],
+                    ],
+                ],
+            ],
+        ],
+
+        // 2.13 Career Pathing
+        [
+            'code' => 'career-pathing',
+            'name' => 'Career Pathing',
+            'description' => 'Define career progression paths and track employee development',
+            'icon' => 'ArrowTrendingUpIcon',
+            'route' => '/hrm/career-paths',
+            'priority' => 13,
+            'components' => [
+                [
+                    'code' => 'career-paths',
+                    'name' => 'Career Paths',
+                    'type' => 'page',
+                    'route' => '/hrm/career-paths',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Career Paths'],
+                        ['code' => 'create', 'name' => 'Create Career Path'],
+                        ['code' => 'update', 'name' => 'Update Career Path'],
+                        ['code' => 'delete', 'name' => 'Delete Career Path'],
+                    ],
+                ],
+                [
+                    'code' => 'career-milestones',
+                    'name' => 'Career Milestones',
+                    'type' => 'page',
+                    'route' => '/hrm/career-paths',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Milestones'],
+                        ['code' => 'manage', 'name' => 'Manage Milestones'],
+                    ],
+                ],
+                [
+                    'code' => 'employee-progressions',
+                    'name' => 'Employee Progressions',
+                    'type' => 'page',
+                    'route' => '/hrm/career-paths',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Progressions'],
+                        ['code' => 'assign', 'name' => 'Assign Career Path'],
+                        ['code' => 'update', 'name' => 'Update Progression'],
+                    ],
+                ],
+            ],
+        ],
+
+        // 2.14 360° Feedback
+        [
+            'code' => 'feedback-360',
+            'name' => '360° Feedback',
+            'description' => 'Multi-rater feedback for comprehensive performance insights',
+            'icon' => 'ArrowPathIcon',
+            'route' => '/hrm/feedback-360',
+            'priority' => 14,
+            'components' => [
+                [
+                    'code' => 'feedback-reviews',
+                    'name' => '360° Feedback Reviews',
+                    'type' => 'page',
+                    'route' => '/hrm/feedback-360',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View 360° Reviews'],
+                        ['code' => 'create', 'name' => 'Create 360° Review'],
+                        ['code' => 'update', 'name' => 'Update 360° Review'],
+                        ['code' => 'delete', 'name' => 'Delete 360° Review'],
+                        ['code' => 'launch', 'name' => 'Launch 360° Review'],
+                    ],
+                ],
+                [
+                    'code' => 'feedback-responses',
+                    'name' => 'Feedback Responses',
+                    'type' => 'page',
+                    'route' => '/hrm/feedback-360',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Responses'],
+                        ['code' => 'submit', 'name' => 'Submit Feedback'],
+                    ],
+                ],
+                [
+                    'code' => 'my-pending-feedback',
+                    'name' => 'My Pending Feedback',
+                    'type' => 'page',
+                    'route' => '/hrm/feedback-360',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Pending Feedback'],
+                        ['code' => 'submit', 'name' => 'Submit Feedback'],
+                    ],
+                ],
+            ],
+        ],
+
+        // 2.15 Compensation Planning
+        [
+            'code' => 'compensation-planning',
+            'name' => 'Compensation Planning',
+            'description' => 'Salary reviews, adjustments, and compensation budget management',
+            'icon' => 'BanknotesIcon',
+            'route' => '/hrm/compensation-planning',
+            'priority' => 15,
+            'components' => [
+                [
+                    'code' => 'compensation-reviews',
+                    'name' => 'Compensation Review Cycles',
+                    'type' => 'page',
+                    'route' => '/hrm/compensation-planning',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Compensation Reviews'],
+                        ['code' => 'create', 'name' => 'Create Compensation Review'],
+                        ['code' => 'update', 'name' => 'Update Compensation Review'],
+                        ['code' => 'delete', 'name' => 'Delete Compensation Review'],
+                    ],
+                ],
+                [
+                    'code' => 'compensation-adjustments',
+                    'name' => 'Salary Adjustments',
+                    'type' => 'page',
+                    'route' => '/hrm/compensation-planning',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Adjustments'],
+                        ['code' => 'create', 'name' => 'Create Adjustment'],
+                        ['code' => 'approve', 'name' => 'Approve Adjustment'],
+                        ['code' => 'reject', 'name' => 'Reject Adjustment'],
+                    ],
+                ],
+                [
+                    'code' => 'compensation-analytics',
+                    'name' => 'Compensation Analytics',
+                    'type' => 'page',
+                    'route' => '/hrm/compensation-planning',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Compensation Analytics'],
+                        ['code' => 'export', 'name' => 'Export Compensation Data'],
+                    ],
+                ],
+            ],
+        ],
+
+        // 2.16 Workforce Planning
+        [
+            'code' => 'workforce-planning',
+            'name' => 'Workforce Planning',
+            'description' => 'Strategic headcount planning and workforce forecasting',
+            'icon' => 'ChartBarIcon',
+            'route' => '/hrm/workforce-planning',
+            'priority' => 16,
+            'components' => [
+                [
+                    'code' => 'workforce-plans',
+                    'name' => 'Workforce Plans',
+                    'type' => 'page',
+                    'route' => '/hrm/workforce-planning',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Workforce Plans'],
+                        ['code' => 'create', 'name' => 'Create Workforce Plan'],
+                        ['code' => 'update', 'name' => 'Update Workforce Plan'],
+                        ['code' => 'delete', 'name' => 'Delete Workforce Plan'],
+                        ['code' => 'approve', 'name' => 'Approve Workforce Plan'],
+                    ],
+                ],
+                [
+                    'code' => 'planned-positions',
+                    'name' => 'Planned Positions',
+                    'type' => 'page',
+                    'route' => '/hrm/workforce-planning',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Planned Positions'],
+                        ['code' => 'manage', 'name' => 'Manage Positions'],
+                    ],
+                ],
+                [
+                    'code' => 'workforce-forecast',
+                    'name' => 'Workforce Forecast',
+                    'type' => 'page',
+                    'route' => '/hrm/workforce-planning',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Workforce Forecast'],
+                        ['code' => 'generate', 'name' => 'Generate Forecast'],
+                    ],
+                ],
+            ],
+        ],
+
+        // 2.17 Overtime Management
+        [
+            'code' => 'overtime',
+            'name' => 'Overtime Management',
+            'description' => 'Track and manage overtime requests and records',
+            'icon' => 'ClockIcon',
+            'route' => '/hrm/overtime',
+            'priority' => 17,
+            'components' => [
+                [
+                    'code' => 'overtime-records',
+                    'name' => 'Overtime Records',
+                    'type' => 'page',
+                    'route' => '/hrm/overtime',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Overtime Records'],
+                        ['code' => 'create', 'name' => 'Create Overtime Record'],
+                        ['code' => 'update', 'name' => 'Update Overtime Record'],
+                        ['code' => 'delete', 'name' => 'Delete Overtime Record'],
+                        ['code' => 'approve', 'name' => 'Approve Overtime'],
+                        ['code' => 'reject', 'name' => 'Reject Overtime'],
+                    ],
+                ],
+            ],
+        ],
+
+        // 2.18 Grievances
+        [
+            'code' => 'grievances',
+            'name' => 'Grievances & Complaints',
+            'description' => 'Employee grievance and complaint management system',
+            'icon' => 'ExclamationTriangleIcon',
+            'route' => '/hrm/grievances',
+            'priority' => 18,
+            'components' => [
+                [
+                    'code' => 'grievance-list',
+                    'name' => 'Grievances List',
+                    'type' => 'page',
+                    'route' => '/hrm/grievances',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Grievances'],
+                        ['code' => 'create', 'name' => 'Submit Grievance'],
+                        ['code' => 'update', 'name' => 'Update Grievance'],
+                        ['code' => 'delete', 'name' => 'Delete Grievance'],
+                        ['code' => 'investigate', 'name' => 'Investigate Grievance'],
+                        ['code' => 'resolve', 'name' => 'Resolve Grievance'],
+                    ],
+                ],
+            ],
+        ],
+
+        // 2.19 Exit Interviews
+        [
+            'code' => 'exit-interviews',
+            'name' => 'Exit Interviews',
+            'description' => 'Conduct and analyze employee exit interviews',
+            'icon' => 'ArrowRightOnRectangleIcon',
+            'route' => '/hrm/exit-interviews',
+            'priority' => 19,
+            'components' => [
+                [
+                    'code' => 'exit-interview-list',
+                    'name' => 'Exit Interviews',
+                    'type' => 'page',
+                    'route' => '/hrm/exit-interviews',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Exit Interviews'],
+                        ['code' => 'create', 'name' => 'Schedule Exit Interview'],
+                        ['code' => 'update', 'name' => 'Update Exit Interview'],
+                        ['code' => 'delete', 'name' => 'Delete Exit Interview'],
+                        ['code' => 'analyze', 'name' => 'Analyze Trends'],
+                    ],
+                ],
+            ],
+        ],
+
+        // 2.20 Pulse Surveys
+        [
+            'code' => 'pulse-surveys',
+            'name' => 'Pulse Surveys',
+            'description' => 'Quick employee engagement and sentiment surveys',
+            'icon' => 'ChartBarSquareIcon',
+            'route' => '/hrm/pulse-surveys',
+            'priority' => 20,
+            'components' => [
+                [
+                    'code' => 'survey-list',
+                    'name' => 'Pulse Surveys',
+                    'type' => 'page',
+                    'route' => '/hrm/pulse-surveys',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Surveys'],
+                        ['code' => 'create', 'name' => 'Create Survey'],
+                        ['code' => 'update', 'name' => 'Update Survey'],
+                        ['code' => 'delete', 'name' => 'Delete Survey'],
+                        ['code' => 'publish', 'name' => 'Publish Survey'],
+                        ['code' => 'analyze', 'name' => 'Analyze Results'],
+                    ],
+                ],
+            ],
+        ],
     ],
 ];
-

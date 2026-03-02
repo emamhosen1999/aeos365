@@ -668,36 +668,47 @@ php artisan tenant:migrate
 
 # Laravel Boost Guidelines
 
-## Foundational Context
-This application uses Laravel 11 with these key packages:
+The Laravel Boost guidelines are specifically curated by Laravel maintainers for this application. These guidelines should be followed closely to enhance the user's satisfaction building Laravel applications.
 
-- php - 8.2.12
+## Foundational Context
+This application is a Laravel application and its main Laravel ecosystems package & versions are below. You are an expert with them all. Ensure you abide by these specific packages & versions.
+
+- php - 8.3.26
 - inertiajs/inertia-laravel (INERTIA) - v2
 - laravel/cashier (CASHIER) - v15
 - laravel/fortify (FORTIFY) - v1
-- laravel/framework (LARAVEL) - v11
+- laravel/framework (LARAVEL) - v12
+- laravel/prompts (PROMPTS) - v0
 - laravel/sanctum (SANCTUM) - v4
 - tightenco/ziggy (ZIGGY) - v2
+- laravel/mcp (MCP) - v0
+- laravel/pint (PINT) - v1
+- laravel/sail (SAIL) - v1
+- phpunit/phpunit (PHPUNIT) - v11
 - @inertiajs/react (INERTIA) - v2
 - react (REACT) - v18
 - tailwindcss (TAILWINDCSS) - v4
-- @heroui/react - UI Component Library
 
 ## Conventions
-- **Always check sibling files** for correct structure, approach, and naming before creating new files.
-- Use descriptive names: `isRegisteredForDiscounts`, not `discount()`.
-- **Reuse existing components** - check `resources/js/Components/` and `resources/js/Tables/` first.
-- When extending existing features, **merge into existing files** rather than creating duplicates.
+- You must follow all existing code conventions used in this application. When creating or editing a file, check sibling files for the correct structure, approach, naming.
+- Use descriptive names for variables and methods. For example, `isRegisteredForDiscounts`, not `discount()`.
+- Check for existing components to reuse before writing a new one.
+
+## Verification Scripts
+- Do not create verification scripts or tinker when tests cover that functionality and prove it works. Unit and feature tests are more important.
 
 ## Application Structure & Architecture
 - Stick to existing directory structure - don't create new base folders without approval.
-- Do not change dependencies without approval.
+- Do not change the application's dependencies without approval.
 
 ## Frontend Bundling
-- If frontend changes aren't reflected, run `npm run build` or `npm run dev`.
+- If the user doesn't see a frontend change reflected in the UI, it could mean they need to run `npm run build`, `npm run dev`, or `composer run dev`. Ask them.
+
+## Replies
+- Be concise in your explanations - focus on what's important rather than explaining obvious details.
 
 ## Documentation Files
-- Only create documentation if explicitly requested.
+- You must only create documentation files if explicitly requested by the user.
 
 
 === boost rules ===
@@ -767,14 +778,6 @@ protected function isAccessible(User $user, ?string $path = null): bool
 
 ## Enums
 - Typically, keys in an Enum should be TitleCase. For example: `FavoritePerson`, `BestLake`, `Monthly`.
-
-
-=== tests rules ===
-
-## Test Enforcement
-
-- Every change must be programmatically tested. Write a new test or update an existing test, then run the affected tests to make sure they pass.
-- Run the minimum number of tests needed to ensure code quality and speed. Use `php artisan test` with a specific filename or filter.
 
 
 === inertia-laravel/core rules ===
@@ -863,21 +866,19 @@ Route::get('/users', function () {
 - If you receive an "Illuminate\Foundation\ViteException: Unable to locate file in Vite manifest" error, you can run `npm run build` or ask the user to run `npm run dev` or `composer run dev`.
 
 
-=== laravel/v11 rules ===
+=== laravel/v12 rules ===
 
-## Laravel 11
+## Laravel 12
 
 - Use the `search-docs` tool to get version specific documentation.
-- This project upgraded from Laravel 10 without migrating to the new streamlined Laravel 11 file structure.
-- This is **perfectly fine** and recommended by Laravel. Follow the existing structure from Laravel 10. We do not to need migrate to the Laravel 11 structure unless the user explicitly requests that.
+- Since Laravel 11, Laravel has a new streamlined file structure which this project uses.
 
-### Laravel 10 Structure
-- Middleware typically live in `app/Http/Middleware/` and service providers in `app/Providers/`.
-- There is no `bootstrap/app.php` application configuration in a Laravel 10 structure:
-    - Middleware registration is in `app/Http/Kernel.php`
-    - Exception handling is in `app/Exceptions/Handler.php`
-    - Console commands and schedule registration is in `app/Console/Kernel.php`
-    - Rate limits likely exist in `RouteServiceProvider` or `app/Http/Kernel.php`
+### Laravel 12 Structure
+- No middleware files in `app/Http/Middleware/`.
+- `bootstrap/app.php` is the file to register middleware, exceptions, and routing files.
+- `bootstrap/providers.php` contains application specific service providers.
+- **No app\Console\Kernel.php** - use `bootstrap/app.php` or `routes/console.php` for console configuration.
+- **Commands auto-register** - files in `app/Console/Commands/` are automatically available and do not require manual registration.
 
 ### Database
 - When modifying a column, the migration must include all of the attributes that were previously defined on the column. Otherwise, they will be dropped and lost.
@@ -885,12 +886,6 @@ Route::get('/users', function () {
 
 ### Models
 - Casts can and likely should be set in a `casts()` method on a model rather than the `$casts` property. Follow existing conventions from other models.
-
-### New Artisan Commands
-- List Artisan commands using Boost's MCP tool, if available. New commands available in Laravel 11:
-    - `php artisan make:enum`
-    - `php artisan make:class `
-    - `php artisan make:interface `
 
 
 === pint/core rules ===

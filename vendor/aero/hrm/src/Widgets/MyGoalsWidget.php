@@ -11,14 +11,22 @@ use Aero\Core\Contracts\CoreWidgetCategory;
  * My Goals Widget
  *
  * Displays the user's active goals and OKR progress.
+ *
+ * Appears on: HRM Employee Dashboard (/hrm/employee/dashboard)
  */
 class MyGoalsWidget extends AbstractDashboardWidget
 {
-    protected string $position = 'main_left';
-    protected int $order = 85;
+    protected string $position = 'main_right';
+
+    protected int $order = 4;
+
     protected int|string $span = 1;
+
     protected CoreWidgetCategory $category = CoreWidgetCategory::ACTION;
-    protected array $requiredPermissions = ['hrm.performance.goals.view'];
+
+    protected array $requiredPermissions = ['hrm.performance']; // HRMAC format: module.submodule
+
+    protected array $dashboards = ['hrm.employee'];
 
     public function getKey(): string
     {
@@ -48,8 +56,8 @@ class MyGoalsWidget extends AbstractDashboardWidget
     public function getData(): array
     {
         $user = auth()->user();
-        
-        if (!$user) {
+
+        if (! $user) {
             return [
                 'goals' => [],
                 'total_goals' => 0,
@@ -78,9 +86,23 @@ class MyGoalsWidget extends AbstractDashboardWidget
         ]);
     }
 
+    /**
+     * Check if widget is enabled.
+     * Super Administrators bypass ALL checks.
+     */
     public function isEnabled(): bool
     {
-        return true;
+        // Super Admin bypass - always enabled, bypasses ALL checks
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (! $this->isModuleActive()) {
+            return false;
+        }
+
+        // Check HRM performance module access via HRMAC
+        return $this->userHasModuleAccess();
     }
 
     public function getPriority(): int

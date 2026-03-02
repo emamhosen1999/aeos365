@@ -36,6 +36,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { useThemeRadius } from '@/Hooks/useThemeRadius.js';
+import { useHRMAC } from '@/Hooks/useHRMAC';
 
 import KanbanColumn from './KanbanColumn';
 import DealCard from './DealCard';
@@ -55,6 +57,31 @@ const KanbanBoard = ({
     initialSummary = {},
     users = [],
 }) => {
+    const themeRadius = useThemeRadius();
+    
+    // Manual responsive state management (HRMAC pattern)
+    const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
+    
+    useEffect(() => {
+        const checkScreenSize = () => {
+            setIsMobile(window.innerWidth < 640);
+            setIsTablet(window.innerWidth < 768);
+        };
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
+    
+    // HRMAC permissions - TODO: Update with actual module hierarchy path
+    const { canCreate, canUpdate, canDelete, hasAccess, isSuperAdmin } = useHRMAC();
+    const canViewPipeline = hasAccess('crm.pipeline') || isSuperAdmin();
+    const canManageDeals = canUpdate('crm.deals') || isSuperAdmin();
+    const canCreateDeal = canCreate('crm.deals') || isSuperAdmin();
+    const canEditDeal = canUpdate('crm.deals') || isSuperAdmin();
+    const canDeleteDeal = canDelete('crm.deals') || isSuperAdmin();
+    const canMoveDeals = canUpdate('crm.deals.stage') || isSuperAdmin();
+
     // ========== STATE ==========
     const [columns, setColumns] = useState(() => {
         // Initialize columns with deals from initialColumns

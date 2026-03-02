@@ -17,7 +17,7 @@ class NotificationController extends Controller
      */
     public function index(): Response
     {
-        return Inertia::render('Pages/Core/Notifications/Index', [
+        return Inertia::render('Core/Notifications/Index', [
             'title' => 'Notifications',
         ]);
     }
@@ -103,6 +103,50 @@ class NotificationController extends Controller
 
         return response()->json([
             'message' => 'Notification deleted',
+        ]);
+    }
+
+    /**
+     * Get notifications for API (used by NotificationDropdown component).
+     */
+    public function apiList(Request $request)
+    {
+        $user = Auth::user();
+        $limit = $request->get('limit', 10);
+        $unreadOnly = $request->get('unread_only', '0') === '1';
+
+        $query = $user->notifications();
+
+        if ($unreadOnly) {
+            $query->whereNull('read_at');
+        }
+
+        $notifications = $query->orderBy('created_at', 'desc')
+            ->limit($limit)
+            ->get()
+            ->map(function ($notification) {
+                return [
+                    'id' => $notification->id,
+                    'type' => class_basename($notification->type),
+                    'data' => $notification->data,
+                    'read_at' => $notification->read_at,
+                    'created_at' => $notification->created_at,
+                ];
+            });
+
+        return response()->json([
+            'data' => $notifications,
+            'unread_count' => $user->unreadNotifications()->count(),
+        ]);
+    }
+
+    /**
+     * Get unread notification count.
+     */
+    public function unreadCount()
+    {
+        return response()->json([
+            'unread_count' => Auth::user()->unreadNotifications()->count(),
         ]);
     }
 

@@ -2,10 +2,10 @@
 
 namespace Aero\HRM\Http\Controllers\Employee;
 
+use Aero\HRM\Http\Controllers\Controller;
 use Aero\HRM\Models\Holiday;
 use Aero\HRM\Models\Leave;
 use Aero\HRM\Models\LeaveSetting;
-use Aero\HRM\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -40,7 +40,7 @@ class TimeOffManagementController extends Controller
         // Calculate leave statistics
         $stats = $this->calculateLeaveStats($user->id, $currentYear);
 
-        return Inertia::render('Pages/HRM/TimeOff/Dashboard', [
+        return Inertia::render('HRM/TimeOff/Dashboard', [
             'title' => 'Time Off Management',
             'holidays' => $holidays,
             'leaveTypes' => $leaveTypes,
@@ -77,8 +77,8 @@ class TimeOffManagementController extends Controller
             return [
                 'id' => 'holiday-'.$holiday->id,
                 'title' => $holiday->title,
-                'start' => $holiday->from_date,
-                'end' => $holiday->to_date ? Carbon::parse($holiday->to_date)->addDay() : Carbon::parse($holiday->from_date)->addDay(),
+                'start' => $holiday->date,
+                'end' => $holiday->end_date ? Carbon::parse($holiday->end_date)->addDay() : Carbon::parse($holiday->date)->addDay(),
                 'type' => 'holiday',
                 'color' => '#ef4444',
                 'extendedProps' => [
@@ -118,7 +118,7 @@ class TimeOffManagementController extends Controller
 
         $events = $holidays->merge($leaves);
 
-        return Inertia::render('Pages/HRM/TimeOff/Calendar', [
+        return Inertia::render('HRM/TimeOff/Calendar', [
             'title' => 'Time Off Calendar',
             'events' => $events,
         ]);
@@ -149,11 +149,11 @@ class TimeOffManagementController extends Controller
             ->whereYear('leaves.from_date', $currentYear)
             ->select(
                 'departments.name as department',
-                'leave_settings.type as leave_type',
+                'leave_settings.name as leave_type',
                 DB::raw('COUNT(*) as total_requests'),
                 DB::raw('SUM(DATEDIFF(leaves.to_date, leaves.from_date) + 1) as total_days')
             )
-            ->groupBy('departments.name', 'leave_settings.type')
+            ->groupBy('departments.name', 'leave_settings.name')
             ->get();
 
         // Monthly trends
@@ -175,14 +175,14 @@ class TimeOffManagementController extends Controller
             ->where('leaves.status', 'approved')
             ->whereYear('leaves.from_date', $currentYear)
             ->select(
-                'leave_settings.type',
+                'leave_settings.name',
                 DB::raw('COUNT(*) as total_requests'),
                 DB::raw('SUM(DATEDIFF(leaves.to_date, leaves.from_date) + 1) as total_days')
             )
-            ->groupBy('leave_settings.type')
+            ->groupBy('leave_settings.name')
             ->get();
 
-        return Inertia::render('Pages/HRM/TimeOff/Reports', [
+        return Inertia::render('HRM/TimeOff/Reports', [
             'title' => 'Time Off Reports',
             'departmentStats' => $departmentStats,
             'monthlyTrends' => $monthlyTrends,

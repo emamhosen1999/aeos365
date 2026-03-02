@@ -2,11 +2,11 @@
 
 namespace Aero\HRM\Http\Controllers\Employee;
 
+use Aero\Core\Models\User;
+use Aero\HRM\Http\Controllers\Controller;
 use Aero\HRM\Models\Department;
 use Aero\HRM\Models\SafetyInspection;
 use Aero\HRM\Models\SafetyTraining;
-use Aero\HRM\Http\Controllers\Controller;
-use Aero\Core\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -48,7 +48,7 @@ class WorkplaceSafetyController extends Controller
             ->limit(5)
             ->get();
 
-        return Inertia::render('Pages/HRM/Safety/Index', [
+        return Inertia::render('HRM/Safety/Index', [
             'title' => 'Workplace Safety',
             'summary' => [
                 'inspections' => $inspectionCount,
@@ -72,7 +72,7 @@ class WorkplaceSafetyController extends Controller
             ->orderBy('inspection_date', 'desc')
             ->paginate(10);
 
-        return Inertia::render('Pages/HRM/Safety/Inspections/Index', [
+        return Inertia::render('HRM/Safety/Inspections/Index', [
             'title' => 'Safety Inspections',
             'inspections' => $inspections,
         ]);
@@ -94,7 +94,7 @@ class WorkplaceSafetyController extends Controller
             ->orderBy('name')
             ->get();
 
-        return Inertia::render('Pages/HRM/Safety/Inspections/Create', [
+        return Inertia::render('HRM/Safety/Inspections/Create', [
             'title' => 'Create Safety Inspection',
             'departments' => $departments,
             'inspectors' => $inspectors,
@@ -157,7 +157,7 @@ class WorkplaceSafetyController extends Controller
 
         $this->authorize('view', $inspection);
 
-        return Inertia::render('Pages/HRM/Safety/Inspections/Show', [
+        return Inertia::render('HRM/Safety/Inspections/Show', [
             'title' => 'Safety Inspection Details',
             'inspection' => $inspection,
         ]);
@@ -181,7 +181,7 @@ class WorkplaceSafetyController extends Controller
             ->orderBy('name')
             ->get();
 
-        return Inertia::render('Pages/HRM/Safety/Inspections/Edit', [
+        return Inertia::render('HRM/Safety/Inspections/Edit', [
             'title' => 'Edit Safety Inspection',
             'inspection' => $inspection,
             'departments' => $departments,
@@ -248,7 +248,7 @@ class WorkplaceSafetyController extends Controller
             ->orderBy('training_date', 'desc')
             ->paginate(10);
 
-        return Inertia::render('Pages/HRM/Safety/Training/Index', [
+        return Inertia::render('HRM/Safety/Training/Index', [
             'title' => 'Safety Training',
             'trainings' => $trainings,
         ]);
@@ -270,7 +270,7 @@ class WorkplaceSafetyController extends Controller
             ->orderBy('name')
             ->get();
 
-        return Inertia::render('Pages/HRM/Safety/Training/Create', [
+        return Inertia::render('HRM/Safety/Training/Create', [
             'title' => 'Schedule Safety Training',
             'departments' => $departments,
             'trainers' => $trainers,
@@ -335,7 +335,7 @@ class WorkplaceSafetyController extends Controller
 
         $this->authorize('view', $training);
 
-        return Inertia::render('Pages/HRM/Safety/Training/Show', [
+        return Inertia::render('HRM/Safety/Training/Show', [
             'title' => 'Safety Training Details',
             'training' => $training,
         ]);
@@ -389,5 +389,186 @@ class WorkplaceSafetyController extends Controller
                 ->with('error', 'Failed to update safety training. Please try again.')
                 ->withInput();
         }
+    }
+
+    /**
+     * Get safety stats for dashboard.
+     */
+    public function stats()
+    {
+        $totalIncidents = DB::table('safety_incidents')->count();
+        $openIncidents = DB::table('safety_incidents')->where('status', 'open')->orWhere('status', 'investigating')->count();
+
+        // Calculate days without incident
+        $lastIncident = DB::table('safety_incidents')
+            ->whereIn('severity', ['high', 'critical'])
+            ->orderBy('incident_date', 'desc')
+            ->first();
+
+        $daysWithoutIncident = $lastIncident
+            ? now()->diffInDays(\Carbon\Carbon::parse($lastIncident->incident_date))
+            : 365; // Default if no incidents
+
+        $pendingInspections = SafetyInspection::where('status', 'scheduled')
+            ->where('inspection_date', '>=', now())
+            ->count();
+
+        return response()->json([
+            'total_incidents' => $totalIncidents,
+            'open_incidents' => $openIncidents,
+            'days_without_incident' => $daysWithoutIncident,
+            'pending_inspections' => $pendingInspections,
+        ]);
+    }
+
+    /**
+     * Delete a safety incident.
+     */
+    public function destroyIncident($id)
+    {
+        $incident = DB::table('safety_incidents')->where('id', $id)->first();
+
+        if (! $incident) {
+            return response()->json(['message' => 'Incident not found'], 404);
+        }
+
+        DB::table('safety_incidents')->where('id', $id)->delete();
+
+        return response()->json(['message' => 'Incident deleted successfully']);
+    }
+
+    /**
+     * Resolve a safety incident.
+     */
+    public function resolveIncident($id)
+    {
+        DB::table('safety_incidents')
+            ->where('id', $id)
+            ->update([
+                'status' => 'resolved',
+                'resolved_at' => now(),
+                'resolved_by' => Auth::id(),
+            ]);
+
+        return response()->json(['message' => 'Incident marked as resolved']);
+    }
+
+    /**
+     * Delete a safety inspection.
+     */
+    public function destroyInspection($id)
+    {
+        $inspection = SafetyInspection::findOrFail($id);
+        $this->authorize('delete', $inspection);
+
+        $inspection->delete();
+
+        return response()->json(['message' => 'Inspection deleted successfully']);
+    }
+
+    /**
+     * Display a listing of safety incidents.
+     */
+    public function incidents()
+    {
+        $this->authorize('viewAny', SafetyInspection::class);
+
+        $incidents = DB::table('safety_incidents')
+            ->join('departments', 'safety_incidents.department_id', '=', 'departments.id')
+            ->join('users', 'safety_incidents.reported_by', '=', 'users.id')
+            ->select('safety_incidents.*', 'departments.name as department_name', 'users.name as reporter_name')
+            ->orderBy('safety_incidents.created_at', 'desc')
+            ->paginate(15);
+
+        return response()->json($incidents);
+    }
+
+    /**
+     * Show the form for creating a new incident.
+     */
+    public function createIncident()
+    {
+        $this->authorize('create', SafetyInspection::class);
+
+        $departments = Department::all();
+        $users = User::all();
+
+        return response()->json([
+            'departments' => $departments,
+            'users' => $users,
+        ]);
+    }
+
+    /**
+     * Store a newly created incident.
+     */
+    public function storeIncident(Request $request)
+    {
+        $this->authorize('create', SafetyInspection::class);
+
+        $validatedData = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'required|string',
+            'department_id' => 'required|exists:departments,id',
+            'location' => 'required|string|max:255',
+            'severity' => 'required|in:low,medium,high,critical',
+            'incident_date' => 'required|date',
+            'reported_by' => 'nullable|exists:users,id',
+        ]);
+
+        $validatedData['reported_by'] = $validatedData['reported_by'] ?? Auth::id();
+        $validatedData['status'] = 'open';
+
+        $incident = DB::table('safety_incidents')->insertGetId($validatedData);
+
+        return response()->json([
+            'message' => 'Safety incident created successfully',
+            'incident' => $incident,
+        ], 201);
+    }
+
+    /**
+     * Display the specified incident.
+     */
+    public function showIncident($id)
+    {
+        $this->authorize('view', SafetyInspection::class);
+
+        $incident = DB::table('safety_incidents')
+            ->join('departments', 'safety_incidents.department_id', '=', 'departments.id')
+            ->join('users', 'safety_incidents.reported_by', '=', 'users.id')
+            ->select('safety_incidents.*', 'departments.name as department_name', 'users.name as reporter_name')
+            ->where('safety_incidents.id', $id)
+            ->first();
+
+        if (! $incident) {
+            return response()->json(['message' => 'Incident not found'], 404);
+        }
+
+        return response()->json($incident);
+    }
+
+    /**
+     * Update the specified incident.
+     */
+    public function updateIncident(Request $request, $id)
+    {
+        $this->authorize('update', SafetyInspection::class);
+
+        $validatedData = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'required|string',
+            'department_id' => 'required|exists:departments,id',
+            'location' => 'required|string|max:255',
+            'severity' => 'required|in:low,medium,high,critical',
+            'status' => 'required|in:open,investigating,resolved,closed',
+            'incident_date' => 'required|date',
+        ]);
+
+        DB::table('safety_incidents')
+            ->where('id', $id)
+            ->update($validatedData);
+
+        return response()->json(['message' => 'Safety incident updated successfully']);
     }
 }

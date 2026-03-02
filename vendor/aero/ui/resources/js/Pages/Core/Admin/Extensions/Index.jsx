@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Head, router } from '@inertiajs/react';
+import { motion } from 'framer-motion';
 import { hasRoute, safeRoute, safeNavigate, safePost, safePut, safeDelete } from '@/utils/routeUtils';
 import App from '@/Layouts/App';
 import PageHeader from '@/Components/PageHeader';
+import { useThemeRadius } from '@/Hooks/useThemeRadius.js';
+import { useHRMAC } from '@/Hooks/useHRMAC';
 import {
     Card,
     CardBody,
@@ -38,25 +41,29 @@ import axios from 'axios';
  * Allows activation/deactivation of modules and uploading new modules.
  */
 const ExtensionsIndex = ({ installedModules = [], marketplaceModules = [], purchasedCodes = {} }) => {
+    const themeRadius = useThemeRadius();
+    const { canCreate, canUpdate, canDelete, isSuperAdmin } = useHRMAC();
+    
+    // Manual responsive state management (HRMAC pattern)
+    const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
+    
+    useEffect(() => {
+        const checkScreenSize = () => {
+            setIsMobile(window.innerWidth < 640);
+            setIsTablet(window.innerWidth < 768);
+        };
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
+    
     const [activeTab, setActiveTab] = useState('installed');
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const [uploadFile, setUploadFile] = useState(null);
     const [purchaseCode, setPurchaseCode] = useState('');
     const [uploading, setUploading] = useState(false);
     const [checkingUpdates, setCheckingUpdates] = useState(false);
-    
-    const getThemeRadius = () => {
-        const rootStyles = getComputedStyle(document.documentElement);
-        const borderRadius = rootStyles.getPropertyValue('--borderRadius')?.trim() || '12px';
-        const radiusValue = parseInt(borderRadius);
-        if (radiusValue === 0) return 'none';
-        if (radiusValue <= 4) return 'sm';
-        if (radiusValue <= 8) return 'md';
-        if (radiusValue <= 12) return 'lg';
-        return 'xl';
-    };
-    
-    const themeRadius = getThemeRadius();
 
     const handleToggleModule = (moduleCode, currentStatus) => {
         const action = currentStatus ? 'deactivate' : 'activate';
@@ -99,21 +106,21 @@ const ExtensionsIndex = ({ installedModules = [], marketplaceModules = [], purch
                 });
                 
                 if (response.status === 200) {
-                    resolve([response.data.message || 'Module installed successfully']);
+                    resolve([response.data.message || 'Extension installed successfully']);
                     setUploadModalOpen(false);
                     setUploadFile(null);
                     setPurchaseCode('');
                     router.reload();
                 }
             } catch (error) {
-                reject(error.response?.data?.errors || ['Failed to install module']);
+                reject(error.response?.data?.errors || ['Failed to install extension']);
             } finally {
                 setUploading(false);
             }
         });
 
         showToast.promise(promise, {
-            loading: 'Installing module...',
+            loading: 'Installing extension...',
             success: (data) => data.join(', '),
             error: (data) => Array.isArray(data) ? data.join(', ') : data,
         });
@@ -305,7 +312,7 @@ const ExtensionsIndex = ({ installedModules = [], marketplaceModules = [], purch
                                 installedModules.map(module => renderModuleCard(module, true))
                             ) : (
                                 <div className="col-span-full text-center py-12 text-default-500">
-                                    No modules installed yet
+                                    No extensions installed yet
                                 </div>
                             )}
                         </div>
@@ -326,7 +333,7 @@ const ExtensionsIndex = ({ installedModules = [], marketplaceModules = [], purch
                                 marketplaceModules.map(module => renderModuleCard(module, false))
                             ) : (
                                 <div className="col-span-full text-center py-12 text-default-500">
-                                    No marketplace modules available
+                                    No marketplace extensions available
                                 </div>
                             )}
                         </div>

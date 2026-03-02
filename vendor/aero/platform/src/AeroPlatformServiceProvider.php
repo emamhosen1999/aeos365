@@ -4,13 +4,15 @@ namespace Aero\Platform;
 
 use Aero\Core\Contracts\TenantScopeInterface;
 use Aero\Core\Services\NavigationRegistry;
+use Aero\HRMAC\Services\RoleModuleAccessService as HRMACRoleModuleAccessService;
 use Aero\Platform\Listeners\TenantCreatedListener;
 use Aero\Platform\Models\LandlordUser;
 use Aero\Platform\Services\Billing\SslCommerzService;
-use Aero\Platform\Services\ModuleAccessService;
+use Aero\Platform\Services\Module\ModuleAccessService;
+use Aero\Platform\Services\Module\NullRoleModuleAccessService;
+use Aero\Platform\Services\Module\RoleModuleAccessService;
 use Aero\Platform\Services\Monitoring\Tenant\ErrorLogService;
 use Aero\Platform\Services\PlatformSettingService;
-use Aero\Platform\Services\RoleModuleAccessService;
 use Aero\Platform\Services\SaaSTenantScope;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
@@ -66,17 +68,56 @@ class AeroPlatformServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/tenancy.php', 'tenancy');
         $this->mergeConfigFrom(__DIR__.'/../config/platform.php', 'platform');
 
+        // Merge audit logging config into Laravel's logging channels
+        $auditConfig = require __DIR__.'/../config/audit.php';
+        config(['logging.channels.audit' => $auditConfig['audit']]);
+
         // Override TenantScopeInterface binding (Core binds StandaloneTenantScope by default)
         // Platform provides the SaaS implementation using stancl/tenancy
         $this->app->singleton(TenantScopeInterface::class, SaaSTenantScope::class);
 
-        // Register services as singletons (lazy-loaded to avoid DB access pre-install)
-        $this->app->singleton(ModuleAccessService::class, function ($app) {
-            return new ModuleAccessService;
+        // Register Module Access Services with fallback stubs for pre-install
+        // These services are lazy-loaded to avoid DB queries before installation
+        $this->app->singleton(HRMACRoleModuleAccessService::class, function ($app) {
+            // Before installation: return a null-object stub that satisfies the
+            // RoleModuleAccessService type hint without making any DB queries.
+            if (! file_exists(storage_path('app/aeos.installed'))) {
+                return new NullRoleModuleAccessService;
+            }
+
+            try {
+                return new HRMACRoleModuleAccessService;
+            } catch (\Throwable $e) {
+                return new NullRoleModuleAccessService;
+            }
         });
 
-        $this->app->singleton(RoleModuleAccessService::class, function ($app) {
-            return new RoleModuleAccessService;
+        // Alias Platform's RoleModuleAccessService to HRMAC's for backward compatibility
+        $this->app->alias(HRMACRoleModuleAccessService::class, RoleModuleAccessService::class);
+
+        $this->app->singleton(ModuleAccessService::class, function ($app) {
+            // Only instantiate if installed to avoid DB queries pre-install
+            if (! file_exists(storage_path('app/aeos.installed'))) {
+                return new class
+                {
+                    public function __call($method, $args)
+                    {
+                        return [];
+                    }
+                };
+            }
+
+            try {
+                return new ModuleAccessService($app->make(RoleModuleAccessService::class));
+            } catch (\Throwable $e) {
+                return new class
+                {
+                    public function __call($method, $args)
+                    {
+                        return [];
+                    }
+                };
+            }
         });
 
         $this->app->singleton(PlatformSettingService::class, function ($app) {
@@ -132,6 +173,9 @@ class AeroPlatformServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Register Plan audit observer
+        \Aero\Platform\Models\Plan::observe(\Aero\Platform\Observers\PlanAuditObserver::class);
+
         // Override tenancy bootstrappers after all providers registered
         // FilesystemTenancyBootstrapper disabled - causes "Undefined array key 'local'" error
         // Using custom CachePrefixTenancyBootstrapper instead of stancl's CacheTenancyBootstrapper
@@ -201,6 +245,7 @@ class AeroPlatformServiceProvider extends ServiceProvider
                 \Aero\Platform\Console\Commands\EnsureSuperAdmin::class,
                 \Aero\Platform\Console\Commands\SetupApplication::class,
                 \Aero\Platform\Console\Commands\CleanupFailedInstallation::class,
+                \Aero\Platform\Console\Commands\ProcessPendingSubscriptionChanges::class,
             ]);
         }
 
@@ -235,9 +280,6 @@ class AeroPlatformServiceProvider extends ServiceProvider
 
         // Register Platform widgets (order matters for display)
         $registry->registerMany([
-            // Welcome header (full width)
-            new \Aero\Platform\Widgets\PlatformWelcomeWidget,
-
             // Stats row (full width grid)
             new \Aero\Platform\Widgets\PlatformStatsWidget,
 
@@ -401,6 +443,11 @@ class AeroPlatformServiceProvider extends ServiceProvider
         $router->aliasMiddleware('tenant.onboarding', \Aero\Platform\Http\Middleware\RequireTenantOnboarding::class);
         $router->aliasMiddleware('set.locale', \Aero\Platform\Http\Middleware\SetLocale::class);
         $router->aliasMiddleware('check.subscription', \Aero\Platform\Http\Middleware\CheckModuleSubscription::class);
+        $router->aliasMiddleware('require.saas', \Aero\Platform\Http\Middleware\RequireSaasMode::class);
+
+        // Role-based module access middleware (checks role_module_access table)
+        $router->aliasMiddleware('role.access', \Aero\Platform\Http\Middleware\CheckRoleModuleAccess::class);
+        $router->aliasMiddleware('smart.landing', \Aero\Platform\Http\Middleware\SmartLandingRedirect::class);
 
         // Optionally push CheckModuleSubscription to 'tenant' middleware group
         // This provides automatic route-based module gating for all tenant routes
@@ -437,7 +484,7 @@ class AeroPlatformServiceProvider extends ServiceProvider
 
     /**
      * Configure central domains for stancl/tenancy.
-     * 
+     *
      * AUTO-DETECTION: Automatically detects from the current HTTP request.
      * Extracts the root domain from the browser request (e.g., aeos365.test)
      * and automatically includes admin subdomain (admin.aeos365.test).
@@ -450,7 +497,7 @@ class AeroPlatformServiceProvider extends ServiceProvider
         $centralDomains = ['localhost', '127.0.0.1'];
 
         // In web context, detect domain from current request
-        if (!app()->runningInConsole() && request()) {
+        if (! app()->runningInConsole() && request()) {
             $currentHost = request()->getHost();
             $hostWithoutPort = preg_replace('/:\d+$/', '', $currentHost);
 
@@ -519,13 +566,13 @@ class AeroPlatformServiceProvider extends ServiceProvider
             $escapedDomain = preg_quote($platformDomain, '/');
 
             // Trust exact platform domain
-            $trustedPatterns[] = '^' . $escapedDomain . '$';
+            $trustedPatterns[] = '^'.$escapedDomain.'$';
 
             // Trust admin subdomain
-            $trustedPatterns[] = '^admin\.' . $escapedDomain . '$';
+            $trustedPatterns[] = '^admin\.'.$escapedDomain.'$';
 
             // Trust any tenant subdomain
-            $trustedPatterns[] = '^[a-z0-9]([a-z0-9-]*[a-z0-9])?\.' . $escapedDomain . '$';
+            $trustedPatterns[] = '^[a-z0-9]([a-z0-9-]*[a-z0-9])?\.'.$escapedDomain.'$';
         } else {
             // No platform domain configured - trust .test and .local TLDs for development
             $trustedPatterns[] = '^[a-z0-9.-]+\.test$';
@@ -540,7 +587,7 @@ class AeroPlatformServiceProvider extends ServiceProvider
     /**
      * Configure database connections programmatically.
      * Adds 'central' connection for landlord models.
-     * 
+     *
      * Priority: .env DB_DATABASE > installation_db_config.json > fallback
      */
     protected function configureDatabase(): void
@@ -562,7 +609,7 @@ class AeroPlatformServiceProvider extends ServiceProvider
 
     /**
      * Resolve the database name from available sources.
-     * 
+     *
      * Priority:
      * 1. .env DB_DATABASE (if set and non-empty)
      * 2. installation_db_config.json (installation wizard stored config)
@@ -572,7 +619,7 @@ class AeroPlatformServiceProvider extends ServiceProvider
     {
         // Priority 1: Check .env
         $envDatabase = env('DB_DATABASE');
-        if (!empty($envDatabase)) {
+        if (! empty($envDatabase)) {
             return $envDatabase;
         }
 
@@ -581,9 +628,10 @@ class AeroPlatformServiceProvider extends ServiceProvider
         if (file_exists($configPath)) {
             try {
                 $config = json_decode(file_get_contents($configPath), true);
-                if (!empty($config['db_database'])) {
+                if (! empty($config['db_database'])) {
                     // Also update host/port/user/pass from installation config
                     $this->applyInstallationDbConfig($config);
+
                     return $config['db_database'];
                 }
             } catch (\Throwable $e) {
@@ -602,19 +650,19 @@ class AeroPlatformServiceProvider extends ServiceProvider
     {
         $mysqlConfig = config('database.connections.mysql', []);
 
-        if (!empty($config['db_host'])) {
+        if (! empty($config['db_host'])) {
             Config::set('database.connections.mysql.host', $config['db_host']);
         }
-        if (!empty($config['db_port'])) {
+        if (! empty($config['db_port'])) {
             Config::set('database.connections.mysql.port', $config['db_port']);
         }
-        if (!empty($config['db_username'])) {
+        if (! empty($config['db_username'])) {
             Config::set('database.connections.mysql.username', $config['db_username']);
         }
         if (isset($config['db_password'])) {
             $password = $config['db_password'];
             // Decrypt if encrypted
-            if (!empty($config['db_password_encrypted']) && !empty($password)) {
+            if (! empty($config['db_password_encrypted']) && ! empty($password)) {
                 try {
                     $password = \Illuminate\Support\Facades\Crypt::decryptString($password);
                 } catch (\Throwable $e) {
@@ -708,6 +756,7 @@ class AeroPlatformServiceProvider extends ServiceProvider
         if ($platformDomain) {
             // Remove any protocol or trailing slashes
             $platformDomain = preg_replace('#^https?://|/$#', '', $platformDomain);
+
             return $platformDomain;
         }
 
@@ -725,6 +774,7 @@ class AeroPlatformServiceProvider extends ServiceProvider
         if ($adminDomain) {
             // Remove any protocol or trailing slashes
             $adminDomain = preg_replace('#^https?://|/$#', '', $adminDomain);
+
             return $adminDomain;
         }
 
@@ -798,20 +848,27 @@ class AeroPlatformServiceProvider extends ServiceProvider
      *
      * This overrides Core's migrator override which excludes app migrations.
      * Platform further restricts to ONLY platform migrations for landlord.
+     *
+     * IMPORTANT: This filter only applies when connected to the central/landlord database.
+     * When tenancy is initialized (tenant database), all package migrations are allowed.
      */
     protected function overrideMigratorForLandlord(): void
     {
         $platformMigrationsPath = realpath(__DIR__.'/../database/migrations');
+        $centralDatabase = config('tenancy.database.central_connection', config('database.default'));
 
-        $this->app->extend('migrator', function ($migrator, $app) use ($platformMigrationsPath) {
-            return new class($app['migration.repository'], $app['db'], $app['files'], $app['events'], $platformMigrationsPath) extends \Illuminate\Database\Migrations\Migrator
+        $this->app->extend('migrator', function ($migrator, $app) use ($platformMigrationsPath, $centralDatabase) {
+            return new class($app['migration.repository'], $app['db'], $app['files'], $app['events'], $platformMigrationsPath, $centralDatabase) extends \Illuminate\Database\Migrations\Migrator
             {
                 protected string $platformMigrationsPath;
 
-                public function __construct($repository, $resolver, $files, $dispatcher, string $platformMigrationsPath)
+                protected string $centralDatabase;
+
+                public function __construct($repository, $resolver, $files, $dispatcher, string $platformMigrationsPath, string $centralDatabase)
                 {
                     parent::__construct($repository, $resolver, $files, $dispatcher);
                     $this->platformMigrationsPath = $platformMigrationsPath;
+                    $this->centralDatabase = $centralDatabase;
                 }
 
                 public function getMigrationFiles($paths)
@@ -819,7 +876,19 @@ class AeroPlatformServiceProvider extends ServiceProvider
                     // Get all migration files from all paths
                     $files = parent::getMigrationFiles($paths);
 
-                    // ONLY allow migrations from aero-platform package
+                    // Check if we're on a tenant database (tenancy is initialized)
+                    // If tenancy is initialized, allow ALL package migrations
+                    if (function_exists('tenancy') && tenancy()->initialized) {
+                        return $files;
+                    }
+
+                    // During installation, allow ALL package migrations to run on central DB
+                    // Core, HRMAC, and other package migrations are needed for the initial setup
+                    if (! file_exists(storage_path('app/aeos.installed'))) {
+                        return $files;
+                    }
+
+                    // On central/landlord database: ONLY allow migrations from aero-platform package
                     // All other packages (core, hrm, crm, etc.) are for tenant databases
                     return collect($files)->filter(function ($path, $name) {
                         // Normalize path for comparison (resolve ../ and convert slashes)
@@ -838,7 +907,7 @@ class AeroPlatformServiceProvider extends ServiceProvider
      *
      * Redirects unauthenticated users to the appropriate login page
      * based on domain context (admin vs tenant).
-     * 
+     *
      * IMPORTANT: Do NOT set a global default guard with shouldUse().
      * The default guard should remain 'web' for tenant domains.
      * Admin routes explicitly use 'auth:landlord' middleware.
@@ -852,14 +921,19 @@ class AeroPlatformServiceProvider extends ServiceProvider
         $this->app->resolving(\Illuminate\Auth\Middleware\Authenticate::class, function ($middleware) {
             $middleware->redirectUsing(function ($request) {
                 $host = $request->getHost();
-                
+
                 // Use the ParsesHostDomain trait for consistent domain detection
-                $trait = new class {
+                $trait = new class
+                {
                     use \Aero\Core\Traits\ParsesHostDomain;
-                    public function isAdmin(string $host): bool {
+
+                    public function isAdmin(string $host): bool
+                    {
                         return $this->isHostAdminDomain($host);
                     }
-                    public function isPlatform(string $host): bool {
+
+                    public function isPlatform(string $host): bool
+                    {
                         return $this->isHostPlatformDomain($host);
                     }
                 };
@@ -884,14 +958,19 @@ class AeroPlatformServiceProvider extends ServiceProvider
         // This is called when an authenticated user tries to access login/register pages
         \Illuminate\Auth\Middleware\RedirectIfAuthenticated::redirectUsing(function ($request) {
             $host = $request->getHost();
-            
+
             // Use the ParsesHostDomain trait for consistent domain detection
-            $trait = new class {
+            $trait = new class
+            {
                 use \Aero\Core\Traits\ParsesHostDomain;
-                public function isAdmin(string $host): bool {
+
+                public function isAdmin(string $host): bool
+                {
                     return $this->isHostAdminDomain($host);
                 }
-                public function isPlatform(string $host): bool {
+
+                public function isPlatform(string $host): bool
+                {
                     return $this->isHostPlatformDomain($host);
                 }
             };
@@ -915,6 +994,7 @@ class AeroPlatformServiceProvider extends ServiceProvider
                 if (\Illuminate\Support\Facades\Route::has('dashboard')) {
                     return route('dashboard');
                 }
+
                 return '/dashboard';
             }
 
@@ -925,8 +1005,6 @@ class AeroPlatformServiceProvider extends ServiceProvider
 
     /**
      * Check if the system is installed using file-based detection.
-     * 
-     * @return bool
      */
     protected function installed(): bool
     {
@@ -936,15 +1014,13 @@ class AeroPlatformServiceProvider extends ServiceProvider
     /**
      * Check if system is in SaaS mode using file-based detection.
      * Mode is set during installation and immutable at runtime.
-     * 
-     * @return bool
      */
     protected function isSaasMode(): bool
     {
-        if (!file_exists(storage_path('app/aeos.mode'))) {
+        if (! file_exists(storage_path('app/aeos.mode'))) {
             return false;
         }
-        
+
         return trim(file_get_contents(storage_path('app/aeos.mode'))) === 'saas';
     }
 }

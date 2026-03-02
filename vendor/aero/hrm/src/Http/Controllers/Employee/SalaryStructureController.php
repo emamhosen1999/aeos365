@@ -2,10 +2,10 @@
 
 namespace Aero\HRM\Http\Controllers\Employee;
 
+use Aero\Core\Models\User;
+use Aero\HRM\Http\Controllers\Controller;
 use Aero\HRM\Models\EmployeeSalaryStructure;
 use Aero\HRM\Models\SalaryComponent;
-use Aero\HRM\Http\Controllers\Controller;
-use Aero\Core\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -29,7 +29,7 @@ class SalaryStructureController extends Controller
             'deductions' => SalaryComponent::where('type', 'deduction')->count(),
         ];
 
-        return Inertia::render('Pages/HRM/SalaryStructure/Index', [
+        return Inertia::render('HRM/SalaryStructure/Index', [
             'title' => 'Salary Structure Management',
             'components' => $components,
             'stats' => $stats,
@@ -188,7 +188,7 @@ class SalaryStructureController extends Controller
             return response()->json($data);
         }
 
-        return Inertia::render('Pages/HRM/SalaryStructure/EmployeeSalary', $data);
+        return Inertia::render('HRM/SalaryStructure/EmployeeSalary', $data);
     }
 
     /**

@@ -15,7 +15,6 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Stancl\Tenancy\Jobs\CreateDatabase;
-use Stancl\Tenancy\Jobs\MigrateDatabase;
 use Throwable;
 
 /**
@@ -53,8 +52,19 @@ class ProvisionTenant implements ShouldQueue
 
     /**
      * The maximum number of unhandled exceptions to allow before failing.
+     * Fix #12: Must equal $tries (3) so the backoff schedule is actually used.
+     * Setting this to 1 made the job fail permanently on the first exception,
+     * rendering the $backoff array useless.
      */
-    public int $maxExceptions = 1;
+    public int $maxExceptions = 3;
+
+    /**
+     * The number of seconds the job can run before timing out.
+     *
+     * Set to 10 minutes to allow for large database migrations.
+     * If exceeded, the job will fail and trigger rollback.
+     */
+    public int $timeout = 600;
 
     /**
      * The tenant to provision.
@@ -90,6 +100,10 @@ class ProvisionTenant implements ShouldQueue
      */
     public function handle(): void
     {
+        // Fix #26: Eager-load frequently accessed relations up-front to prevent N+1 queries
+        // throughout the provisioning pipeline.
+        $this->tenant->loadMissing(['plan', 'domains']);
+
         $context = [
             'tenant_id' => $this->tenant->id,
             'tenant_name' => $this->tenant->name,
@@ -97,6 +111,9 @@ class ProvisionTenant implements ShouldQueue
         ];
 
         $this->logStep('🚀 STARTING TENANT PROVISIONING', $context);
+
+        // Audit: Log provisioning started
+        $this->logAuditEvent('tenant.provisioning.started', $context);
 
         $databaseCreated = false;
 
@@ -148,6 +165,14 @@ class ProvisionTenant implements ShouldQueue
             $this->logStep('✅ Step 8 Complete: Notification email sent', $context);
 
             $this->logStep('🎊 PROVISIONING COMPLETED SUCCESSFULLY - AWAITING ADMIN SETUP', $context);
+
+            // Audit: Log provisioning completed
+            $this->logAuditEvent('tenant.provisioning.completed', array_merge($context, [
+                'plan_id' => $this->tenant->plan_id,
+                'plan_name' => $this->tenant->plan?->name,
+                'modules' => $this->tenant->plan?->module_codes ?? [],
+                'database' => $this->tenant->database()?->getName(),
+            ]));
         } catch (Throwable $e) {
             $errorContext = array_merge($context, [
                 'failed_step' => $this->tenant->provisioning_step,
@@ -158,6 +183,9 @@ class ProvisionTenant implements ShouldQueue
 
             $this->logStep('❌ PROVISIONING FAILED', $errorContext, 'error');
             $this->logStep('⚠️  Error: '.$e->getMessage(), $errorContext, 'error');
+
+            // Audit: Log provisioning failed
+            $this->logAuditEvent('tenant.provisioning.failed', $errorContext);
 
             // Rollback: Drop the database if it was created
             if ($databaseCreated) {
@@ -194,7 +222,7 @@ class ProvisionTenant implements ShouldQueue
             DB::connection()->getPdo();
             $this->logStep('   → Database connection verified', []);
         } catch (\Exception $e) {
-            throw new \RuntimeException('Database connection failed: ' . $e->getMessage());
+            throw new \RuntimeException('Database connection failed: '.$e->getMessage());
         }
 
         // 4. Validate tenant has a plan (optional but log warning)
@@ -221,20 +249,27 @@ class ProvisionTenant implements ShouldQueue
 
     /**
      * Create the tenant database.
-     * 
-     * For cPanel hosting (TENANCY_DATABASE_MANAGER=cpanel):
-     * - Uses cPanel API to create database
-     * - Database name is prefixed with cPanel username
-     * 
-     * For VPS/Dedicated (default):
-     * - Uses standard SQL CREATE DATABASE
+     *
+     * Hosting mode is resolved from (in order of precedence):
+     *   1. platform_settings.hosting_settings.mode  (DB — Admin UI toggle)
+     *   2. TENANCY_DATABASE_MANAGER env variable     (legacy .env fallback)
+     *   3. Default → 'dedicated'                     (standard VPS / MySQL CREATE DATABASE)
+     *
+     * shared    → cPanel UAPI (Namecheap / any cPanel shared host)
+     * dedicated → standard SQL CREATE DATABASE
      */
     protected function createDatabase(): void
     {
         $this->tenant->updateProvisioningStep(Tenant::STEP_CREATING_DB);
 
-        // Check if using cPanel mode
-        if (config('tenancy.cpanel.host') && env('TENANCY_DATABASE_MANAGER') === 'cpanel') {
+        $mode = $this->resolveHostingMode();
+
+        $this->logStep("   → Hosting mode resolved: {$mode}", [
+            'mode' => $mode,
+        ]);
+
+        if ($mode === 'shared') {
+            $this->injectCpanelConfigFromDb();
             $this->createDatabaseViaCpanel();
         } else {
             $this->createDatabaseViaSQL();
@@ -242,16 +277,70 @@ class ProvisionTenant implements ShouldQueue
     }
 
     /**
+     * Resolve the active hosting mode.
+     *
+     * Falls back gracefully if the DB is unavailable (e.g. first-time setup).
+     */
+    protected function resolveHostingMode(): string
+    {
+        try {
+            return \Aero\Platform\Models\PlatformSetting::current()->getHostingMode();
+        } catch (\Throwable $e) {
+            // DB unavailable during provisioning — fall back to env
+            $this->logStep('   ⚠️  Could not read hosting mode from DB, using .env fallback: '.$e->getMessage(), [], 'warning');
+
+            return env('TENANCY_DATABASE_MANAGER', 'mysql') === 'cpanel' ? 'shared' : 'dedicated';
+        }
+    }
+
+    /**
+     * Inject cPanel credentials from platform_settings into the runtime config
+     * so that CpanelDatabaseManager::callCpanelApi() picks them up automatically.
+     *
+     * DB credentials take priority over .env values.
+     * If a field is empty in the DB the existing config/env value is kept.
+     */
+    protected function injectCpanelConfigFromDb(): void
+    {
+        try {
+            $settings = \Aero\Platform\Models\PlatformSetting::current()->getHostingSettingsDecrypted();
+        } catch (\Throwable $e) {
+            $this->logStep('   ⚠️  Could not load cPanel credentials from DB: '.$e->getMessage(), [], 'warning');
+
+            return;
+        }
+
+        $map = [
+            'cpanel_host'      => 'tenancy.cpanel.host',
+            'cpanel_port'      => 'tenancy.cpanel.port',
+            'cpanel_username'  => 'tenancy.cpanel.username',
+            'cpanel_api_token' => 'tenancy.cpanel.api_token',
+            'cpanel_db_user'   => 'tenancy.cpanel.db_user',
+        ];
+
+        foreach ($map as $dbKey => $configKey) {
+            if (! empty($settings[$dbKey])) {
+                config([$configKey => $settings[$dbKey]]);
+            }
+        }
+
+        $this->logStep('   → cPanel credentials loaded from platform_settings', [
+            'host' => config('tenancy.cpanel.host'),
+            'user' => config('tenancy.cpanel.username'),
+        ]);
+    }
+
+    /**
      * Create database using cPanel API.
      */
     protected function createDatabaseViaCpanel(): void
     {
-        $cpanelManager = new \Aero\Platform\TenantDatabaseManagers\CpanelDatabaseManager();
-        
+        $cpanelManager = new \Aero\Platform\TenantDatabaseManagers\CpanelDatabaseManager;
+
         // Get the database name that cPanel will create
         $shortDbName = $this->getCpanelShortDatabaseName();
-        $fullDbName = config('tenancy.cpanel.username') . '_' . $shortDbName;
-        
+        $fullDbName = config('tenancy.cpanel.username').'_'.$shortDbName;
+
         $this->logStep("   → Creating database via cPanel API: {$fullDbName}", [
             'database' => $fullDbName,
             'short_name' => $shortDbName,
@@ -259,17 +348,17 @@ class ProvisionTenant implements ShouldQueue
 
         try {
             $cpanelManager->createDatabase($this->tenant);
-            
+
             // Update tenant with the cPanel database name
             $this->tenant->update([
                 'tenancy_db_name' => $fullDbName,
             ]);
-            
+
             $this->logStep("   → Database '{$fullDbName}' created successfully via cPanel", [
                 'database' => $fullDbName,
             ]);
         } catch (\Exception $e) {
-            throw new \RuntimeException("cPanel database creation failed: " . $e->getMessage());
+            throw new \RuntimeException('cPanel database creation failed: '.$e->getMessage());
         }
     }
 
@@ -291,12 +380,12 @@ class ProvisionTenant implements ShouldQueue
                 'SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?',
                 [$dbName]
             );
-            
+
             if (empty($exists)) {
                 throw new \RuntimeException("Database {$dbName} was not created successfully");
             }
         } catch (\Exception $e) {
-            throw new \RuntimeException("Failed to verify database creation: " . $e->getMessage());
+            throw new \RuntimeException('Failed to verify database creation: '.$e->getMessage());
         }
 
         $this->logStep("   → Database '{$dbName}' created successfully", ['database' => $dbName]);
@@ -310,12 +399,14 @@ class ProvisionTenant implements ShouldQueue
     {
         if ($this->tenant->subdomain) {
             $subdomain = preg_replace('/[^a-z0-9]/i', '', $this->tenant->subdomain);
-            return 'tn_' . substr(strtolower($subdomain), 0, 16);
+
+            return 'tn_'.substr(strtolower($subdomain), 0, 16);
         }
-        
+
         // Fallback: use first 16 chars of UUID
         $shortId = str_replace('-', '', substr($this->tenant->id, 0, 16));
-        return 'tn_' . $shortId;
+
+        return 'tn_'.$shortId;
     }
 
     /**
@@ -333,7 +424,7 @@ class ProvisionTenant implements ShouldQueue
         // Get dynamic migration paths based on plan modules
         $migrationPaths = $this->getTenantMigrationPaths();
 
-        $this->logStep("   → Migration paths: " . implode(', ', $migrationPaths), [
+        $this->logStep('   → Migration paths: '.implode(', ', $migrationPaths), [
             'paths' => $migrationPaths,
         ]);
 
@@ -346,96 +437,97 @@ class ProvisionTenant implements ShouldQueue
                     $table->string('migration');
                     $table->integer('batch');
                 });
-                $this->logStep("   → Created migrations table");
+                $this->logStep('   → Created migrations table');
             }
-            
+
             $batch = 1;
-            
+
             foreach ($migrationPaths as $path) {
                 $absolutePath = base_path($path);
                 $this->logStep("   → Running migrations from: {$absolutePath}");
-                
+
                 // Get all PHP files from the directory manually
-                $files = glob($absolutePath . '/*.php');
-                
+                $files = glob($absolutePath.'/*.php');
+
                 if (empty($files)) {
                     $this->logStep("   → No migration files found in: {$absolutePath}");
+
                     continue;
                 }
-                
+
                 // Sort files by name (which sorts by date due to Laravel naming convention)
                 sort($files);
-                
-                $this->logStep("   → Found " . count($files) . " migration files");
-                
+
+                $this->logStep('   → Found '.count($files).' migration files');
+
                 foreach ($files as $file) {
                     $migrationName = str_replace('.php', '', basename($file));
-                    
+
                     // Check if already ran
                     $alreadyRan = DB::table('migrations')
                         ->where('migration', $migrationName)
                         ->exists();
-                    
+
                     if ($alreadyRan) {
                         continue;
                     }
-                    
+
                     try {
                         // Run the migration using require which handles both named and anonymous classes
                         $migration = require $file;
-                        
+
                         if (is_object($migration)) {
                             // Anonymous class migration (Laravel 9+)
                             $migration->up();
                         }
-                        
+
                         // Record that we ran this migration
                         DB::table('migrations')->insert([
                             'migration' => $migrationName,
                             'batch' => $batch,
                         ]);
-                        
+
                         $this->logStep("   → Migrated: {$migrationName}");
                     } catch (\Throwable $e) {
-                        $this->logStep("   ❌ Failed to migrate {$migrationName}: " . $e->getMessage(), [], 'error');
+                        $this->logStep("   ❌ Failed to migrate {$migrationName}: ".$e->getMessage(), [], 'error');
                         throw $e;
                     }
                 }
-                
+
                 $batch++;
             }
         });
 
         $this->logStep('   → All migrations completed', []);
     }
-    
+
     /**
      * Get migration class name from file.
      */
     protected function getMigrationClassName(string $file): string
     {
         $content = file_get_contents($file);
-        
+
         // Check for anonymous class migration (Laravel 9+)
         if (preg_match('/return\s+new\s+class/', $content)) {
             return 'anonymous';
         }
-        
+
         // Traditional named class
         if (preg_match('/class\s+(\w+)\s+extends/', $content, $matches)) {
             return $matches[1];
         }
-        
+
         return '';
     }
-    
+
     /**
      * Run a single migration file.
      */
     protected function runMigrationFile(string $file): void
     {
         $migration = require $file;
-        
+
         if (is_object($migration)) {
             // Anonymous class migration
             $migration->up();
@@ -447,6 +539,61 @@ class ProvisionTenant implements ShouldQueue
      * These are either already included (core) or don't have migrations (dashboard).
      */
     private const EXCLUDED_MODULES = ['core', 'dashboard'];
+
+    /**
+     * Module dependency map.
+     * Each module can depend on other modules that must be included.
+     * Core is always included automatically (in getTenantMigrationPaths).
+     *
+     * @var array<string, array<string>>
+     */
+    private const MODULE_DEPENDENCIES = [
+        'hrm' => [],
+        'finance' => [],
+        'crm' => [],
+        'project' => [],
+        'ims' => [],
+        'pos' => ['ims'],        // POS requires Inventory Management
+        'scm' => ['ims'],        // Supply Chain requires Inventory
+        'quality' => [],
+        'dms' => [],
+        'compliance' => [],
+        'assistant' => [],
+        'rfi' => [],
+    ];
+
+    /**
+     * Resolve module dependencies and return complete list.
+     *
+     * @param  array<string>  $moduleCodes  Original list of module codes
+     * @return array<string> Module codes with dependencies resolved
+     */
+    protected function resolveModuleDependencies(array $moduleCodes): array
+    {
+        $resolved = [];
+        $toProcess = $moduleCodes;
+
+        while (! empty($toProcess)) {
+            $current = array_shift($toProcess);
+
+            if (in_array($current, $resolved, true)) {
+                continue;
+            }
+
+            $resolved[] = $current;
+
+            // Add dependencies to processing queue
+            $dependencies = self::MODULE_DEPENDENCIES[$current] ?? [];
+            foreach ($dependencies as $dep) {
+                if (! in_array($dep, $resolved, true) && ! in_array($dep, $toProcess, true)) {
+                    $toProcess[] = $dep;
+                    $this->logStep("   → Auto-including dependency: {$dep} (required by {$current})", []);
+                }
+            }
+        }
+
+        return array_unique($resolved);
+    }
 
     /**
      * Get migration paths for tenant based on their plan's modules.
@@ -462,7 +609,7 @@ class ProvisionTenant implements ShouldQueue
         // Always include core migrations (users, roles, permissions, etc.)
         $corePath = 'vendor/aero/core/database/migrations';
         $searchedPaths[] = $corePath;
-        
+
         if (File::exists(base_path($corePath))) {
             $paths[] = $corePath;
             $this->logStep("   → Including core migrations: {$corePath}", []);
@@ -470,7 +617,7 @@ class ProvisionTenant implements ShouldQueue
             // Fallback: try packages directory (for development/non-composer installs)
             $coreDevPath = 'packages/aero-core/database/migrations';
             $searchedPaths[] = $coreDevPath;
-            
+
             if (File::exists(base_path($coreDevPath))) {
                 $paths[] = $coreDevPath;
                 $this->logStep("   → Including core migrations (dev): {$coreDevPath}", []);
@@ -490,7 +637,10 @@ class ProvisionTenant implements ShouldQueue
                 $planModules = json_decode($planModules, true) ?? [];
             }
 
-            $this->logStep('   → Plan modules: ' . implode(', ', $planModules), [
+            // Resolve dependencies to auto-include required modules
+            $planModules = $this->resolveModuleDependencies($planModules);
+
+            $this->logStep('   → Plan modules (with dependencies): '.implode(', ', $planModules), [
                 'modules' => $planModules,
             ]);
 
@@ -505,6 +655,7 @@ class ProvisionTenant implements ShouldQueue
                 if (File::exists(base_path($modulePath))) {
                     $paths[] = $modulePath;
                     $this->logStep("   → Including {$moduleCode} migrations: {$modulePath}", []);
+
                     continue;
                 }
 
@@ -513,6 +664,7 @@ class ProvisionTenant implements ShouldQueue
                 if (File::exists(base_path($moduleDevPath))) {
                     $paths[] = $moduleDevPath;
                     $this->logStep("   → Including {$moduleCode} migrations (dev): {$moduleDevPath}", []);
+
                     continue;
                 }
 
@@ -601,6 +753,21 @@ class ProvisionTenant implements ShouldQueue
     {
         $modules = $this->discoverModuleConfigs();
 
+        // Filter module configs by tenant plan modules (if defined)
+        $planModuleCodes = $this->tenant->plan?->module_codes ?? [];
+        if (is_string($planModuleCodes)) {
+            $planModuleCodes = json_decode($planModuleCodes, true) ?? [];
+        }
+        $planModuleCodes = array_values(array_filter($planModuleCodes));
+
+        // Resolve dependencies to ensure required modules are included
+        if (! empty($planModuleCodes)) {
+            $planModuleCodes = $this->resolveModuleDependencies($planModuleCodes);
+            $modules = array_values(array_filter($modules, function ($moduleConfig) use ($planModuleCodes) {
+                return in_array($moduleConfig['code'] ?? null, $planModuleCodes, true);
+            }));
+        }
+
         if (empty($modules)) {
             $this->logStep('   → No module configs found to sync', []);
 
@@ -631,8 +798,6 @@ class ProvisionTenant implements ShouldQueue
 
     /**
      * Discover module configs from installed packages.
-     *
-     * @return array
      */
     protected function discoverModuleConfigs(): array
     {
@@ -661,16 +826,23 @@ class ProvisionTenant implements ShouldQueue
 
     /**
      * Sync a single module and its hierarchy to the database.
-     *
-     * @param  array  $moduleDef
+     * Uses HRMAC models if available, falls back to Core models.
      */
     protected function syncModuleToDatabase(array $moduleDef): void
     {
-        // Import models
-        $moduleClass = \Aero\Core\Models\Module::class;
-        $subModuleClass = \Aero\Core\Models\SubModule::class;
-        $componentClass = \Aero\Core\Models\ModuleComponent::class;
-        $actionClass = \Aero\Core\Models\ModuleComponentAction::class;
+        // Use HRMAC models if available, else fall back to Core models
+        $moduleClass = class_exists(\Aero\HRMAC\Models\Module::class)
+            ? \Aero\HRMAC\Models\Module::class
+            : \Aero\Core\Models\Module::class;
+        $subModuleClass = class_exists(\Aero\HRMAC\Models\SubModule::class)
+            ? \Aero\HRMAC\Models\SubModule::class
+            : \Aero\Core\Models\SubModule::class;
+        $componentClass = class_exists(\Aero\HRMAC\Models\Component::class)
+            ? \Aero\HRMAC\Models\Component::class
+            : \Aero\Core\Models\ModuleComponent::class;
+        $actionClass = class_exists(\Aero\HRMAC\Models\Action::class)
+            ? \Aero\HRMAC\Models\Action::class
+            : \Aero\Core\Models\ModuleComponentAction::class;
 
         // Sync module (top level)
         $module = $moduleClass::updateOrCreate(
@@ -753,6 +925,84 @@ class ProvisionTenant implements ShouldQueue
                 }
             }
         }
+
+        // Sync self-service items as a special "Self Service" submodule
+        if (isset($moduleDef['self_service']) && is_array($moduleDef['self_service']) && ! empty($moduleDef['self_service'])) {
+            $this->syncSelfServiceSubModule($module, $moduleDef['self_service'], $subModuleClass, $componentClass, $actionClass);
+        }
+    }
+
+    /**
+     * Sync self-service items as a "Self Service" submodule.
+     *
+     * Self-service items from config are synced as components under a special
+     * "Self Service" submodule, allowing role-based access control for
+     * employee-facing features like "My Dashboard", "My Leaves", etc.
+     *
+     * @param  mixed  $module  The parent module model
+     * @param  array  $selfServiceItems  Array of self-service item definitions
+     * @param  string  $subModuleClass  The SubModule model class to use
+     * @param  string  $componentClass  The Component model class to use
+     * @param  string  $actionClass  The Action model class to use
+     */
+    protected function syncSelfServiceSubModule($module, array $selfServiceItems, string $subModuleClass, string $componentClass, string $actionClass): void
+    {
+        // Create/update the "Self Service" submodule
+        $subModule = $subModuleClass::updateOrCreate(
+            [
+                'module_id' => $module->id,
+                'code' => 'self_service',
+            ],
+            [
+                'name' => 'Self Service',
+                'description' => 'Employee self-service features (My Workspace items)',
+                'icon' => 'UserCircleIcon',
+                'route' => null,
+                'priority' => 0, // Show first in the module
+                'is_active' => true,
+            ]
+        );
+
+        $this->logStep('      → Synced self-service submodule with '.count($selfServiceItems).' items', []);
+
+        // Convert each self-service item to a component
+        foreach ($selfServiceItems as $item) {
+            $component = $componentClass::updateOrCreate(
+                [
+                    'module_id' => $module->id,
+                    'sub_module_id' => $subModule->id,
+                    'code' => $item['code'],
+                ],
+                [
+                    'name' => $item['name'],
+                    'description' => $item['description'] ?? 'Self-service feature',
+                    'type' => 'page',
+                    'route' => $item['route'] ?? null,
+                    'priority' => $item['priority'] ?? 100,
+                    'is_active' => $item['is_active'] ?? true,
+                ]
+            );
+
+            // Create standard self-service actions for each item
+            $selfServiceActions = [
+                ['code' => 'view', 'name' => 'View'],
+                ['code' => 'access', 'name' => 'Access'],
+            ];
+
+            foreach ($selfServiceActions as $actionDef) {
+                $actionClass::updateOrCreate(
+                    [
+                        'module_component_id' => $component->id,
+                        'code' => $actionDef['code'],
+                    ],
+                    [
+                        'name' => $actionDef['name'],
+                        'description' => $actionDef['name'].' '.$item['name'],
+                        'is_active' => true,
+                    ]
+                );
+            }
+        }
     }
 
     /**
@@ -798,7 +1048,7 @@ class ProvisionTenant implements ShouldQueue
             ];
 
             foreach ($defaultRoles as $roleData) {
-                \Spatie\Permission\Models\Role::firstOrCreate(
+                \Aero\HRMAC\Models\Role::firstOrCreate(
                     ['name' => $roleData['name'], 'guard_name' => $roleData['guard_name']],
                     [
                         'description' => $roleData['description'],
@@ -808,7 +1058,7 @@ class ProvisionTenant implements ShouldQueue
             }
 
             // Grant full module access to Super Administrator role
-            $superAdminRole = \Spatie\Permission\Models\Role::where('name', 'Super Administrator')->first();
+            $superAdminRole = \Aero\HRMAC\Models\Role::where('name', 'Super Administrator')->first();
             if ($superAdminRole) {
                 $subModuleIds = DB::table('sub_modules')->pluck('id');
                 foreach ($subModuleIds as $subModuleId) {
@@ -866,7 +1116,7 @@ class ProvisionTenant implements ShouldQueue
             }
 
             if (! empty($missingTables)) {
-                throw new \RuntimeException('Required tables missing: ' . implode(', ', $missingTables));
+                throw new \RuntimeException('Required tables missing: '.implode(', ', $missingTables));
             }
 
             $this->logStep('   → All required tables verified', []);
@@ -954,6 +1204,7 @@ class ProvisionTenant implements ShouldQueue
             $notificationClass = '\\App\\Notifications\\WelcomeToTenant';
             if (! class_exists($notificationClass)) {
                 $this->logStep('   → WelcomeToTenant notification not found, skipping email', [], 'warning');
+
                 return;
             }
 
@@ -987,6 +1238,23 @@ class ProvisionTenant implements ShouldQueue
     protected function rollbackDatabase(): void
     {
         try {
+            $mode = $this->resolveHostingMode();
+
+            if ($mode === 'shared') {
+                // cPanel: cannot DROP DATABASE via SQL — must use the UAPI
+                $this->injectCpanelConfigFromDb();
+
+                $this->logStep('   → Rolling back cPanel database', ['mode' => 'shared'], 'warning');
+
+                $manager = new \Aero\Platform\TenantDatabaseManagers\CpanelDatabaseManager;
+                $manager->deleteDatabase($this->tenant);
+
+                $this->logStep('   → cPanel database deleted successfully', [], 'warning');
+
+                return;
+            }
+
+            // VPS / dedicated: standard SQL DROP DATABASE
             $databaseName = $this->tenant->database()->getName();
 
             if (empty($databaseName)) {
@@ -997,12 +1265,11 @@ class ProvisionTenant implements ShouldQueue
 
             $this->logStep("   → Dropping database: {$databaseName}", ['database' => $databaseName], 'warning');
 
-            // Drop the database
             \DB::statement("DROP DATABASE IF EXISTS `{$databaseName}`");
 
             $this->logStep("   → Database '{$databaseName}' dropped successfully", ['database' => $databaseName], 'warning');
         } catch (Throwable $e) {
-            // Log rollback failure but don't throw - we're already in error state
+            // Log rollback failure but don't throw — we're already in error state
             $this->logStep("   → Failed to drop database: {$e->getMessage()}", [
                 'error' => $e->getMessage(),
             ], 'error');
@@ -1150,6 +1417,41 @@ class ProvisionTenant implements ShouldQueue
                 // Don't fail provisioning if broadcasting fails
                 Log::debug('Broadcasting failed', ['error' => $e->getMessage()]);
             }
+        }
+    }
+
+    /**
+     * Log structured audit event for compliance tracking.
+     *
+     * Stores audit events in the central database for tracking
+     * tenant provisioning lifecycle events.
+     */
+    protected function logAuditEvent(string $event, array $context = []): void
+    {
+        try {
+            $auditData = [
+                'action' => $event,
+                'context' => json_encode(array_merge([
+                    'tenant_id' => $this->tenant->id,
+                    'tenant_name' => $this->tenant->name,
+                    'subdomain' => $this->tenant->subdomain,
+                    'timestamp' => now()->toISOString(),
+                ], $context)),
+                'level' => str_contains($event, 'failed') ? 'error' : 'info',
+                'user_id' => null, // System event, no user
+                'ip_address' => request()->ip() ?? '127.0.0.1',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+
+            // Store in central database audit_logs table
+            DB::connection('mysql')->table('audit_logs')->insert($auditData);
+        } catch (Throwable $e) {
+            // Don't fail provisioning if audit logging fails
+            Log::warning('Failed to store provisioning audit event', [
+                'event' => $event,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

@@ -69,6 +69,9 @@ import StatsCards from '@/Components/StatsCards';
 import App from '@/Layouts/App';
 import axios from 'axios';
 import { showToast } from '@/utils/toastUtils';
+import {useThemeRadius} from '@/Hooks/useThemeRadius.js';
+import useMediaQuery from '@/Hooks/useMediaQuery';
+import { useHRMAC } from '@/Hooks/useHRMAC';
 
 // Component type icons mapping
 const componentTypeIcons = {
@@ -137,76 +140,6 @@ const formatEntityDisplayName = (entityKey) => {
         .join(' ');
 };
 
-/**
- * Format permission name to a readable display name
- * Converts "employees.view" to "View Employees"
- */
-const formatPermissionDisplayName = (permissionName) => {
-    const parts = permissionName.split('.');
-    if (parts.length >= 2) {
-        const entity = formatEntityDisplayName(parts[0]);
-        const action = parts[1];
-        
-        // Handle "own" permissions like "attendance.own.view"
-        if (parts.length >= 3 && action === 'own') {
-            const actualAction = parts[2];
-            const actionInfo = actionDisplayMap[actualAction] || { label: actualAction.charAt(0).toUpperCase() + actualAction.slice(1) };
-            return `${actionInfo.label} Own ${entity}`;
-        }
-        
-        const actionInfo = actionDisplayMap[action] || { label: action.charAt(0).toUpperCase() + action.slice(1) };
-        return `${actionInfo.label} ${entity}`;
-    }
-    return permissionName;
-};
-
-/**
- * Get the description for a permission action
- */
-const getPermissionDescription = (permissionName) => {
-    const parts = permissionName.split('.');
-    if (parts.length >= 2) {
-        const action = parts.length >= 3 && parts[1] === 'own' ? parts[2] : parts[1];
-        return actionDisplayMap[action]?.description || `Permission for ${permissionName}`;
-    }
-    return `Permission for ${permissionName}`;
-};
-
-/**
- * Group permissions by their entity prefix
- * Returns an object with entity keys and arrays of permissions
- */
-const groupPermissionsByEntity = (permissions) => {
-    const grouped = {};
-    
-    permissions.forEach(permission => {
-        const parts = permission.name.split('.');
-        const entityKey = parts[0];
-        
-        if (!grouped[entityKey]) {
-            grouped[entityKey] = {
-                name: formatEntityDisplayName(entityKey),
-                permissions: []
-            };
-        }
-        
-        grouped[entityKey].permissions.push({
-            ...permission,
-            displayName: formatPermissionDisplayName(permission.name),
-            description: getPermissionDescription(permission.name)
-        });
-    });
-    
-    // Sort entities alphabetically
-    const sortedKeys = Object.keys(grouped).sort();
-    const sortedGrouped = {};
-    sortedKeys.forEach(key => {
-        sortedGrouped[key] = grouped[key];
-    });
-    
-    return sortedGrouped;
-};
-
 // Debounce hook
 const useDebounce = (value, delay) => {
     const [debouncedValue, setDebouncedValue] = useState(value);
@@ -226,12 +159,11 @@ const ModuleManagement = (props) => {
     const {
         modules: initialModules = [],
         roles: initialRoles = [],
-        permissions: allPermissions = [],
         statistics: initialStats = {},
         accessScopes = { all: 'Full Access', own: 'Own Only', team: 'Team', department: 'Department' },
         categories = {},
         componentTypes = {},
-        title = 'Module Permission Registry',
+        title = 'Product Permission Registry',
         readonly = false, // Modules are read-only from landlord
         is_platform_context = false, // True when accessed from platform admin
         can_manage_structure = false, // True when user can manage module structure (platform super admin only)
@@ -326,13 +258,50 @@ const ModuleManagement = (props) => {
         is_active: true
     });
 
-    const [selectedPermissions, setSelectedPermissions] = useState([]);
 
     const debouncedSearch = useDebounce(searchQuery, 300);
 
-    // Filter modules
+    // Process modules: Flatten Core module's sub-modules to appear as top-level modules
+    // This hides "Core Framework" as a parent and shows Dashboard, User Management, etc. as main modules
+    const processedModules = useMemo(() => {
+        const result = [];
+        
+        modules.forEach(module => {
+            // If this is the Core module, promote its sub-modules to top-level
+            if (module.code === 'core' && module.is_core) {
+                // Add each sub-module as a "virtual" top-level module
+                (module.sub_modules || []).forEach(subModule => {
+                    result.push({
+                        ...subModule,
+                        // Use unique display_id for UI state (expand, keys) to avoid conflicts
+                        // SubModule IDs may conflict with Module IDs (e.g., both could be 1, 2, 3)
+                        display_id: `submodule-${subModule.id}`,
+                        // Keep original id for API calls
+                        original_submodule_id: subModule.id,
+                        // Mark as promoted from Core for styling/identification if needed
+                        is_core_submodule: true,
+                        // Inherit some properties from parent Core module
+                        category: module.category || 'core_system',
+                        // Keep the sub-module's own sub_modules (if any) or empty array
+                        // DO NOT add the sub-module as its own child - this causes duplication
+                        sub_modules: subModule.sub_modules || [],
+                        // Keep original module reference for permission syncing
+                        parent_module_id: module.id,
+                        parent_module_code: module.code,
+                    });
+                });
+            } else {
+                // Non-core modules are added as-is
+                result.push(module);
+            }
+        });
+        
+        return result;
+    }, [modules]);
+
+    // Filter modules (now using processedModules instead of modules)
     const filteredModules = useMemo(() => {
-        return modules.filter(module => {
+        return processedModules.filter(module => {
             const matchesSearch = !debouncedSearch ||
                 module.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
                 module.code.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
@@ -345,19 +314,19 @@ const ModuleManagement = (props) => {
 
             return matchesSearch && matchesCategory && matchesStatus;
         });
-    }, [modules, debouncedSearch, categoryFilter, statusFilter]);
+    }, [processedModules, debouncedSearch, categoryFilter, statusFilter]);
 
-    // Stats cards data
+    // Stats cards data - use processedModules count for accurate display
     const statsData = useMemo(() => [
         {
-            title: 'Total Modules',
-            value: statistics.total_modules || 0,
+            title: 'Total Products',
+            value: processedModules.length || 0,
             icon: <CubeIcon className="w-6 h-6" />,
             color: 'primary',
-            description: 'Top-level modules'
+            description: 'Top-level products'
         },
         {
-            title: 'Sub-Modules',
+            title: 'Features',
             value: statistics.total_sub_modules || 0,
             icon: <FolderIcon className="w-6 h-6" />,
             color: 'secondary',
@@ -377,7 +346,7 @@ const ModuleManagement = (props) => {
             color: 'warning',
             description: 'Access requirements'
         }
-    ], [statistics]);
+    ], [statistics, processedModules]);
 
     // Toggle module expansion
     const toggleModuleExpand = (moduleId) => {
@@ -457,7 +426,14 @@ const ModuleManagement = (props) => {
     };
 
     // Check if an item is checked (considering inheritance)
-    const isModuleChecked = (moduleId) => roleAccess.modules.includes(moduleId);
+    // For promoted Core sub-modules (is_core_submodule: true), check sub_modules array instead
+    const isModuleChecked = (moduleId, isCoreSubmodule = false, parentModuleId = null) => {
+        if (isCoreSubmodule) {
+            // This is a promoted Core sub-module - check parent module OR sub_modules array
+            return roleAccess.modules.includes(parentModuleId) || roleAccess.sub_modules.includes(moduleId);
+        }
+        return roleAccess.modules.includes(moduleId);
+    };
     const isSubModuleChecked = (subModuleId, moduleId) => {
         // Checked if parent module is checked OR explicitly checked
         return roleAccess.modules.includes(moduleId) || roleAccess.sub_modules.includes(subModuleId);
@@ -477,7 +453,13 @@ const ModuleManagement = (props) => {
 
     // Check if an item is indeterminate (some children checked, not all)
     const isModuleIndeterminate = (module) => {
-        if (roleAccess.modules.includes(module.id)) return false;
+        // For promoted Core sub-modules, check the sub_modules array
+        if (module.is_core_submodule) {
+            if (roleAccess.modules.includes(module.parent_module_id)) return false;
+            if (roleAccess.sub_modules.includes(module.id)) return false;
+        } else {
+            if (roleAccess.modules.includes(module.id)) return false;
+        }
         // Check if any sub-module, component, or action is checked
         const hasAnyChecked = module.sub_modules?.some(sm => 
             roleAccess.sub_modules.includes(sm.id) ||
@@ -490,30 +472,55 @@ const ModuleManagement = (props) => {
     };
 
     // Toggle module access (and all children)
-    const toggleModuleAccess = (moduleId, checked) => {
+    // For promoted Core sub-modules, use sub_modules array instead
+    const toggleModuleAccess = (moduleId, checked, isCoreSubmodule = false, parentModuleId = null) => {
+        // DEBUG: Log what's being toggled
+        console.log('DEBUG toggleModuleAccess:', { moduleId, checked, isCoreSubmodule, parentModuleId });
+        
         setRoleAccess(prev => {
             const newAccess = { ...prev };
-            if (checked) {
-                // Add module (grants access to all children via inheritance)
-                if (!newAccess.modules.includes(moduleId)) {
-                    newAccess.modules = [...newAccess.modules, moduleId];
-                }
-                // Remove any explicit sub-module/component/action entries for this module (now inherited)
-                const module = modules.find(m => m.id === moduleId);
-                if (module) {
-                    const subModuleIds = module.sub_modules?.map(sm => sm.id) || [];
-                    const componentIds = module.sub_modules?.flatMap(sm => sm.components?.map(c => c.id) || []) || [];
-                    const actionIds = module.sub_modules?.flatMap(sm => 
-                        sm.components?.flatMap(c => c.actions?.map(a => a.id) || []) || []
-                    ) || [];
-                    
-                    newAccess.sub_modules = newAccess.sub_modules.filter(id => !subModuleIds.includes(id));
-                    newAccess.components = newAccess.components.filter(id => !componentIds.includes(id));
-                    newAccess.actions = newAccess.actions.filter(a => !actionIds.includes(a.id || a));
+            
+            if (isCoreSubmodule) {
+                // This is a promoted Core sub-module - add to sub_modules array
+                if (checked) {
+                    if (!newAccess.sub_modules.includes(moduleId)) {
+                        newAccess.sub_modules = [...newAccess.sub_modules, moduleId];
+                    }
+                    // Remove child component/action entries for this sub-module (now inherited)
+                    const processedModule = processedModules.find(m => m.id === moduleId && m.is_core_submodule);
+                    if (processedModule) {
+                        const componentIds = processedModule.components?.map(c => c.id) || [];
+                        const actionIds = processedModule.components?.flatMap(c => c.actions?.map(a => a.id) || []) || [];
+                        newAccess.components = newAccess.components.filter(id => !componentIds.includes(id));
+                        newAccess.actions = newAccess.actions.filter(a => !actionIds.includes(a.id || a));
+                    }
+                } else {
+                    newAccess.sub_modules = newAccess.sub_modules.filter(id => id !== moduleId);
                 }
             } else {
-                // Remove module
-                newAccess.modules = newAccess.modules.filter(id => id !== moduleId);
+                // Regular module
+                if (checked) {
+                    // Add module (grants access to all children via inheritance)
+                    if (!newAccess.modules.includes(moduleId)) {
+                        newAccess.modules = [...newAccess.modules, moduleId];
+                    }
+                    // Remove any explicit sub-module/component/action entries for this module (now inherited)
+                    const module = modules.find(m => m.id === moduleId);
+                    if (module) {
+                        const subModuleIds = module.sub_modules?.map(sm => sm.id) || [];
+                        const componentIds = module.sub_modules?.flatMap(sm => sm.components?.map(c => c.id) || []) || [];
+                        const actionIds = module.sub_modules?.flatMap(sm => 
+                            sm.components?.flatMap(c => c.actions?.map(a => a.id) || []) || []
+                        ) || [];
+                        
+                        newAccess.sub_modules = newAccess.sub_modules.filter(id => !subModuleIds.includes(id));
+                        newAccess.components = newAccess.components.filter(id => !componentIds.includes(id));
+                        newAccess.actions = newAccess.actions.filter(a => !actionIds.includes(a.id || a));
+                    }
+                } else {
+                    // Remove module
+                    newAccess.modules = newAccess.modules.filter(id => id !== moduleId);
+                }
             }
             return newAccess;
         });
@@ -521,6 +528,9 @@ const ModuleManagement = (props) => {
 
     // Toggle sub-module access
     const toggleSubModuleAccess = (subModuleId, moduleId, checked) => {
+        // DEBUG: Log what's being toggled
+        console.log('DEBUG toggleSubModuleAccess:', { subModuleId, moduleId, checked });
+        
         setRoleAccess(prev => {
             const newAccess = { ...prev };
             
@@ -628,6 +638,11 @@ const ModuleManagement = (props) => {
             return;
         }
 
+        // DEBUG: Log what's being sent
+        console.log('DEBUG: roleAccess being sent:', JSON.stringify(roleAccess, null, 2));
+        console.log('DEBUG: modules array contains:', roleAccess.modules);
+        console.log('DEBUG: sub_modules array contains:', roleAccess.sub_modules);
+        
         setRoleAccessSaving(true);
         const promise = new Promise(async (resolve, reject) => {
             try {
@@ -741,37 +756,27 @@ const ModuleManagement = (props) => {
         setComponentModalOpen(true);
     };
 
-    // Open permission modal
-    const openPermissionModal = (target) => {
-        setPermissionTarget(target);
-        // Get current permissions for this target - handle both snake_case and camelCase
-        const requirements = target.permission_requirements || target.permissionRequirements || [];
-        // Ensure permission IDs are numbers for consistent comparison
-        const currentPermissions = requirements.map(pr => Number(pr.permission_id));
-
-        setSelectedPermissions(currentPermissions);
-        setPermissionModalOpen(true);
-    };
+ 
 
     // Save module
     const saveModule = async () => {
         if (!canManageStructure) {
-            showToast.error('Module structure can only be managed from platform admin');
+            showToast.error('Product structure can only be managed from platform admin');
             return;
         }
         setIsLoading(true);
         try {
             if (editingModule) {
                 await axios.put(getRoute('modules.update', editingModule.id), moduleForm);
-                showToast.success('Module updated successfully');
+                showToast.success('Product updated successfully');
             } else {
                 await axios.post(getRoute('modules.store'), moduleForm);
-                showToast.success('Module created successfully');
+                showToast.success('Product created successfully');
             }
             setModuleModalOpen(false);
             refreshData();
         } catch (error) {
-            showToast.error(error.response?.data?.message || 'Failed to save module');
+            showToast.error(error.response?.data?.message || 'Failed to save product');
         } finally {
             setIsLoading(false);
         }
@@ -780,22 +785,22 @@ const ModuleManagement = (props) => {
     // Save sub-module
     const saveSubModule = async () => {
         if (!canManageStructure) {
-            showToast.error('Module structure can only be managed from platform admin');
+            showToast.error('Product structure can only be managed from platform admin');
             return;
         }
         setIsLoading(true);
         try {
             if (editingSubModule) {
                 await axios.put(getRoute('modules.sub-modules.update', editingSubModule.id), subModuleForm);
-                showToast.success('Sub-module updated successfully');
+                showToast.success('Feature updated successfully');
             } else {
                 await axios.post(getRoute('modules.sub-modules.store', parentModuleId), subModuleForm);
-                showToast.success('Sub-module created successfully');
+                showToast.success('Feature created successfully');
             }
             setSubModuleModalOpen(false);
             refreshData();
         } catch (error) {
-            showToast.error(error.response?.data?.message || 'Failed to save sub-module');
+            showToast.error(error.response?.data?.message || 'Failed to save feature');
         } finally {
             setIsLoading(false);
         }
@@ -804,7 +809,7 @@ const ModuleManagement = (props) => {
     // Save component
     const saveComponent = async () => {
         if (!canManageStructure) {
-            showToast.error('Module structure can only be managed from platform admin');
+            showToast.error('Product structure can only be managed from platform admin');
             return;
         }
         setIsLoading(true);
@@ -825,54 +830,7 @@ const ModuleManagement = (props) => {
         }
     };
 
-    // Save permissions (tenant context only - permission requirements are per-tenant)
-    const savePermissions = async () => {
-        if (isPlatformContext) {
-            showToast.error('Permission requirements are managed per-tenant. Switch to a tenant context.');
-            return;
-        }
-        setIsLoading(true);
-        try {
-            let endpoint;
-            if (permissionTarget.type === 'module') {
-                endpoint = getRoute('modules.sync-permissions', permissionTarget.id);
-            } else if (permissionTarget.type === 'sub_module') {
-                endpoint = getRoute('modules.sub-modules.sync-permissions', permissionTarget.id);
-            } else {
-                endpoint = getRoute('modules.components.sync-permissions', permissionTarget.id);
-            }
-
-            // Convert selected permission IDs to the expected format
-            // The backend expects: { permissions: [{ permission: 'name', type: 'required', group: null }] }
-            const permissionsPayload = selectedPermissions.map(permissionId => {
-                const permission = allPermissions.find(p => p.id === permissionId);
-                return {
-                    permission: permission?.name || '',
-                    type: 'required', // Default to 'required' type
-                    group: null
-                };
-            }).filter(p => p.permission); // Filter out any without valid permission names
-
-        
-            
-            const response = await axios.post(endpoint, { permissions: permissionsPayload });
-      
-            
-            showToast.success('Permissions updated successfully');
-            setPermissionModalOpen(false);
-            refreshData();
-        } catch (error) {
-            console.error('Error saving permissions:', error);
-            console.error('Error response:', error.response?.data);
-            const errorMessage = error.response?.data?.errors 
-                ? Object.values(error.response.data.errors).flat().join(', ')
-                : error.response?.data?.message || 'Failed to save permissions';
-            showToast.error(errorMessage);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
+ 
     // Delete item (platform admin only for structure)
     const confirmDelete = (item, type) => {
         if (!canManageStructure) {
@@ -915,27 +873,31 @@ const ModuleManagement = (props) => {
 
     // Render module tree item
     const renderModuleItem = (module) => {
-        const isExpanded = expandedModules.has(module.id);
+        // Use display_id for UI state (expand, keys) to avoid ID conflicts between modules and sub-modules
+        const uiId = module.display_id || module.id;
+        const isExpanded = expandedModules.has(uiId);
         const subModules = module.sub_modules || [];
-        const permissionCount = module.permission_requirements?.length || 0;
+        const components = module.components || [];
+        // For flattened Core sub-modules, show components count; for regular modules, show sub-modules count
+        const featureCount = module.is_core_submodule ? components.length : subModules.length;
         const isProtectedRole = selectedRoleId && roles.find(r => r.id === selectedRoleId)?.is_protected;
 
         return (
-            <Card key={module.id} className="mb-3">
+            <Card key={uiId} className="mb-3">
                 <CardBody className="p-0">
                     {/* Module Header */}
                     <div
                         className={`flex items-center justify-between p-4 cursor-pointer hover:bg-default-100 transition-colors ${!module.is_active ? 'opacity-60' : ''}`}
-                        onClick={() => toggleModuleExpand(module.id)}
+                        onClick={() => toggleModuleExpand(uiId)}
                     >
                         <div className="flex items-center gap-3 flex-1">
                             {/* Role Access Checkbox */}
                             {selectedRoleId && (
                                 <Checkbox
-                                    isSelected={isModuleChecked(module.id) || isProtectedRole}
-                                    isIndeterminate={!isModuleChecked(module.id) && isModuleIndeterminate(module)}
+                                    isSelected={isModuleChecked(module.id, module.is_core_submodule, module.parent_module_id) || isProtectedRole}
+                                    isIndeterminate={!isModuleChecked(module.id, module.is_core_submodule, module.parent_module_id) && isModuleIndeterminate(module)}
                                     isDisabled={isProtectedRole}
-                                    onValueChange={(checked) => toggleModuleAccess(module.id, checked)}
+                                    onValueChange={(checked) => toggleModuleAccess(module.id, checked, module.is_core_submodule, module.parent_module_id)}
                                     onClick={(e) => e.stopPropagation()}
                                     color="primary"
                                     size="lg"
@@ -948,7 +910,7 @@ const ModuleManagement = (props) => {
                                 variant="light"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    toggleModuleExpand(module.id);
+                                    toggleModuleExpand(uiId);
                                 }}
                             >
                                 {isExpanded ? (
@@ -975,34 +937,13 @@ const ModuleManagement = (props) => {
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <Badge content={subModules.length} color="primary" size="sm">
-                                <Chip size="sm" variant="bordered">Sub-modules</Chip>
+                            <Badge content={featureCount} color="primary" size="sm">
+                                <Chip size="sm" variant="bordered">{module.is_core_submodule ? 'Components' : 'Features'}</Chip>
                             </Badge>
-                            <Badge content={permissionCount} color="warning" size="sm">
-                                <Chip size="sm" variant="bordered">Permissions</Chip>
-                            </Badge>
-
-                            <Dropdown>
-                                <DropdownTrigger>
-                                    <Button isIconOnly size="sm" variant="light" onClick={(e) => e.stopPropagation()}>
-                                        <EllipsisVerticalIcon className="w-5 h-5" />
-                                    </Button>
-                                </DropdownTrigger>
-                                <DropdownMenu>
-                                    {/* Permission management - available in both contexts */}
-                                    <DropdownItem
-                                        key="permissions"
-                                        startContent={<KeyIcon className="w-4 h-4" />}
-                                        onClick={() => openPermissionModal({ ...module, type: 'module' })}
-                                    >
-                                        {isPlatformContext ? 'View Required Permissions' : 'Manage Permissions'}
-                                    </DropdownItem>
-                                </DropdownMenu>
-                            </Dropdown>
                         </div>
                     </div>
 
-                    {/* Sub-modules */}
+                    {/* Sub-modules or Components (for flattened Core sub-modules) */}
                     <AnimatePresence>
                         {isExpanded && subModules.length > 0 && (
                             <motion.div
@@ -1017,6 +958,20 @@ const ModuleManagement = (props) => {
                                 </div>
                             </motion.div>
                         )}
+                        {/* For flattened Core sub-modules: show components directly */}
+                        {isExpanded && module.is_core_submodule && components.length > 0 && subModules.length === 0 && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="border-t border-default-200"
+                            >
+                                <div className="pl-8 py-2">
+                                    {components.map(component => renderComponentItem(component, module.id, module.parent_module_id || module.id))}
+                                </div>
+                            </motion.div>
+                        )}
                     </AnimatePresence>
                 </CardBody>
             </Card>
@@ -1027,7 +982,6 @@ const ModuleManagement = (props) => {
     const renderSubModuleItem = (subModule, moduleId) => {
         const isExpanded = expandedSubModules.has(subModule.id);
         const components = subModule.components || [];
-        const permissionCount = subModule.permission_requirements?.length || 0;
         const isProtectedRole = selectedRoleId && roles.find(r => r.id === selectedRoleId)?.is_protected;
         const parentModuleChecked = roleAccess.modules.includes(moduleId);
 
@@ -1087,23 +1041,7 @@ const ModuleManagement = (props) => {
                             <Chip size="sm" variant="bordered">Components</Chip>
                         </Badge>
 
-                        <Dropdown>
-                            <DropdownTrigger>
-                                <Button isIconOnly size="sm" variant="light" onClick={(e) => e.stopPropagation()}>
-                                    <EllipsisVerticalIcon className="w-4 h-4" />
-                                </Button>
-                            </DropdownTrigger>
-                            <DropdownMenu>
-                                {/* Permission management - available in both contexts */}
-                                <DropdownItem
-                                    key="permissions"
-                                    startContent={<KeyIcon className="w-4 h-4" />}
-                                    onClick={() => openPermissionModal({ ...subModule, type: 'sub_module' })}
-                                >
-                                    {isPlatformContext ? 'View Required Permissions' : 'Manage Permissions'}
-                                </DropdownItem>
-                            </DropdownMenu>
-                        </Dropdown>
+                        
                     </div>
                 </div>
 
@@ -1127,7 +1065,6 @@ const ModuleManagement = (props) => {
 
     // Render component item
     const renderComponentItem = (component, subModuleId, moduleId) => {
-        const permissionCount = component.permission_requirements?.length || 0;
         const actions = component.actions || [];
         const isProtectedRole = selectedRoleId && roles.find(r => r.id === selectedRoleId)?.is_protected;
         const parentChecked = roleAccess.modules.includes(moduleId) || roleAccess.sub_modules.includes(subModuleId);
@@ -1178,29 +1115,7 @@ const ModuleManagement = (props) => {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        {permissionCount > 0 && (
-                            <Chip size="sm" variant="flat" color="warning">{permissionCount} perms</Chip>
-                        )}
-
-                        <Dropdown>
-                            <DropdownTrigger>
-                                <Button isIconOnly size="sm" variant="light">
-                                    <EllipsisVerticalIcon className="w-4 h-4" />
-                                </Button>
-                            </DropdownTrigger>
-                            <DropdownMenu>
-                                {/* Permission management - available in both contexts */}
-                                <DropdownItem
-                                    key="permissions"
-                                    startContent={<KeyIcon className="w-4 h-4" />}
-                                    onClick={() => openPermissionModal({ ...component, type: 'component' })}
-                                >
-                                    {isPlatformContext ? 'View Required Permissions' : 'Manage Permissions'}
-                                </DropdownItem>
-                            </DropdownMenu>
-                        </Dropdown>
-                    </div>
+                    
                 </div>
 
                 {/* Actions list */}
@@ -1232,24 +1147,7 @@ const ModuleManagement = (props) => {
                                             {action.code}
                                         </Chip>
                                     </div>
-                                    <div className="flex items-center gap-1">
-                                        {action.default_required_permissions?.length > 0 && (
-                                            <Tooltip 
-                                                content={
-                                                    <div className="text-xs">
-                                                        <div className="font-semibold mb-1">Required Permissions:</div>
-                                                        {action.default_required_permissions.map((p, i) => (
-                                                            <div key={i}>• {p}</div>
-                                                        ))}
-                                                    </div>
-                                                }
-                                            >
-                                                <Chip size="sm" variant="flat" color="warning" className="text-xs">
-                                                    {action.default_required_permissions.length} perms
-                                                </Chip>
-                                            </Tooltip>
-                                        )}
-                                    </div>
+                                   
                                 </div>
                             );
                         })}
@@ -1259,35 +1157,10 @@ const ModuleManagement = (props) => {
         );
     };
 
-    // Helper to get theme radius
-    const getThemeRadius = () => {
-        if (typeof window === 'undefined') return 'lg';
-        const rootStyles = getComputedStyle(document.documentElement);
-        const borderRadius = rootStyles.getPropertyValue('--borderRadius')?.trim() || '12px';
-        const radiusValue = parseInt(borderRadius);
-        if (radiusValue === 0) return 'none';
-        if (radiusValue <= 4) return 'sm';
-        if (radiusValue <= 8) return 'md';
-        if (radiusValue <= 16) return 'lg';
-        return 'full';
-    };
-
-    // Responsive screen checks
-    const [isMobile, setIsMobile] = React.useState(false);
-    const [isTablet, setIsTablet] = React.useState(false);
-    const [isLargeScreen, setIsLargeScreen] = React.useState(false);
-    
-    React.useEffect(() => {
-        const checkScreenSize = () => {
-            setIsMobile(window.innerWidth < 640);
-            setIsTablet(window.innerWidth < 768);
-            setIsLargeScreen(window.innerWidth >= 1025);
-        };
-        
-        checkScreenSize();
-        window.addEventListener('resize', checkScreenSize);
-        return () => window.removeEventListener('resize', checkScreenSize);
-    }, []);
+    const themeRadius = useThemeRadius();
+    const isMobile = useMediaQuery('(max-width: 640px)');
+    const isTablet = useMediaQuery('(max-width: 768px)');
+    const isLargeScreen = useMediaQuery('(min-width: 1025px)');
 
     return (
         <>
@@ -1363,7 +1236,7 @@ const ModuleManagement = (props) => {
                                                                 fontFamily: `var(--fontFamily, "Inter")`,
                                                             }}
                                                         >
-                                                            {isPlatformContext ? 'Platform Module Management' : 'Module Permission Management'}
+                                                            {isPlatformContext ? 'Platform Product Management' : 'Product Permission Management'}
                                                         </h4>
                                                         <p 
                                                             className={`
@@ -1376,8 +1249,8 @@ const ModuleManagement = (props) => {
                                                             }}
                                                         >
                                                             {isPlatformContext 
-                                                                ? 'Manage module structure, sub-modules, and components' 
-                                                                : 'Manage module permissions and access control hierarchy'}
+                                                                ? 'Manage product structure, features, and components' 
+                                                                : 'Manage product permissions and access control hierarchy'}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -1389,7 +1262,7 @@ const ModuleManagement = (props) => {
                                                         style={{
                                                             background: `color-mix(in srgb, var(--theme-default) 15%, transparent)`,
                                                             color: `var(--theme-foreground)`,
-                                                            borderRadius: getThemeRadius(),
+                                                            borderRadius: themeRadius,
                                                             border: `1px solid color-mix(in srgb, var(--theme-default) 30%, transparent)`,
                                                         }}
                                                         startContent={<ArrowPathIcon className="w-4 h-4" />}
@@ -1403,12 +1276,12 @@ const ModuleManagement = (props) => {
                                                             className="text-white font-medium"
                                                             style={{
                                                                 background: `linear-gradient(135deg, var(--theme-primary), color-mix(in srgb, var(--theme-primary) 80%, var(--theme-secondary)))`,
-                                                                borderRadius: getThemeRadius(),
+                                                                borderRadius: themeRadius,
                                                             }}
                                                             startContent={<PlusIcon className="w-4 h-4" />}
                                                             onPress={() => openModuleModal()}
                                                         >
-                                                            {isMobile ? "Add" : "Add Module"}
+                                                            {isMobile ? "Add" : "Add Product"}
                                                         </Button>
                                                     )}
                                                 </div>
@@ -1421,15 +1294,15 @@ const ModuleManagement = (props) => {
                                     {/* Stats Cards */}
                                     <StatsCards stats={[
                                         {
-                                            title: 'Total Modules',
+                                            title: 'Total Products',
                                             value: statistics.total_modules || 0,
                                             icon: <CubeIcon className="w-6 h-6" />,
                                             color: 'text-blue-500',
                                             iconBg: 'bg-blue-500/20',
-                                            description: 'Top-level modules'
+                                            description: 'Top-level products'
                                         },
                                         {
-                                            title: 'Sub-Modules',
+                                            title: 'Features',
                                             value: statistics.total_sub_modules || 0,
                                             icon: <FolderIcon className="w-6 h-6" />,
                                             color: 'text-purple-500',
@@ -1460,19 +1333,19 @@ const ModuleManagement = (props) => {
                                         style={{
                                             background: `color-mix(in srgb, var(--theme-content2) 50%, transparent)`,
                                             border: `1px solid color-mix(in srgb, var(--theme-content3) 50%, transparent)`,
-                                            borderRadius: getThemeRadius(),
+                                            borderRadius: themeRadius,
                                             backdropFilter: 'blur(16px)',
                                         }}
                                     >
                                         <div className="flex flex-col sm:flex-row gap-4">
                                             <Input
-                                                placeholder="Search modules..."
+                                                placeholder="Search products..."
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
                                                 startContent={<MagnifyingGlassIcon className="w-4 h-4 text-default-400" />}
                                                 className="flex-1"
                                                 variant="bordered"
-                                                radius={getThemeRadius()}
+                                                radius={themeRadius}
                                                 classNames={{
                                                     inputWrapper: "bg-white/50 dark:bg-default-50/10 backdrop-blur-md border-default-200/30",
                                                     input: "text-foreground placeholder:text-default-400",
@@ -1484,7 +1357,7 @@ const ModuleManagement = (props) => {
                                                 onChange={(e) => setCategoryFilter(e.target.value)}
                                                 className="w-full sm:w-48"
                                                 variant="bordered"
-                                                radius={getThemeRadius()}
+                                                radius={themeRadius}
                                                 classNames={{
                                                     trigger: "bg-white/50 dark:bg-default-50/10 backdrop-blur-md border-default-200/30",
                                                     value: "text-foreground",
@@ -1501,7 +1374,7 @@ const ModuleManagement = (props) => {
                                                 onChange={(e) => setStatusFilter(e.target.value)}
                                                 className="w-full sm:w-36"
                                                 variant="bordered"
-                                                radius={getThemeRadius()}
+                                                radius={themeRadius}
                                                 classNames={{
                                                     trigger: "bg-white/50 dark:bg-default-50/10 backdrop-blur-md border-default-200/30",
                                                     value: "text-foreground",
@@ -1550,10 +1423,10 @@ const ModuleManagement = (props) => {
                                                         className="text-lg font-semibold text-foreground"
                                                         style={{ fontFamily: `var(--fontFamily, "Inter")` }}
                                                     >
-                                                        Module Access Management
+                                                        Product Access Management
                                                     </h3>
                                                     <p className="text-xs text-default-500">
-                                                        {filteredModules.length} modules available
+                                                        {filteredModules.length} products available
                                                     </p>
                                                 </div>
                                             </div>
@@ -1566,7 +1439,7 @@ const ModuleManagement = (props) => {
                                                     className="w-56"
                                                     variant="bordered"
                                                     size="sm"
-                                                    radius={getThemeRadius()}
+                                                    radius={themeRadius}
                                                     isLoading={roleAccessLoading}
                                                     classNames={{
                                                         trigger: "bg-white/50 dark:bg-default-50/10 backdrop-blur-md border-default-200/30",
@@ -1592,7 +1465,7 @@ const ModuleManagement = (props) => {
                                                         isLoading={roleAccessSaving}
                                                         style={{
                                                             background: `linear-gradient(135deg, var(--theme-primary), color-mix(in srgb, var(--theme-primary) 80%, var(--theme-secondary)))`,
-                                                            borderRadius: getThemeRadius(),
+                                                            borderRadius: themeRadius,
                                                         }}
                                                     >
                                                         Save Access
@@ -1605,7 +1478,7 @@ const ModuleManagement = (props) => {
                                             {selectedRoleId && !roles.find(r => r.id === selectedRoleId)?.is_protected && (
                                                 <div className="mb-4 text-sm text-default-500 flex items-center gap-2">
                                                     <Chip size="sm" color="primary" variant="flat">Tip</Chip>
-                                                    <span>Check a parent item (module/sub-module) to grant access to all its children.</span>
+                                                    <span>Check a parent item (product/feature) to grant access to all its children.</span>
                                                 </div>
                                             )}
                                             
@@ -1614,7 +1487,7 @@ const ModuleManagement = (props) => {
                                                 <div className="text-center py-8 text-success">
                                                     <CheckCircleIcon className="w-12 h-12 mx-auto mb-4" />
                                                     <p className="font-semibold">This role has full system access</p>
-                                                    <p className="text-sm mt-2 text-default-500">Protected roles automatically have access to all modules</p>
+                                                    <p className="text-sm mt-2 text-default-500">Protected roles automatically have access to all products</p>
                                                 </div>
                                             ) : isLoading ? (
                                                 <div className="flex justify-center items-center py-12">
@@ -1623,7 +1496,7 @@ const ModuleManagement = (props) => {
                                             ) : filteredModules.length === 0 ? (
                                                 <div className="text-center py-12 text-default-500">
                                                     <CubeIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                                                    <p>No modules found</p>
+                                                    <p>No products found</p>
                                                 </div>
                                             ) : (
                                                 <div className="space-y-2">
@@ -1643,7 +1516,7 @@ const ModuleManagement = (props) => {
             <Modal isOpen={moduleModalOpen} onClose={() => setModuleModalOpen(false)} size="2xl">
                 <ModalContent>
                     <ModalHeader>
-                        {editingModule ? 'Edit Module' : 'Create New Module'}
+                        {editingModule ? 'Edit Product' : 'Create New Product'}
                     </ModalHeader>
                     <ModalBody>
                         <div className="grid grid-cols-2 gap-4">
@@ -1656,7 +1529,7 @@ const ModuleManagement = (props) => {
                             />
                             <Input
                                 label="Name"
-                                placeholder="Module Name"
+                                placeholder="Product Name"
                                 value={moduleForm.name}
                                 onChange={(e) => setModuleForm({ ...moduleForm, name: e.target.value })}
                                 isRequired
@@ -1699,7 +1572,7 @@ const ModuleManagement = (props) => {
                             </div>
                             <Input
                                 label="Description"
-                                placeholder="Module description"
+                                placeholder="Product description"
                                 value={moduleForm.description}
                                 onChange={(e) => setModuleForm({ ...moduleForm, description: e.target.value })}
                                 className="col-span-2"
@@ -1719,7 +1592,7 @@ const ModuleManagement = (props) => {
             <Modal isOpen={subModuleModalOpen} onClose={() => setSubModuleModalOpen(false)} size="xl">
                 <ModalContent>
                     <ModalHeader>
-                        {editingSubModule ? 'Edit Sub-Module' : 'Create New Sub-Module'}
+                        {editingSubModule ? 'Edit Feature' : 'Create New Feature'}
                     </ModalHeader>
                     <ModalBody>
                         <div className="grid grid-cols-2 gap-4">
@@ -1732,7 +1605,7 @@ const ModuleManagement = (props) => {
                             />
                             <Input
                                 label="Name"
-                                placeholder="Sub-Module Name"
+                                placeholder="Feature Name"
                                 value={subModuleForm.name}
                                 onChange={(e) => setSubModuleForm({ ...subModuleForm, name: e.target.value })}
                                 isRequired
@@ -1765,7 +1638,7 @@ const ModuleManagement = (props) => {
                             </div>
                             <Input
                                 label="Description"
-                                placeholder="Sub-module description"
+                                placeholder="Feature description"
                                 value={subModuleForm.description}
                                 onChange={(e) => setSubModuleForm({ ...subModuleForm, description: e.target.value })}
                                 className="col-span-2"
@@ -1844,141 +1717,7 @@ const ModuleManagement = (props) => {
                 </ModalContent>
             </Modal>
 
-            {/* Permission Modal */}
-            <Modal isOpen={permissionModalOpen} onClose={() => setPermissionModalOpen(false)} size="4xl" scrollBehavior="inside">
-                <ModalContent>
-                    <ModalHeader className="flex flex-col gap-1">
-                        <span className="flex items-center gap-2">
-                            <KeyIcon className="w-5 h-5 text-primary" />
-                            Manage Permissions - {permissionTarget?.name}
-                        </span>
-                    </ModalHeader>
-                    <ModalBody>
-                        <p className="text-sm text-default-500 mb-4">
-                            Select the permissions required to access this {permissionTarget?.type?.replace('_', '-')}.
-                        </p>
-                        
-                        {/* Search and quick actions */}
-                        <div className="flex items-center justify-between mb-4 gap-4">
-                            <Input
-                                placeholder="Search permissions..."
-                                startContent={<MagnifyingGlassIcon className="w-4 h-4 text-default-400" />}
-                                size="sm"
-                                className="max-w-xs"
-                                id="permission-search"
-                                onValueChange={(value) => {
-                                    // Store search value in a data attribute for filtering
-                                    document.getElementById('permission-search')?.setAttribute('data-search', value.toLowerCase());
-                                    // Trigger re-render by dispatching custom event
-                                    document.dispatchEvent(new CustomEvent('permission-search-change'));
-                                }}
-                            />
-                            <div className="flex gap-2">
-                                <Button
-                                    size="sm"
-                                    variant="flat"
-                                    color="primary"
-                                    onPress={() => setSelectedPermissions(allPermissions.map(p => p.id))}
-                                >
-                                    Select All
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="flat"
-                                    onPress={() => setSelectedPermissions([])}
-                                >
-                                    Clear All
-                                </Button>
-                            </div>
-                        </div>
-
-                        {/* Grouped permissions */}
-                        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                            {Object.entries(groupPermissionsByEntity(allPermissions)).map(([entityKey, entityData]) => {
-                                const entityPermissionIds = entityData.permissions.map(p => p.id);
-                                const selectedInEntity = entityPermissionIds.filter(id => selectedPermissions.includes(id)).length;
-                                const allSelected = selectedInEntity === entityPermissionIds.length;
-                                const someSelected = selectedInEntity > 0 && selectedInEntity < entityPermissionIds.length;
-                                
-                                return (
-                                    <Card key={entityKey} className="bg-default-50 dark:bg-default-100/10">
-                                        <CardHeader className="py-2 px-4">
-                                            <div className="flex items-center justify-between w-full">
-                                                <div className="flex items-center gap-3">
-                                                    <Checkbox
-                                                        isSelected={allSelected}
-                                                        isIndeterminate={someSelected}
-                                                        onValueChange={(checked) => {
-                                                            if (checked) {
-                                                                setSelectedPermissions(prev => [...new Set([...prev, ...entityPermissionIds])]);
-                                                            } else {
-                                                                setSelectedPermissions(prev => prev.filter(id => !entityPermissionIds.includes(id)));
-                                                            }
-                                                        }}
-                                                        size="sm"
-                                                    />
-                                                    <span className="font-semibold text-foreground">{entityData.name}</span>
-                                                </div>
-                                                <Chip size="sm" variant="flat" color={allSelected ? "success" : someSelected ? "warning" : "default"}>
-                                                    {selectedInEntity}/{entityPermissionIds.length}
-                                                </Chip>
-                                            </div>
-                                        </CardHeader>
-                                        <CardBody className="pt-0 pb-3 px-4">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                                                {entityData.permissions.map(permission => (
-                                                    <div
-                                                        key={permission.id}
-                                                        className={`flex items-start gap-2 p-2 rounded-lg border transition-colors cursor-pointer ${
-                                                            selectedPermissions.includes(permission.id)
-                                                                ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800'
-                                                                : 'bg-default-100/50 dark:bg-default-50/10 border-transparent hover:border-default-300'
-                                                        }`}
-                                                        onClick={() => {
-                                                            if (selectedPermissions.includes(permission.id)) {
-                                                                setSelectedPermissions(selectedPermissions.filter(id => id !== permission.id));
-                                                            } else {
-                                                                setSelectedPermissions([...selectedPermissions, permission.id]);
-                                                            }
-                                                        }}
-                                                    >
-                                                        <Checkbox
-                                                            isSelected={selectedPermissions.includes(permission.id)}
-                                                            onValueChange={(checked) => {
-                                                                if (checked) {
-                                                                    setSelectedPermissions([...selectedPermissions, permission.id]);
-                                                                } else {
-                                                                    setSelectedPermissions(selectedPermissions.filter(id => id !== permission.id));
-                                                                }
-                                                            }}
-                                                            size="sm"
-                                                            className="mt-0.5"
-                                                        />
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-medium text-foreground truncate">
-                                                                {permission.displayName}
-                                                            </p>
-                                                            <p className="text-xs text-default-400 truncate">
-                                                                {permission.description}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </CardBody>
-                                    </Card>
-                                );
-                            })}
-                        </div>
-                    </ModalBody>
-                    <ModalFooter>
-                        <Button variant="flat" onClick={() => setPermissionModalOpen(false)}>Cancel</Button>
-                        <Button color="primary" onClick={savePermissions} isLoading={isLoading}>
-                            Save Permissions ({selectedPermissions.length})
-                        </Button>
-                    </ModalFooter>
-                </ModalContent>
-            </Modal>
+        
 
             {/* Delete Confirmation Modal */}
             <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
@@ -1990,12 +1729,12 @@ const ModuleManagement = (props) => {
                         </p>
                         {itemToDelete?.type === 'module' && (
                             <p className="text-sm text-warning mt-2">
-                                This will also delete all sub-modules and components within this module.
+                                This will also delete all features and components within this product.
                             </p>
                         )}
                         {itemToDelete?.type === 'sub_module' && (
                             <p className="text-sm text-warning mt-2">
-                                This will also delete all components within this sub-module.
+                                This will also delete all components within this feature.
                             </p>
                         )}
                     </ModalBody>

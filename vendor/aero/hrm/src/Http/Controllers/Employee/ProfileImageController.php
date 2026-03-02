@@ -2,8 +2,10 @@
 
 namespace Aero\HRM\Http\Controllers\Employee;
 
-use Aero\HRM\Http\Controllers\Controller;
 use Aero\Core\Models\User;
+use Aero\HRM\Http\Controllers\Controller;
+use Aero\HRM\Models\Employee;
+use Aero\HRM\Services\HRMAuthorizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,10 +14,37 @@ use Illuminate\Support\Facades\Validator;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileDoesNotExist;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig;
 
+/**
+ * User Profile Image Controller (HRM Package Wrapper)
+ *
+ * DEPRECATED: This controller is maintained for backward compatibility.
+ * New implementations should use:
+ * - \Aero\Core\Http\Controllers\Profile\UserProfileImageController for User profile images
+ * - \Aero\HRM\Http\Controllers\Employee\EmployeeImageController for Employee HR images
+ *
+ * This controller manages User's profile image for identity/authentication purposes.
+ * This is SEPARATE from Employee images which are managed by EmployeeImageController.
+ *
+ * Architecture:
+ * - User Profile Image (this controller → delegates to Core): For authentication/identity purposes
+ *   - Used in: login screens, account settings, general system UI
+ *   - Stored on: User model (Core package)
+ *
+ * - Employee Image (EmployeeImageController): For HR/work purposes
+ *   - Used in: badges, org charts, ID cards, HR directory
+ *   - Stored on: Employee model (HRM package)
+ *
+ * @deprecated Use \Aero\Core\Http\Controllers\Profile\UserProfileImageController instead
+ * @see \Aero\HRM\Http\Controllers\Employee\EmployeeImageController For employee HR images
+ * @see \Aero\Core\Models\User For profile image storage
+ */
 class ProfileImageController extends Controller
 {
     /**
      * Upload or update user's profile image
+     *
+     * This manages the User's identity/authentication profile image,
+     * which is stored on the User model in the Core package.
      */
     public function upload(Request $request): JsonResponse
     {
@@ -224,6 +253,9 @@ class ProfileImageController extends Controller
 
     /**
      * Check if current user can update the given user's profile
+     *
+     * Uses HRMAuthorizationService for permission-based access control
+     * instead of hardcoded role checks.
      */
     private function canUpdateUserProfile(User $user): bool
     {
@@ -235,13 +267,17 @@ class ProfileImageController extends Controller
             return true;
         }
 
-        // Admin users can update any profile
-        if ($currentUser->hasRole('Super Administrator') || $currentUser->hasRole('Administrator')) {
+        // Use HRMAuthorizationService for permission-based checks
+        $authService = app(HRMAuthorizationService::class);
+
+        // Check if user has employee management permissions
+        if ($authService->canManageEmployees($currentUser)) {
             return true;
         }
 
-        // HR users can update employee profiles
-        if ($currentUser->hasRole('HR Manager') && $user->hasRole('Employee')) {
+        // Check if current user is the manager of the target user's employee record
+        $targetEmployee = Employee::where('user_id', $user->id)->first();
+        if ($targetEmployee && $targetEmployee->manager_id === $currentUser->id) {
             return true;
         }
 

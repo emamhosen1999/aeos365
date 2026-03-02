@@ -2,14 +2,19 @@
 
 namespace Aero\HRM\Http\Controllers\Attendance;
 
+use Aero\Core\Models\User;
+use Aero\HRM\Events\Attendance\AttendancePunchedIn;
+use Aero\HRM\Events\Attendance\AttendancePunchedOut;
+use Aero\HRM\Events\Attendance\LateArrivalDetected;
+use Aero\HRM\Exports\AttendanceExport;
+use Aero\HRM\Http\Controllers\Controller;
 use Aero\HRM\Models\Attendance;
 use Aero\HRM\Models\AttendanceSetting;
+use Aero\HRM\Models\Employee;
 use Aero\HRM\Models\Holiday;
 use Aero\HRM\Models\LeaveSetting;
+use Aero\HRM\Services\HRMAuthorizationService;
 use App\Exports\AttendanceAdminExport;
-use App\Exports\AttendanceExport;
-use Aero\HRM\Http\Controllers\Controller;
-use Aero\Core\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -22,24 +27,31 @@ use Throwable;
 
 class AttendanceController extends Controller
 {
+    protected HRMAuthorizationService $authService;
+
+    public function __construct(HRMAuthorizationService $authService)
+    {
+        $this->authService = $authService;
+    }
+
     public function index1(): \Inertia\Response
     {
-        return Inertia::render('Pages/HRM/Attendance/Admin', [
-            'allUsers' => User::role('Employee')->get(),
+        return Inertia::render('HRM/Attendance/Admin', [
+            'allUsers' => Employee::active()->with('user')->get(),
             'title' => 'Attendances of Employees',
         ]);
     }
 
     public function index2(): \Inertia\Response
     {
-        return Inertia::render('Pages/HRM/Attendance/Employee', [
-            'title' => 'Attendances',
+        return Inertia::render('HRM/MyAttendance', [
+            'title' => 'My Attendance',
         ]);
     }
 
     public function index3(): \Inertia\Response
     {
-        return Inertia::render('Pages/HRM/TimeSheet/Index', [
+        return Inertia::render('HRM/TimeSheet/Index', [
             'title' => 'Time Sheet',
         ]);
     }
@@ -102,7 +114,7 @@ class AttendanceController extends Controller
             },
             'leaves' => function ($query) use ($year, $month) {
                 $query->join('leave_settings', 'leaves.leave_type', '=', 'leave_settings.id')
-                    ->select('leaves.*', 'leave_settings.type as leave_type')
+                    ->select('leaves.*', 'leave_settings.name as leave_type')
                     ->where(function ($query) use ($year, $month) {
                         $query->whereYear('leaves.from_date', $year)
                             ->whereMonth('leaves.from_date', $month)
@@ -117,10 +129,10 @@ class AttendanceController extends Controller
     private function getHolidaysForMonth($year, $month)
     {
         return Holiday::where(function ($query) use ($year, $month) {
-            $query->whereYear('from_date', $year)
-                ->whereMonth('from_date', $month)
-                ->orWhereYear('to_date', $year)
-                ->whereMonth('to_date', $month);
+            $query->whereYear('date', $year)
+                ->whereMonth('date', $month)
+                ->orWhereYear('end_date', $year)
+                ->whereMonth('end_date', $month);
         })->get();
     }
 
@@ -130,7 +142,7 @@ class AttendanceController extends Controller
             ->join('leave_settings', 'leaves.leave_type', '=', 'leave_settings.id')
             ->select(
                 'leaves.user_id',
-                'leave_settings.type as leave_type',
+                'leave_settings.name as leave_type',
                 DB::raw('SUM(DATEDIFF(leaves.to_date, leaves.from_date) + 1) as total_days')
             )
             ->where(function ($query) use ($year, $month) {
@@ -139,7 +151,7 @@ class AttendanceController extends Controller
                     ->orWhereYear('leaves.to_date', $year)
                     ->whereMonth('leaves.to_date', $month);
             })
-            ->groupBy('leaves.user_id', 'leave_settings.type')
+            ->groupBy('leaves.user_id', 'leave_settings.name')
             ->get();
 
         $leaveCountsArray = [];
@@ -181,8 +193,8 @@ class AttendanceController extends Controller
                 ->sortBy('punchin');
 
             $holiday = $holidays->first(fn ($h) => $date->between(
-                Carbon::parse($h->from_date)->startOfDay(),
-                Carbon::parse($h->to_date)->endOfDay()
+                Carbon::parse($h->date)->startOfDay(),
+                Carbon::parse($h->end_date)->endOfDay()
             ));
             $leave = $user->leaves
                 ->first(fn ($l) => $date->between(
@@ -386,12 +398,53 @@ class AttendanceController extends Controller
             $today = Carbon::today();
 
             // Attempt to create or update the attendance record
-            Attendance::create([
+            $attendance = Attendance::create([
                 'user_id' => $request->user_id,
                 'date' => Carbon::today(),
                 'punchin' => Carbon::now(),
                 'punchin_location' => $request->location,
             ]);
+
+            // Calculate if employee is late
+            $isLate = false;
+            $scheduledTime = null;
+            $lateMinutes = 0;
+
+            // Get user's attendance settings to determine scheduled time
+            $user = User::find($request->user_id);
+            if ($user && $user->attendanceType) {
+                $config = $user->attendanceType->config;
+                if (isset($config['start_time'])) {
+                    $scheduledTime = Carbon::parse($today->format('Y-m-d').' '.$config['start_time']);
+                    $actualTime = $attendance->punchin;
+
+                    if ($actualTime->greaterThan($scheduledTime)) {
+                        $isLate = true;
+                        $lateMinutes = $actualTime->diffInMinutes($scheduledTime);
+                    }
+                }
+            }
+
+            // Parse location data
+            $locationData = is_string($request->location) ? json_decode($request->location, true) : $request->location;
+            $location = [
+                'latitude' => $locationData['latitude'] ?? null,
+                'longitude' => $locationData['longitude'] ?? null,
+                'address' => $locationData['address'] ?? 'Unknown location',
+            ];
+
+            // Dispatch AttendancePunchedIn event
+            event(new AttendancePunchedIn($attendance, $isLate, $location));
+
+            // Dispatch LateArrivalDetected event if employee is late
+            if ($isLate && $scheduledTime) {
+                event(new LateArrivalDetected(
+                    $attendance,
+                    $lateMinutes,
+                    $scheduledTime,
+                    $attendance->punchin
+                ));
+            }
 
             // Return success response with no punches if there are none
             return response()->json([
@@ -423,6 +476,48 @@ class AttendanceController extends Controller
             $attendance->punchout = Carbon::now();
             $attendance->punchout_location = $request->location;
             $attendance->save();
+
+            // Calculate work duration and overtime
+            $totalMinutes = $attendance->punchin->diffInMinutes($attendance->punchout);
+            $isEarly = false;
+            $hasOvertime = false;
+
+            // Get user's attendance settings
+            $user = User::find($request->user_id);
+            if ($user && $user->attendanceType) {
+                $config = $user->attendanceType->config;
+
+                // Check for early departure
+                if (isset($config['end_time'])) {
+                    $scheduledEndTime = Carbon::parse($attendance->date->format('Y-m-d').' '.$config['end_time']);
+                    if ($attendance->punchout->lessThan($scheduledEndTime)) {
+                        $isEarly = true;
+                    }
+                }
+
+                // Check for overtime (standard 8-hour workday assumed)
+                $standardMinutes = 8 * 60; // 8 hours
+                if ($totalMinutes > $standardMinutes) {
+                    $hasOvertime = true;
+                }
+            }
+
+            // Parse location data
+            $locationData = is_string($request->location) ? json_decode($request->location, true) : $request->location;
+            $location = [
+                'latitude' => $locationData['latitude'] ?? null,
+                'longitude' => $locationData['longitude'] ?? null,
+                'address' => $locationData['address'] ?? 'Unknown location',
+            ];
+
+            // Dispatch AttendancePunchedOut event
+            event(new AttendancePunchedOut(
+                $attendance,
+                $isEarly,
+                $hasOvertime,
+                $totalMinutes,
+                $location
+            ));
 
             // Return success response
             return response()->json([
@@ -554,7 +649,7 @@ class AttendanceController extends Controller
             // Efficiently check if the user is on leave today
             $userLeave = DB::table('leaves')
                 ->join('leave_settings', 'leaves.leave_type', '=', 'leave_settings.id')
-                ->select('leaves.*', 'leave_settings.type as leave_type')
+                ->select('leaves.*', 'leave_settings.name as leave_type')
                 ->where('leaves.user_id', $currentUser->id)
                 ->whereDate('leaves.from_date', '<=', $today)
                 ->whereDate('leaves.to_date', '>=', $today)
@@ -608,21 +703,25 @@ class AttendanceController extends Controller
         $page = $request->get('employee') != '' ? 1 : (int) $request->get('page', 1);
         $employee = $request->get('employee', '');
         try {
-            // Get all users with Employee role
-            $allUsersQuery = User::role('Employee');
+            // Get all active employees with their user data
+            $allEmployeesQuery = Employee::active()->with('user');
 
-            // Apply employee search filter to all users if provided
+            // Apply employee search filter to all employees if provided
             if ($employee !== '') {
-                $allUsersQuery->where(function ($query) use ($employee) {
-                    $query->where('name', 'like', '%'.$employee.'%')
-                        ->orWhere('employee_id', 'like', '%'.$employee.'%');
+                $allEmployeesQuery->where(function ($query) use ($employee) {
+                    $query->where('employee_code', 'like', '%'.$employee.'%')
+                        ->orWhereHas('user', function ($q) use ($employee) {
+                            $q->where('name', 'like', '%'.$employee.'%');
+                        });
                 });
             }
 
-            $allUsers = $allUsersQuery->get();
+            $allEmployees = $allEmployeesQuery->get();
+            $allUsers = $allEmployees->map(fn ($emp) => $emp->user)->filter();
 
-            // Get users who have attendance for the selected date
-            $usersWithAttendanceQuery = User::role('Employee')
+            // Get user IDs of active employees who have attendance for the selected date
+            $employeeUserIds = $allEmployees->pluck('user_id');
+            $usersWithAttendanceQuery = User::whereIn('id', $employeeUserIds)
                 ->whereHas('attendances', function ($query) use ($selectedDate) {
                     $query->whereNotNull('punchin')
                         ->whereDate('date', $selectedDate);
@@ -728,7 +827,7 @@ class AttendanceController extends Controller
             $userIds = $allUsers->pluck('id');
             $todayLeaves = DB::table('leaves')
                 ->join('leave_settings', 'leaves.leave_type', '=', 'leave_settings.id')
-                ->select('leaves.*', 'leave_settings.type as leave_type')
+                ->select('leaves.*', 'leave_settings.name as leave_type')
                 ->whereDate('leaves.from_date', '<=', $selectedDate)
                 ->whereDate('leaves.to_date', '>=', $selectedDate)
                 ->whereIn('leaves.user_id', $userIds)
@@ -905,8 +1004,11 @@ class AttendanceController extends Controller
         $employee = $request->get('employee', '');
 
         try {
+            // Get all active employees' user IDs
+            $employeeUserIds = Employee::active()->pluck('user_id');
+
             // Get users who have attendance for the selected date
-            $usersWithAttendanceQuery = User::role('Employee')
+            $usersWithAttendanceQuery = User::whereIn('id', $employeeUserIds)
                 ->whereHas('attendances', function ($query) use ($selectedDate) {
                     $query->whereNotNull('punchin')
                         ->whereDate('date', $selectedDate);
@@ -915,8 +1017,7 @@ class AttendanceController extends Controller
             // Apply employee search filter if provided
             if ($employee !== '') {
                 $usersWithAttendanceQuery->where(function ($query) use ($employee) {
-                    $query->where('name', 'like', '%'.$employee.'%')
-                        ->orWhere('employee_id', 'like', '%'.$employee.'%');
+                    $query->where('name', 'like', '%'.$employee.'%');
                 });
             }
 
@@ -1033,12 +1134,13 @@ class AttendanceController extends Controller
         $selectedDate = Carbon::parse($request->query('date'))->format('Y-m-d');
 
         try {
-
-            // When not searching, get all users with Employee role
-            $allUsers = User::role('Employee')->get();
+            // Get all active employees with their user data
+            $allEmployees = Employee::active()->with('user')->get();
+            $allUsers = $allEmployees->map(fn ($emp) => $emp->user)->filter();
+            $employeeUserIds = $allEmployees->pluck('user_id');
 
             // Get IDs of users who have attendance for the selected date
-            $presentUserIds = User::role('Employee')
+            $presentUserIds = User::whereIn('id', $employeeUserIds)
                 ->whereHas('attendances', function ($query) use ($selectedDate) {
                     $query->whereNotNull('punchin')
                         ->whereDate('date', $selectedDate);
@@ -1054,7 +1156,7 @@ class AttendanceController extends Controller
             $userIds = $absentUsers->pluck('id');
             $todayLeaves = DB::table('leaves')
                 ->join('leave_settings', 'leaves.leave_type', '=', 'leave_settings.id')
-                ->select('leaves.*', 'leave_settings.type as leave_type')
+                ->select('leaves.*', 'leave_settings.name as leave_type')
                 ->whereDate('leaves.from_date', '<=', $selectedDate)
                 ->whereDate('leaves.to_date', '>=', $selectedDate)
                 ->whereIn('leaves.user_id', $userIds)
@@ -1116,9 +1218,9 @@ class AttendanceController extends Controller
             $calendarWorkingDays = max(0, $totalDaysInMonth - $holidaysCount - $weekendCount);
 
             // 4. EMPLOYEE COUNT
-            // If Global: 17 employees. If Single: 1 employee.
+            // If Global: Count all active employees. If Single: 1 employee.
             $totalEmployees = $isGlobalScope
-                ? User::role('Employee')->where('active', 1)->count()
+                ? Employee::where('status', 'active')->count()
                 : 1;
 
             // 5. FETCH DATA (Scoped)
@@ -1213,13 +1315,13 @@ class AttendanceController extends Controller
             // Calculate "Potential Man-Days Passed" to determine Absents
             $daysPassed = $startOfMonth->diffInDays($analysisEndDate) + 1;
             // Estimate working days passed (simplified)
-            $workingDaysPassed = max(0, $daysPassed - ($daysPassed * 2 / 7)); // Rough estimate of weekends passed
+            $workingDaysPassed = (int) round(max(0, $daysPassed - ($daysPassed * 2 / 7))); // Rough estimate of weekends passed
 
             $totalPotentialManDays = $calendarWorkingDays * $totalEmployees; // For the whole month
             $potentialManDaysPassed = $workingDaysPassed * $totalEmployees; // So far
 
             // Absent = Potential (So Far) - Present - Leaves
-            $totalAbsentManDays = max(0, $potentialManDaysPassed - $totalPresentManDays - $totalLeaveManDays);
+            $totalAbsentManDays = (int) max(0, $potentialManDaysPassed - $totalPresentManDays - $totalLeaveManDays);
 
             // Percentages
             $attendancePercentage = $totalPotentialManDays > 0
@@ -1269,15 +1371,15 @@ class AttendanceController extends Controller
     private function getTotalHolidayDays(int $year, int $month): int
     {
         $holidays = Holiday::where(function ($query) use ($year, $month) {
-            $query->whereYear('from_date', $year)
-                ->whereMonth('from_date', $month)
-                ->orWhereYear('to_date', $year)
-                ->whereMonth('to_date', $month);
+            $query->whereYear('date', $year)
+                ->whereMonth('date', $month)
+                ->orWhereYear('end_date', $year)
+                ->whereMonth('end_date', $month);
         })->get();
 
         return $holidays->sum(function ($holiday) use ($year, $month) {
-            $from = Carbon::parse($holiday->from_date);
-            $to = Carbon::parse($holiday->to_date);
+            $from = Carbon::parse($holiday->date);
+            $to = Carbon::parse($holiday->end_date);
 
             // Limit to current year and month
             $startOfMonth = Carbon::create($year, $month, 1);
@@ -1305,11 +1407,11 @@ class AttendanceController extends Controller
 
         // Fetch holiday ranges
         $holidayRanges = Holiday::where(function ($query) use ($year, $month) {
-            $query->whereYear('from_date', $year)->whereMonth('from_date', $month)
-                ->orWhereYear('to_date', $year)->whereMonth('to_date', $month);
+            $query->whereYear('date', $year)->whereMonth('date', $month)
+                ->orWhereYear('end_date', $year)->whereMonth('end_date', $month);
         })->get()->map(function ($holiday) use ($startOfMonth, $endOfRange) {
-            $from = Carbon::parse($holiday->from_date);
-            $to = Carbon::parse($holiday->to_date);
+            $from = Carbon::parse($holiday->date);
+            $to = Carbon::parse($holiday->end_date);
 
             return [
                 'start' => $from->greaterThan($startOfMonth) ? $from : $startOfMonth,
@@ -1381,8 +1483,8 @@ class AttendanceController extends Controller
 
             // Get holidays for the month
             $holidays = Holiday::where(function ($query) use ($year, $month) {
-                $query->whereYear('from_date', $year)->whereMonth('from_date', $month)
-                    ->orWhereYear('to_date', $year)->whereMonth('to_date', $month);
+                $query->whereYear('date', $year)->whereMonth('date', $month)
+                    ->orWhereYear('end_date', $year)->whereMonth('end_date', $month);
             })->get();
 
             // Build calendar data
@@ -1398,8 +1500,8 @@ class AttendanceController extends Controller
 
                 // Check if it's a holiday
                 $isHoliday = $holidays->contains(function ($holiday) use ($current) {
-                    $from = Carbon::parse($holiday->from_date);
-                    $to = Carbon::parse($holiday->to_date);
+                    $from = Carbon::parse($holiday->date);
+                    $to = Carbon::parse($holiday->end_date);
 
                     return $current->between($from, $to);
                 });
@@ -1563,12 +1665,13 @@ class AttendanceController extends Controller
                 ], 422);
             }
 
-            // Verify the user exists and is an employee
+            // Verify the user has an employee record (replaces hasRole check)
             $user = User::find($userId);
-            if (! $user || ! $user->hasRole('Employee')) {
+            $employee = $user ? Employee::where('user_id', $userId)->first() : null;
+            if (! $user || ! $employee) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Invalid user or user is not an employee.',
+                    'message' => 'Invalid user or user is not onboarded as an employee.',
                 ], 422);
             }
 
@@ -1678,13 +1781,14 @@ class AttendanceController extends Controller
                         continue;
                     }
 
-                    // Verify user is an employee
+                    // Verify user has an employee record (replaces hasRole check)
                     $user = User::find($userId);
-                    if (! $user || ! $user->hasRole('Employee')) {
+                    $employee = $user ? Employee::where('user_id', $userId)->first() : null;
+                    if (! $user || ! $employee) {
                         $results['failed'][] = [
                             'user_id' => $userId,
                             'name' => $user->name ?? 'Unknown',
-                            'reason' => 'Invalid user or not an employee',
+                            'reason' => 'Invalid user or not onboarded as employee',
                         ];
 
                         continue;
@@ -1823,20 +1927,61 @@ class AttendanceController extends Controller
     {
         $date = $request->input('date');
 
-        return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\AttendanceExport($date), 'Daily_Timesheet_'.date('Y_m_d', strtotime($date)).'.xlsx');
+        return \Maatwebsite\Excel\Facades\Excel::download(new AttendanceExport($date), 'Daily_Timesheet_'.date('Y_m_d', strtotime($date)).'.xlsx');
     }
 
     public function exportPdf(Request $request)
     {
-        $date = $request->input('date');
-        $rows = (new AttendanceExport($date))->collection();
-        $pdf = PDF::loadView('attendance_pdf', [
-            'title' => 'Daily Timesheet - '.date('F d, Y', strtotime($date)),
-            'generatedOn' => now()->format('F d, Y h:i A'),
-            'rows' => $rows,
-        ])->setPaper('a4', 'landscape');
+        try {
+            $date = $request->input('date');
 
-        return $pdf->download('Daily_Timesheet_'.date('Y_m_d', strtotime($date)).'.pdf');
+            // Validate date input
+            if (! $date) {
+                return response()->json(['error' => 'Date parameter is required'], 400);
+            }
+
+            // Get the data collection
+            $rows = (new AttendanceExport($date))->collection();
+
+            // Check if we have any data
+            if ($rows->isEmpty()) {
+                // Create a minimal row with message indicating no data
+                $rows = collect([[
+                    'No.' => 1,
+                    'Date' => date('M d, Y', strtotime($date)),
+                    'Employee Name' => 'No employees found',
+                    'Employee ID' => 'N/A',
+                    'Designation' => 'N/A',
+                    'Phone' => 'N/A',
+                    'Clock In' => 'No data',
+                    'Clock Out' => 'No data',
+                    'Work Hours' => '0h 0m',
+                    'Total Punches' => 0,
+                    'Complete Punches' => 0,
+                    'Status' => 'No data',
+                    'Remarks' => 'No attendance data available for this date',
+                ]]);
+            }
+
+            // Generate PDF
+            $pdf = PDF::loadView('attendance_pdf', [
+                'title' => 'Daily Timesheet - '.date('F d, Y', strtotime($date)),
+                'generatedOn' => now()->format('F d, Y h:i A'),
+                'rows' => $rows,
+            ])->setPaper('a4', 'landscape');
+
+            return $pdf->download('Daily_Timesheet_'.date('Y_m_d', strtotime($date)).'.pdf');
+
+        } catch (\Exception $e) {
+            \Log::error('PDF Export Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to generate PDF: '.$e->getMessage(),
+            ], 500);
+        }
     }
 
     public function exportAdminExcel(Request $request)
@@ -1853,7 +1998,9 @@ class AttendanceController extends Controller
         $to = $from->copy()->endOfMonth();
         $monthName = $from->format('F Y');
 
-        $users = User::with(['attendances', 'leaves'])->role('Employee')->where('active', 1)->get();
+        // Get all active employees with their user and related data
+        $employeeUserIds = Employee::active()->pluck('user_id');
+        $users = User::with(['attendances', 'leaves'])->whereIn('id', $employeeUserIds)->get();
         $leaveTypes = LeaveSetting::all();
         $holidays = Holiday::all();
 

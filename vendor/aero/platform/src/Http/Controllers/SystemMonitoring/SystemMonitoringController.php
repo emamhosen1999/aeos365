@@ -2,10 +2,10 @@
 
 namespace Aero\Platform\Http\Controllers\SystemMonitoring;
 
+use Aero\Core\Support\TenantCache;
 use Aero\Platform\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Aero\Core\Support\TenantCache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -1866,8 +1866,8 @@ class SystemMonitoringController extends Controller
     private function analyzeCacheUsage()
     {
         $cacheStats = [
-            'config_cached' => file_exists(bootstrap_path('cache/config.php')),
-            'routes_cached' => file_exists(bootstrap_path('cache/routes-v7.php')),
+            'config_cached' => file_exists(base_path('bootstrap/cache/config.php')),
+            'routes_cached' => file_exists(base_path('bootstrap/cache/routes-v7.php')),
             'views_cached' => file_exists(storage_path('framework/views')),
             'cache_size' => 0,
         ];

@@ -3,6 +3,7 @@ import { Link, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { showToast } from '@/utils/toastUtils';
 import { getProfileAvatarTokens } from '@/Components/ProfileAvatar';
+import ProfilePictureModal from '@/Components/ProfilePictureModal';
 import { 
   Table, 
   TableBody, 
@@ -60,9 +61,47 @@ const getThemeRadius = () => {
  * Helper to get routes based on context
  */
 const getRoutes = (context) => {
-  const isAdmin = context === 'admin';
+  if (context === 'admin') {
+    return {
+      // Device routes for platform admin
+      devices: 'admin.users.devices',
+      devicesToggle: 'admin.users.devices.toggle',
+      devicesReset: 'admin.users.devices.reset',
+      devicesDeactivate: 'admin.users.devices.deactivate',
+      // User management routes
+      toggleStatus: 'admin.users.toggle-status',
+      updateRoles: 'admin.users.update-roles',
+      destroy: 'admin.users.destroy',
+      restore: 'admin.users.restore',
+      lock: 'admin.users.lock',
+      unlock: 'admin.users.unlock',
+      forcePasswordReset: 'admin.users.force-password-reset',
+      resendVerification: 'admin.users.resend-verification',
+    };
+  }
+  
+  if (context === 'core') {
+    return {
+      // Device routes for standalone/core mode
+      devices: 'core.devices.admin.list',
+      devicesToggle: 'core.devices.admin.toggle',
+      devicesReset: 'core.devices.admin.reset',
+      devicesDeactivate: 'core.devices.admin.deactivate',
+      // User management routes
+      toggleStatus: 'core.users.toggleStatus',
+      updateRoles: 'core.users.updateRole',
+      destroy: 'core.users.destroy',
+      restore: 'core.users.restore',
+      lock: 'core.users.lock',
+      unlock: 'core.users.unlock',
+      forcePasswordReset: 'core.users.forcePasswordReset',
+      resendVerification: 'core.users.resendVerification',
+    };
+  }
+  
+  // Default: tenant context for SaaS mode
   return {
-    // Device routes - consistent naming
+    // Device routes
     devices: 'devices.admin.list',
     devicesToggle: 'devices.admin.toggle',
     devicesReset: 'devices.admin.reset',
@@ -94,6 +133,7 @@ const UsersTable = ({
   updateUserOptimized,
   deleteUserOptimized,
   toggleUserStatusOptimized,
+  deactivateUser,
   updateUserRolesOptimized,
   // Device management functions
 
@@ -115,6 +155,36 @@ const UsersTable = ({
   
   // Get current user's auth info
   const { auth } = usePage().props;
+
+  // Profile picture modal state (for User profile images)
+  const [profilePictureModal, setProfilePictureModal] = useState({
+    isOpen: false,
+    user: null
+  });
+
+  // Profile picture modal handlers
+  const handleProfilePictureClick = (user) => {
+    setProfilePictureModal({
+      isOpen: true,
+      user: user
+    });
+  };
+
+  const handleProfilePictureClose = () => {
+    setProfilePictureModal({
+      isOpen: false,
+      user: null
+    });
+  };
+
+  const handleProfileImageUpdate = (userId, newImageUrl) => {
+    // Update the user's profile image in the local state
+    if (updateUserOptimized) {
+      updateUserOptimized(userId, {
+        profile_image_url: newImageUrl
+      });
+    }
+  };
   
   // Helper to check if a user has Super Admin role
   const isSuperAdmin = (user) => {
@@ -243,95 +313,142 @@ const UsersTable = ({
     return loadingStates[`${userId}-${operation}`] || false;
   };
 
-  async function handleRoleChange(userId, newRoleNames) {
-    setLoading(userId, 'role', true);
-    const promise = new Promise(async (resolve, reject) => {
-      try {
-        // Use context-aware route and HTTP method for role updates
-        // Admin context uses PATCH, tenant context uses POST
-        const isAdminContext = context === 'admin';
-        const updateRoute = isAdminContext 
-          ? route('admin.users.update-roles', { user: userId })
-          : route('users.updateRole', { id: userId });
-        
-        // Admin uses PATCH, tenant uses POST
-        const response = isAdminContext
-          ? await axios.patch(updateRoute, { roles: newRoleNames })
-          : await axios.post(updateRoute, { roles: newRoleNames });
-        
-        if (response.status === 200) {
-          // Only update the affected user locally without refreshing the entire table
-          if (updateUserRolesOptimized) {
-            updateUserRolesOptimized(userId, newRoleNames);
-          }
-          resolve([response.data.message || 'Role updated successfully']);
-        }
-      } catch (error) {
-        if (error.response?.status === 422) {
-          reject(error.response.data.errors || ['Failed to update user role.']);
-        } else {
-          reject(['An unexpected error occurred. Please try again later.']);
-        }
-      } finally {
-        setLoading(userId, 'role', false);
+  // Optimized: Update UI first, then sync with server
+  const handleRoleChange = async (userId, newRoleNames) => {
+    // 1. Snapshot previous state for rollback
+    const userToUpdate = allUsers.find(u => u.id === userId);
+    const previousRoles = userToUpdate ? userToUpdate.roles : [];
+    const newRoles = Array.from(newRoleNames); // Ensure it's an array
+
+    // 2. Optimistic Update: Update UI immediately
+    if (updateUserRolesOptimized) {
+      updateUserRolesOptimized(userId, newRoles);
+    } else if (setUsers) {
+      // Fallback local update
+      setUsers(prev => prev.map(u => 
+        u.id === userId ? { ...u, roles: newRoles } : u
+      ));
+    }
+
+    // 3. API Call in background
+    try {
+      const isAdminContext = context === 'admin';
+      const updateRoute = route(routes.updateRoles, { id: userId, user: userId });
+      
+      const response = isAdminContext
+        ? await axios.patch(updateRoute, { roles: newRoles })
+        : await axios.post(updateRoute, { roles: newRoles });
+
+      // Optional: Silent success or unobtrusive toast
+      // showToast.success("Roles updated"); 
+      
+    } catch (error) {
+      console.error('Role update failed:', error);
+      
+      // 4. Revert on Failure
+      if (updateUserRolesOptimized) {
+        updateUserRolesOptimized(userId, previousRoles);
+      } else if (setUsers) {
+        setUsers(prev => prev.map(u => 
+          u.id === userId ? { ...u, roles: previousRoles } : u
+        ));
       }
-    });
-    showToast.promise(promise, {
-      loading: 'Updating user role...',
-      success: (data) => data.join(', '),
-      error: (data) => Array.isArray(data) ? data.join(', ') : data,
-    });
-    
-    // Return the promise to allow parent components to track completion
-    return promise;
-  }
-
-
-
-  const handleDelete = async (userId) => {
-    setLoading(userId, 'delete', true);
-    const promise = new Promise(async (resolve, reject) => {
-      try {
-        const response = await axios.delete(route(routes.destroy, { id: userId }), {
-          data: { user_id: userId }
-        });
-        if (response.status === 200) {
-          if (deleteUserOptimized) {
-            deleteUserOptimized(userId);
-          }
-          resolve([response.data.message || 'User deleted successfully']);
-        }
-      } catch (error) {
-        if (error.response?.status === 422) {
-          reject(error.response.data.errors || ['Validation failed']);
-        } else {
-          reject([error.response?.data?.message || 'An error occurred while deleting user. Please try again.']);
-        }
-      } finally {
-        setLoading(userId, 'delete', false);
-      }
-    });
-    showToast.promise(promise, {
-      loading: 'Deleting user...',
-      success: (data) => data.join(', '),
-      error: (data) => Array.isArray(data) ? data.join(', ') : data,
-    });
+      
+      showToast.error("Failed to update roles. Changes reverted.");
+    }
   };
 
-  // Restore soft-deleted user
+
+
+  // Optimized: Remove row immediately, revert if API fails
+  const handleDelete = async (userId) => {
+    // 1. Snapshot the user data in case we need to restore it
+    const userToDelete = allUsers.find(u => u.id === userId);
+    if (!userToDelete) return;
+
+    // 2. Optimistic Update: Remove from UI immediately
+    if (deleteUserOptimized) {
+      deleteUserOptimized(userId);
+    } else if (setUsers) {
+      setUsers(prev => prev.filter(u => u.id !== userId));
+    }
+
+    // 3. API Call
+    try {
+      await axios.delete(route(routes.destroy, { id: userId, user: userId }), {
+        data: { user_id: userId }
+      });
+      // Success: Do nothing, user is already gone
+      showToast.success("User deleted");
+      
+    } catch (error) {
+      console.error('Delete failed:', error);
+      
+      // 4. Revert on Failure: Add user back
+      if (setUsers) {
+        setUsers(prev => {
+           // Insert back at specific index or just append? 
+           // Appending is safer to avoid complex index logic during state flux
+           return [...prev, userToDelete].sort((a, b) => a.id - b.id); 
+        });
+      }
+      // If you have a specific restoreUserOptimized prop, use it here
+      
+      showToast.error("Failed to delete user. Restored.");
+    }
+  };
+
+ // Optimized: Restore user immediately, revert if API fails
   const handleRestoreUser = async (user) => {
+    // 1. Snapshot for rollback
+    // We assume 'user' is the object currently in the 'deleted' list
+    const originalUser = { ...user };
+    
+    // 2. Optimistic Update
+    // Depending on your parent component logic, 'updateUserOptimized' might handle 
+    // moving it between lists, or we might need to call a specific 'restore' handler.
+    // Assuming 'updateUserOptimized' refreshes the list or adds the user back:
+    if (updateUserOptimized) {
+      // Pass the user with deleted_at = null so it appears active immediately
+      updateUserOptimized({ ...user, deleted_at: null });
+    }
+
+    // 3. API Call
     const promise = new Promise(async (resolve, reject) => {
       try {
-        const response = await axios.post(route('users.restore', { id: user.id }));
+        const response = await axios.post(route(routes.restore, { id: user.id, user: user.id }));
+        
         if (response.status === 200) {
-          // Refresh the users list
+          // Success: The optimistic update was correct.
+          // Optional: Update with exact server data if needed (usually not necessary for simple restore)
           if (updateUserOptimized) {
-            updateUserOptimized(response.data.user);
+             updateUserOptimized(response.data.user);
           }
           resolve([response.data.message || 'User restored successfully']);
+        } else {
+          throw new Error('Unexpected response');
         }
       } catch (error) {
-        reject(error.response?.data?.errors || [error.response?.data?.error || 'Failed to restore user']);
+        console.error('Error restoring user:', error);
+
+        // 4. Revert on Failure
+        // If it failed, we need to mark it as deleted again or remove it from the active list
+        if (updateUserOptimized) {
+           // Re-apply the original state (with deleted_at timestamp)
+           updateUserOptimized(originalUser); 
+        }
+
+        // Error handling logic
+        if (error.response?.status === 403) {
+          reject([error.response.data.error || 'You do not have permission to restore this user']);
+        } else if (error.response?.status === 404) {
+          reject(['User not found or already restored']);
+        } else if (error.response?.status === 422) {
+          const errors = error.response.data.errors;
+          reject(errors ? Object.values(errors).flat() : ['Validation failed']);
+        } else {
+          reject([error.response?.data?.error || error.response?.data?.message || 'Failed to restore user']);
+        }
       }
     });
     
@@ -352,42 +469,53 @@ const UsersTable = ({
     }
   };
 
-  // Unlock user account
-  const handleUnlockAccount = async (user) => {
-    const promise = new Promise(async (resolve, reject) => {
-      try {
-        const response = await axios.post(route('users.unlock', { id: user.id }));
-        if (response.status === 200) {
-          if (updateUserOptimized) {
-            updateUserOptimized(response.data.user);
-          }
-          resolve([response.data.message || 'Account unlocked successfully']);
-        }
-      } catch (error) {
-        reject(error.response?.data?.errors || [error.response?.data?.error || 'Failed to unlock account']);
-      }
-    });
+ const handleUnlockAccount = async (user) => {
+    // 1. Optimistic Update
+    const originalLockedAt = user.account_locked_at;
     
-    showToast.promise(promise, {
-      loading: 'Unlocking account...',
-      success: (data) => data.join(', '),
-      error: (data) => Array.isArray(data) ? data.join(', ') : data,
-    });
+    // Create updated user object (unlocked)
+    const updatedUser = { ...user, account_locked_at: null };
+    
+    if (updateUserOptimized) {
+      updateUserOptimized(user.id, updatedUser);
+    }
+
+    // 2. API Call
+    try {
+      await axios.post(route(routes.unlock, { id: user.id, user: user.id }));
+      showToast.success("Account unlocked");
+    } catch (error) {
+      // 3. Revert
+      if (updateUserOptimized) {
+        updateUserOptimized(user.id, { ...user, account_locked_at: originalLockedAt });
+      }
+      showToast.error("Failed to unlock account.");
+    }
   };
 
   // Force password reset
   const handleForcePasswordReset = async (user) => {
     const promise = new Promise(async (resolve, reject) => {
       try {
-        const response = await axios.post(route('users.forcePasswordReset', { id: user.id }));
+        const response = await axios.post(route(routes.forcePasswordReset, { id: user.id, user: user.id }));
         if (response.status === 200) {
           if (updateUserOptimized) {
             updateUserOptimized(response.data.user);
           }
           resolve([response.data.message || 'Password reset forced successfully']);
+        } else {
+          reject(['Unexpected response while forcing password reset']);
         }
       } catch (error) {
-        reject(error.response?.data?.errors || [error.response?.data?.error || 'Failed to force password reset']);
+        console.error('Error forcing password reset:', error);
+        
+        if (error.response?.status === 403) {
+          reject([error.response.data.error || 'You do not have permission to force password reset']);
+        } else if (error.response?.status === 404) {
+          reject(['User not found']);
+        } else {
+          reject([error.response?.data?.error || error.response?.data?.message || 'Failed to force password reset']);
+        }
       }
     });
     
@@ -402,12 +530,24 @@ const UsersTable = ({
   const handleResendVerification = async (user) => {
     const promise = new Promise(async (resolve, reject) => {
       try {
-        const response = await axios.post(route('users.resendVerification', { id: user.id }));
+        const response = await axios.post(route(routes.resendVerification, { id: user.id, user: user.id }));
         if (response.status === 200) {
           resolve([response.data.message || 'Verification email sent successfully']);
+        } else {
+          reject(['Unexpected response while sending verification email']);
         }
       } catch (error) {
-        reject(error.response?.data?.errors || [error.response?.data?.error || 'Failed to resend verification email']);
+        console.error('Error resending verification email:', error);
+        
+        if (error.response?.status === 403) {
+          reject([error.response.data.error || 'You do not have permission to resend verification email']);
+        } else if (error.response?.status === 404) {
+          reject(['User not found']);
+        } else if (error.response?.status === 429) {
+          reject(['Too many requests. Please wait before trying again.']);
+        } else {
+          reject([error.response?.data?.error || error.response?.data?.message || 'Failed to resend verification email']);
+        }
       }
     });
     
@@ -457,14 +597,12 @@ const UsersTable = ({
       { name: "#", uid: "sl" },
       { name: "USER", uid: "user" },
       { name: "EMAIL", uid: "email" },
-      { name: "STATUS", uid: "status" },
       { name: "ROLES", uid: "roles" },
       { name: "ACTIONS", uid: "actions" }
     ] : [
       { name: "#", uid: "sl" },
       { name: "USER", uid: "user" },
       { name: "EMAIL", uid: "email" },
-      { name: "STATUS", uid: "status" },
       { name: "ROLES", uid: "roles" },
       { name: "ACTIONS", uid: "actions" }
     ];
@@ -473,36 +611,84 @@ const UsersTable = ({
     return baseColumns;
   }, [isMobile, isTablet, context, hrmModuleInstalled, selectedUsers, allUsers]);
 
-  // Function to toggle user status - optimized to avoid full reloads
+  // Function to toggle user status - calls parent handler which makes the API call
   const toggleUserStatus = async (userId, currentStatus) => {
     if (isLoading(userId, 'status')) return; // Prevent multiple calls
     
     setLoading(userId, 'status', true);
     try {
-      // In this implementation, we use the handler passed from the parent
+      // The parent component's toggleUserStatusOptimized now handles:
+      // 1. Optimistic UI update
+      // 2. API call with proper error handling
+      // 3. Toast notifications
+      // 4. Rollback on failure
       if (toggleUserStatusOptimized) {
-        toggleUserStatusOptimized(userId, !currentStatus);
-        showToast.success(`User status ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
+        await toggleUserStatusOptimized(userId, !currentStatus);
       } else if (setUsers) {
-        // Fallback to the older method if the optimized handler is not available
+        // Fallback: make direct API call if optimized handler is not available
+        const newStatus = !currentStatus;
+        
+        // Optimistic update
         setUsers(prevUsers => 
           prevUsers.map(user => 
-            user.id === userId ? { ...user, active: !currentStatus } : user
+            user.id === userId ? { ...user, active: newStatus } : user
           )
         );
-        showToast.success(`User status ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
+        
+        const promise = new Promise(async (resolve, reject) => {
+          try {
+            const response = await axios.put(route(routes.toggleStatus, { id: userId, user: userId }), {
+              active: newStatus
+            });
+            
+            if (response.status === 200) {
+              resolve([response.data.message || `User ${newStatus ? 'activated' : 'deactivated'} successfully`]);
+            } else {
+              // Revert on non-200
+              setUsers(prevUsers => 
+                prevUsers.map(user => 
+                  user.id === userId ? { ...user, active: currentStatus } : user
+                )
+              );
+              reject(['Failed to update user status']);
+            }
+          } catch (error) {
+            // Revert on error
+            setUsers(prevUsers => 
+              prevUsers.map(user => 
+                user.id === userId ? { ...user, active: currentStatus } : user
+              )
+            );
+            console.error('Error toggling user status:', error);
+            
+            if (error.response?.status === 403) {
+              reject([error.response.data.error || 'You do not have permission to change this user\'s status']);
+            } else if (error.response?.status === 422) {
+              const errors = error.response.data.errors;
+              reject(errors ? Object.values(errors).flat() : ['Validation failed']);
+            } else {
+              reject([error.response?.data?.error || error.response?.data?.message || 'Failed to update user status']);
+            }
+          }
+        });
+        
+        showToast.promise(promise, {
+          loading: `${newStatus ? 'Activating' : 'Deactivating'} user...`,
+          success: (data) => data.join(', '),
+          error: (data) => Array.isArray(data) ? data.join(', ') : data,
+        });
       }
     } catch (error) {
-      console.error('Error toggling user status:', error);
-      showToast.error('Failed to update user status');
+      console.error('Error in toggleUserStatus:', error);
+      // Error already handled by promise/toast
     } finally {
       setLoading(userId, 'status', false);
     }
   };
 
-  // Render cell content based on column type
-  const renderCell = (user, columnKey, rowIndex) => {
- 
+  
+
+  const renderCell = React.useCallback((user, columnKey, rowIndex) => {
     const cellValue = user[columnKey];
     
     switch (columnKey) {
@@ -511,20 +697,23 @@ const UsersTable = ({
           <div className="flex items-center justify-center">
             <Checkbox
               isSelected={isUserSelected(user)}
-              onChange={() => handleUserToggle(user)}
-              isDisabled={user.employee_id}
+              // Note: We need to pass the handler reference, ensure handleUserToggle is stable or use wrapper
+              onChange={() => handleUserToggle(user)} 
+              isDisabled={!!user.employee_id}
               aria-label={`Select ${user.name}`}
             />
           </div>
         );
+      // Inside renderCell function
       case "sl":
         // Calculate serial number based on pagination
         const startIndex = pagination?.currentPage && pagination?.perPage 
           ? Number((pagination.currentPage - 1) * pagination.perPage) 
           : 0;
-        // Since rowIndex might be undefined, ensure it has a numeric value
-        const safeIndex = typeof rowIndex === 'number' ? rowIndex : 0;
-        const serialNumber = startIndex + safeIndex + 1;
+          
+        // rowIndex is now guaranteed to be the sequential index (0, 1, 2...) from the .map()
+        const serialNumber = startIndex + rowIndex + 1;
+    
         return (
           <div className="flex items-center justify-center">
             <div 
@@ -547,7 +736,7 @@ const UsersTable = ({
             </div>
           </div>
         );
-        
+            
       case "user":
         return (
           <div className="flex items-center gap-2">
@@ -557,6 +746,9 @@ const UsersTable = ({
                 src: user?.profile_image_url || user?.profile_image,
                 name: user?.name || "Unnamed User",
                 size: "sm",
+                isBordered: true,
+                className: "cursor-pointer hover:opacity-80 transition-opacity",
+                onClick: () => handleProfilePictureClick(user),
                 ...getProfileAvatarTokens({
                   name: user?.name || "Unnamed User",
                   size: 'sm',
@@ -675,9 +867,7 @@ const UsersTable = ({
             </span>
           </div>
         );
-
-    
-        
+      
       case "status":
         // Show deleted indicator if user is soft-deleted
         if (user.deleted_at) {
@@ -735,16 +925,30 @@ const UsersTable = ({
         );
         
       case "roles":
-        // Get simple role names for display
-        const roleNames = user.roles?.map(role => 
-          typeof role === 'object' && role !== null ? role.name : role
-        ) || [];
+        // Get simple role names for display - handle multiple role data formats
+        const roleNames = user.roles?.map(role => {
+          if (typeof role === 'object' && role !== null) {
+            // Handle object format { id, name, ... }
+            return role.name || role.role_name || role.display_name;
+          }
+          // Handle string format
+          return role;
+        }).filter(Boolean) || [];
+        
+        // Also check for single role field (for backward compatibility)
+        if (roleNames.length === 0 && user.role) {
+          if (typeof user.role === 'string') {
+            roleNames.push(user.role);
+          } else if (typeof user.role === 'object' && user.role.name) {
+            roleNames.push(user.role.name);
+          }
+        }
         
         // Convert the role names to a Set for selection
         const roleSet = new Set(roleNames);
         
-        // Create a simple string representation of roles
-        const selectedValue = Array.from(roleSet).join(", ") || "No Roles";
+        // Create a simple string representation of roles - show placeholder only if truly no roles
+        const selectedValue = roleNames.length > 0 ? Array.from(roleSet).join(", ") : "Select Roles";
         
         // Check if this user is a Super Admin - only Super Admins can change Super Admin roles
         const targetIsSuperAdmin = isSuperAdmin(user);
@@ -790,8 +994,10 @@ const UsersTable = ({
                   radius={getThemeRadius()}
                   startContent={isLoading(user.id, 'role') ? <Spinner size="sm" /> : null}
                   style={{
-                    background: `var(--theme-primary, #3B82F6)`,
-                    color: 'white',
+                    background: roleNames.length > 0 
+                      ? `var(--theme-primary, #3B82F6)` 
+                      : `var(--theme-default-300, #D1D5DB)`,
+                    color: roleNames.length > 0 ? 'white' : `var(--theme-default-600, #4B5563)`,
                     fontFamily: `var(--fontFamily, "Inter")`,
                     borderRadius: getThemeRadius(),
                     cursor: 'pointer',
@@ -896,6 +1102,36 @@ const UsersTable = ({
           );
         }
         
+        // Deactivate User (soft delete) - only for non-self users
+        if (user.id !== auth?.user?.id && !user.deleted_at) {
+          actionItems.push(
+            <DropdownItem
+              key="deactivate"
+              onPress={() => {
+                if (window.confirm(`Are you sure you want to deactivate ${user.name}? They will be moved to the Deactivated Users section.`)) {
+                  if (deactivateUser) {
+                    deactivateUser(user.id);
+                  }
+                }
+              }}
+              className="text-danger"
+              color="danger"
+              startContent={
+                isLoading(user.id, 'status') ? (
+                  <div className="animate-spin">
+                    <ArrowPathIcon className="w-4 h-4" />
+                  </div>
+                ) : (
+                  <XCircleIcon className="w-4 h-4" />
+                )
+              }
+              isDisabled={isLoading(user.id, 'status')}
+            >
+              {isLoading(user.id, 'status') ? 'Deactivating...' : 'Deactivate'}
+            </DropdownItem>
+          );
+        }
+        
         // Force Password Reset
         if (user.id !== auth?.user?.id) {
           actionItems.push(
@@ -938,51 +1174,8 @@ const UsersTable = ({
           );
         }
         
-        // Delete User - Protected for Super Admins and last Super Admin check
-        const isCurrentUserTarget = user.id === auth?.user?.id;
-        const userIsSuperAdmin = isSuperAdmin(user);
-        
-        if (canDeleteUser(user)) {
-          actionItems.push(
-            <DropdownItem 
-              key="delete"
-              onPress={() => handleDelete(user.id)}
-              className="text-danger"
-              color="danger"
-              startContent={
-                isLoading(user.id, 'delete') ? (
-                  <div className="animate-spin">
-                    <ArrowPathIcon className="w-4 h-4" />
-                  </div>
-                ) : (
-                  <TrashIcon className="w-4 h-4" />
-                )
-              }
-              isDisabled={isLoading(user.id, 'delete')}
-            >
-              {isLoading(user.id, 'delete') ? 'Deleting...' : 'Delete'}
-            </DropdownItem>
-          );
-        } else {
-          // Determine the reason for restriction
-          let restrictionMessage = 'Delete (Super Admin Only)';
-          if (isCurrentUserTarget && currentUserIsSuperAdmin && superAdminCount <= 1) {
-            restrictionMessage = 'Cannot delete (Last Super Admin)';
-          } else if (userIsSuperAdmin && !currentUserIsSuperAdmin) {
-            restrictionMessage = 'Delete (Super Admin Only)';
-          }
-          
-          actionItems.push(
-            <DropdownItem 
-              key="delete-disabled"
-              isDisabled
-              className="text-default-400"
-              startContent={<TrashIcon className="w-4 h-4" />}
-            >
-              {restrictionMessage}
-            </DropdownItem>
-          );
-        }
+        // Note: Delete action has been moved to the Deactivated Users sidebar
+        // Users can only be permanently deleted from the sidebar after being deactivated
         
         return (
           <div className="flex justify-center items-center">
@@ -1021,7 +1214,18 @@ const UsersTable = ({
       default:
         return cellValue;
     }
-  };
+  }, [
+    // Dependencies: Only re-create if these change
+    selectedUsers, 
+    isLoading, 
+    isMobile, 
+    pagination, 
+    handleUserToggle, // Ensure this function is stable or wrapped in useCallback too
+    handleRoleChange, 
+    handleDelete,
+    routes,
+    // Add other dependencies used inside renderCell
+  ]);
 
   const renderPagination = () => {
     if (!allUsers || !totalUsers || loading) return null;
@@ -1077,6 +1281,30 @@ const UsersTable = ({
       </div>
     );
   };
+
+
+  // Add this inside your component, before the return statement
+  const processedUsers = useMemo(() => {
+    if (!allUsers) return [];
+
+    // 1. Create a copy to avoid mutating state
+    let users = [...allUsers];
+
+    // 2. OPTIONAL: Local Sort (Fixes "does not resort")
+    // If your default view is sorted by ID descending (newest first), enable this:
+    // users.sort((a, b) => b.id - a.id);
+    
+    // OR if sorted by Name:
+    // users.sort((a, b) => a.name.localeCompare(b.name));
+
+    // 3. Strict Page Limit Enforcement
+    // If the array grew beyond the page limit due to optimistic updates, trim it.
+    if (pagination && pagination.perPage && users.length > pagination.perPage) {
+      users = users.slice(0, pagination.perPage);
+    }
+
+    return users;
+  }, [allUsers, pagination]);
 
   return (
     <div 
@@ -1163,8 +1391,9 @@ const UsersTable = ({
               </TableColumn>
             )}
           </TableHeader>
+          {/* Replace your existing TableBody with this */}
           <TableBody 
-            items={allUsers || []} 
+            items={processedUsers}
             emptyContent={
               <div className="flex flex-col items-center justify-center py-8">
                 <UserGroupIcon className="w-12 h-12 text-default-300 mb-3" />
@@ -1179,39 +1408,34 @@ const UsersTable = ({
             }
             isLoading={loading}
           >
-            {(item, index) => {
-              const itemIndex = allUsers ? allUsers.findIndex(user => user.id === item.id) : index;
-              return (
-                <TableRow 
-                  key={item.id} 
-                  className="group"
-                  style={{
-                    background: 'var(--theme-content1, #FFFFFF)',
-                  }}
-                >
-                  {(columnKey) => (
-                    <TableCell 
-                      
-                      style={{
-                        
-                        borderColor: 'var(--table-border-color)',
-                        fontFamily: `var(--fontFamily, "Inter")`,
-                        
-                        background: 'inherit',
-                      }}
-                    >
-                      {renderCell(item, columnKey, itemIndex)}
-                    </TableCell>
-                  )}
-                </TableRow>
-              );
-            }}
+            {processedUsers.map((item, index) => ( // <--- CHANGED
+              <TableRow 
+                key={item.id} 
+                className="group"
+                style={{ background: 'var(--theme-content1, #FFFFFF)' }}
+              >
+                {(columnKey) => (
+                  <TableCell>
+                    {/* Pass the strict index (0-9) to keep serial numbers correct */}
+                    {renderCell(item, columnKey, index)}
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </div>
       
       {/* Pagination Footer - Outside scroll area */}
       {renderPagination()}
+
+      {/* User Profile Picture Update Modal */}
+      <ProfilePictureModal
+        isOpen={profilePictureModal.isOpen}
+        onClose={handleProfilePictureClose}
+        user={profilePictureModal.user}
+        onImageUpdate={handleProfileImageUpdate}
+      />
     </div>
   );
 };

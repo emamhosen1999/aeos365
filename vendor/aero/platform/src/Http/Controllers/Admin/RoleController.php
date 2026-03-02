@@ -2,17 +2,17 @@
 
 namespace Aero\Platform\Http\Controllers\Admin;
 
-use Aero\Platform\Models\LandlordUser;
 use Aero\Core\Models\User;
+use Aero\Core\Support\TenantCache;
+use Aero\HRMAC\Models\Role;
 use Aero\Platform\Http\Controllers\Controller;
+use Aero\Platform\Models\LandlordUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Aero\Core\Support\TenantCache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
-use Spatie\Permission\Models\Role;
 
 /**
  * Shared Admin Role Controller
@@ -265,7 +265,7 @@ class RoleController extends Controller
         DB::beginTransaction();
 
         try {
-            $role = Role::findById($id);
+            $role = Role::find($id);
 
             if (! $role) {
                 return response()->json(['error' => 'Role not found'], 404);
@@ -320,7 +320,7 @@ class RoleController extends Controller
         DB::beginTransaction();
 
         try {
-            $role = Role::findById($id);
+            $role = Role::find($id);
 
             if (! $role) {
                 return response()->json(['error' => 'Role not found'], 404);

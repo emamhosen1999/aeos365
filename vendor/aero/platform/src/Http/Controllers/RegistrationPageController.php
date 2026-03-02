@@ -8,7 +8,6 @@ use Aero\Core\Services\Module\ModuleDiscoveryService;
 use Aero\Core\Support\SafeRedirect;
 use Aero\Platform\Models\Tenant;
 use Aero\Platform\Services\Monitoring\Tenant\TenantRegistrationSession;
-use Aero\Platform\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -69,6 +68,11 @@ class RegistrationPageController extends Controller
             return SafeRedirect::toRoute('platform.register.index', [], 'platform.register.index');
         }
 
+        // In debug mode, skip email & phone verification entirely
+        if (config('app.debug')) {
+            return SafeRedirect::toRoute('platform.register.plan', [], 'platform.register.plan');
+        }
+
         $details = $this->registrationSession->get()['details'] ?? [];
 
         return $this->render('Platform/Public/Register/VerifyEmail', 'verify-email', [
@@ -85,6 +89,11 @@ class RegistrationPageController extends Controller
         // Require verification step to have been started
         if (! $this->registrationSession->ensureSteps(['account', 'details', 'verification'])) {
             return SafeRedirect::toRoute('platform.register.index', [], 'platform.register.index');
+        }
+
+        // In debug mode, skip phone verification entirely
+        if (config('app.debug')) {
+            return SafeRedirect::toRoute('platform.register.plan', [], 'platform.register.plan');
         }
 
         $details = $this->registrationSession->get()['details'] ?? [];
@@ -105,13 +114,14 @@ class RegistrationPageController extends Controller
         // Fetch all sellable modules from installed Composer packages
         // Excludes: core (hidden layer), platform (admin system), ui (shared components)
         $excludedModules = ['core', 'platform', 'ui'];
-        
+
         $discoveredModules = $this->moduleDiscovery->getModuleDefinitions()
             ->filter(function ($module) use ($excludedModules) {
                 // Exclude core/platform/ui and modules marked as core
                 $code = $module['code'] ?? '';
                 $isCore = $module['is_core'] ?? false;
-                return !in_array($code, $excludedModules) && !$isCore;
+
+                return ! in_array($code, $excludedModules) && ! $isCore;
             })
             ->keyBy('code');
 
@@ -122,14 +132,15 @@ class RegistrationPageController extends Controller
             ->map(function ($plan) use ($discoveredModules) {
                 $limits = $plan->limits ?? [];
                 $moduleCodes = $plan->module_codes ?? [];
-                
+
                 // Enrich module codes with full module info from discovered modules
                 $enrichedModules = collect($moduleCodes)
                     ->map(function ($code) use ($discoveredModules) {
                         $moduleConfig = $discoveredModules->get($code);
-                        if (!$moduleConfig) {
+                        if (! $moduleConfig) {
                             return null;
                         }
+
                         return [
                             'id' => $code,
                             'code' => $code,
@@ -200,12 +211,13 @@ class RegistrationPageController extends Controller
 
         // Fetch all sellable modules from installed Composer packages
         $excludedModules = ['core', 'platform', 'ui'];
-        
+
         $discoveredModules = $this->moduleDiscovery->getModuleDefinitions()
             ->filter(function ($module) use ($excludedModules) {
                 $code = $module['code'] ?? '';
                 $isCore = $module['is_core'] ?? false;
-                return !in_array($code, $excludedModules) && !$isCore;
+
+                return ! in_array($code, $excludedModules) && ! $isCore;
             })
             ->keyBy('code');
 
@@ -214,14 +226,15 @@ class RegistrationPageController extends Controller
             ->get()
             ->map(function ($plan) use ($discoveredModules) {
                 $moduleCodes = $plan->module_codes ?? [];
-                
+
                 // Enrich module codes with full module info from discovered modules
                 $enrichedModules = collect($moduleCodes)
                     ->map(function ($code) use ($discoveredModules) {
                         $moduleConfig = $discoveredModules->get($code);
-                        if (!$moduleConfig) {
+                        if (! $moduleConfig) {
                             return null;
                         }
+
                         return [
                             'id' => $code,
                             'code' => $code,

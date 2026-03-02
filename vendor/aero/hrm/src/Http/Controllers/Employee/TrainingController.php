@@ -2,15 +2,18 @@
 
 namespace Aero\HRM\Http\Controllers\Employee;
 
+use Aero\Core\Models\User;
+use Aero\HRM\Events\Training\TrainingScheduled;
+use Aero\HRM\Http\Controllers\Controller;
 use Aero\HRM\Models\Department;
 use Aero\HRM\Models\Training;
 use Aero\HRM\Models\TrainingCategory;
 use Aero\HRM\Models\TrainingEnrollment;
 use Aero\HRM\Models\TrainingMaterial;
-use Aero\HRM\Http\Controllers\Controller;
-use Aero\Core\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 class TrainingController extends Controller
@@ -20,6 +23,27 @@ class TrainingController extends Controller
      */
     public function index(Request $request)
     {
+        if (! Schema::hasTable('trainings')) {
+            $emptyPaginator = new LengthAwarePaginator([], 0, 10, 1, [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]);
+
+            return Inertia::render('HRM/Training/Index', [
+                'trainings' => $emptyPaginator,
+                'filters' => $request->only(['search', 'status', 'category_id', 'department_id', 'sort_by', 'sort_order']),
+                'categories' => TrainingCategory::select('id', 'name')->get(),
+                'departments' => Department::select('id', 'name')->get(),
+                'statuses' => [
+                    ['id' => 'draft', 'name' => 'Draft'],
+                    ['id' => 'scheduled', 'name' => 'Scheduled'],
+                    ['id' => 'active', 'name' => 'Active'],
+                    ['id' => 'completed', 'name' => 'Completed'],
+                    ['id' => 'cancelled', 'name' => 'Cancelled'],
+                ],
+            ]);
+        }
+
         $trainings = Training::with(['category', 'instructor', 'department'])
             ->when($request->search, function ($query, $search) {
                 $query->where('title', 'like', "%{$search}%")
@@ -38,7 +62,7 @@ class TrainingController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        return Inertia::render('Pages/HRM/Training/Index', [
+        return Inertia::render('HRM/Training/Index', [
             'trainings' => $trainings,
             'filters' => $request->only(['search', 'status', 'category_id', 'department_id', 'sort_by', 'sort_order']),
             'categories' => TrainingCategory::select('id', 'name')->get(),
@@ -58,9 +82,9 @@ class TrainingController extends Controller
      */
     public function create()
     {
-        return Inertia::render('Pages/HRM/Training/Create', [
+        return Inertia::render('HRM/Training/Create', [
             'categories' => TrainingCategory::where('is_active', true)->get(['id', 'name']),
-            'instructors' => User::role(['HR Manager', 'Department Manager', 'Team Lead', 'Senior Employee'])->get(['id', 'name']),
+            'instructors' => $this->getUsersWithTrainingAccess(),
             'departments' => Department::all(['id', 'name']),
             'types' => [
                 ['id' => 'course', 'name' => 'Course'],
@@ -112,6 +136,16 @@ class TrainingController extends Controller
             }
         }
 
+        // Dispatch TrainingScheduled event if status is scheduled
+        if ($validated['status'] === 'scheduled') {
+            // Get enrolled employee IDs (if any were pre-enrolled)
+            $enrolledEmployeeIds = [];
+            if ($request->has('enrolled_employees')) {
+                $enrolledEmployeeIds = $request->input('enrolled_employees', []);
+            }
+            event(new TrainingScheduled($training, $enrolledEmployeeIds));
+        }
+
         return redirect()->route('hr.training.show', $training->id)
             ->with('success', 'Training created successfully.');
     }
@@ -138,7 +172,7 @@ class TrainingController extends Controller
                 ->first();
         }
 
-        return Inertia::render('Pages/HRM/Training/Show', [
+        return Inertia::render('HRM/Training/Show', [
             'training' => $training,
             'userEnrollment' => $userEnrollment,
             'attachments' => $training->getMedia('training_attachments'),
@@ -158,10 +192,10 @@ class TrainingController extends Controller
             'department',
         ])->findOrFail($id);
 
-        return Inertia::render('Pages/HRM/Training/Edit', [
+        return Inertia::render('HRM/Training/Edit', [
             'training' => $training,
             'categories' => TrainingCategory::where('is_active', true)->get(['id', 'name']),
-            'instructors' => User::role(['HR Manager', 'Department Manager', 'Team Lead', 'Senior Employee'])->get(['id', 'name']),
+            'instructors' => $this->getUsersWithTrainingAccess(),
             'departments' => Department::all(['id', 'name']),
             'types' => [
                 ['id' => 'course', 'name' => 'Course'],
@@ -248,7 +282,7 @@ class TrainingController extends Controller
             ->orderBy('name')
             ->paginate(10);
 
-        return Inertia::render('Pages/HRM/Training/Categories/Index', [
+        return Inertia::render('HRM/Training/Categories/Index', [
             'categories' => $categories,
         ]);
     }
@@ -319,7 +353,7 @@ class TrainingController extends Controller
     {
         $training = Training::with('materials')->findOrFail($id);
 
-        return Inertia::render('Pages/HRM/Training/Materials/Index', [
+        return Inertia::render('HRM/Training/Materials/Index', [
             'training' => $training,
             'materials' => $training->materials()->orderBy('order')->paginate(10),
         ]);
@@ -409,7 +443,7 @@ class TrainingController extends Controller
             ->orderBy('enrollment_date')
             ->paginate(15);
 
-        return Inertia::render('Pages/HRM/Training/Enrollments/Index', [
+        return Inertia::render('HRM/Training/Enrollments/Index', [
             'training' => $training,
             'enrollments' => $enrollments,
             'statusOptions' => [
@@ -509,5 +543,20 @@ class TrainingController extends Controller
 
         return redirect()->back()
             ->with('success', 'Enrollment deleted successfully.');
+    }
+
+    /**
+     * Get users with training module access for instructor dropdowns.
+     */
+    protected function getUsersWithTrainingAccess(): \Illuminate\Support\Collection
+    {
+        try {
+            return \Aero\HRMAC\Facades\HRMAC::getUsersWithSubModuleAccess('hrm', 'training')
+                ->map(fn ($user) => ['id' => $user->id, 'name' => $user->name]);
+        } catch (\Exception $e) {
+            // Fallback to all active users
+            return \Aero\Core\Models\User::where('is_active', true)
+                ->get(['id', 'name']);
+        }
     }
 }

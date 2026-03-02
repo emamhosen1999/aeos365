@@ -20,10 +20,14 @@ use Illuminate\Support\Facades\App;
 class ActiveModulesWidget extends AbstractDashboardWidget
 {
     protected string $position = 'sidebar';
+
     protected int $order = 10;
+
     protected int|string $span = 1;
+
     protected CoreWidgetCategory $category = CoreWidgetCategory::DISPLAY;
-    protected array $requiredPermissions = [];
+
+    protected array $requiredPermissions = []; // No permissions needed - shows available modules only
 
     public function getKey(): string
     {
@@ -71,15 +75,22 @@ class ActiveModulesWidget extends AbstractDashboardWidget
             $registry = App::make(ModuleRegistry::class);
             $registeredModules = $registry->all();
 
-            foreach ($registeredModules as $code => $moduleInfo) {
+            foreach ($registeredModules as $code => $moduleProvider) {
                 // Check if user has access to this module
                 if ($user && $this->userCanAccessModule($user, $code)) {
+                    // ModuleProvider is an object implementing ModuleProviderInterface
+                    // Get default route from navigation items or use fallback
+                    $navItems = $moduleProvider->getNavigationItems();
+                    $defaultRoute = ! empty($navItems) && isset($navItems[0]['route'])
+                        ? $navItems[0]['route']
+                        : "{$code}.index";
+
                     $modules[] = [
                         'code' => $code,
-                        'name' => $moduleInfo['name'] ?? ucfirst($code),
-                        'icon' => $moduleInfo['icon'] ?? 'CubeIcon',
-                        'route' => $moduleInfo['route'] ?? "{$code}.index",
-                        'description' => $moduleInfo['description'] ?? '',
+                        'name' => $moduleProvider->getModuleName(),
+                        'icon' => $moduleProvider->getModuleIcon(),
+                        'route' => $defaultRoute,
+                        'description' => $moduleProvider->getModuleDescription(),
                     ];
                 }
             }
@@ -122,9 +133,12 @@ class ActiveModulesWidget extends AbstractDashboardWidget
             return true;
         }
 
-        // Check module permission
-        return $user->can("module.{$moduleCode}") ||
-               $user->can("{$moduleCode}.view") ||
-               $user->hasRole('super-admin');
+        // Super Admin has access to all modules
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        // Check module access via HRMAC
+        return $this->userHasModuleAccess($moduleCode, 'dashboard');
     }
 }

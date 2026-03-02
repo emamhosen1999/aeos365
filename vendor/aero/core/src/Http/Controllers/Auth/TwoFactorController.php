@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Aero\Core\Http\Controllers\Auth;
 
 use Aero\Core\Http\Controllers\Controller;
+use Aero\Core\Services\AuditService;
 use Aero\Core\Services\Auth\TwoFactorAuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,14 +20,12 @@ use Inertia\Response;
 class TwoFactorController extends Controller
 {
     public function __construct(
-        protected TwoFactorAuthService $twoFactorService
+        protected TwoFactorAuthService $twoFactorService,
+        protected AuditService $auditService
     ) {}
 
     /**
      * Show 2FA settings page.
-     *
-     * @param Request $request
-     * @return Response
      */
     public function index(Request $request): Response
     {
@@ -42,9 +41,6 @@ class TwoFactorController extends Controller
 
     /**
      * Start 2FA setup - generate secret and QR code.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function setup(Request $request): JsonResponse
     {
@@ -67,9 +63,6 @@ class TwoFactorController extends Controller
 
     /**
      * Confirm 2FA setup by verifying the code.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function confirm(Request $request): JsonResponse
     {
@@ -93,6 +86,9 @@ class TwoFactorController extends Controller
 
         $recoveryCodes = $this->twoFactorService->enable($user);
 
+        // Log 2FA enabled event
+        $this->auditService->log2FAEnabled($user);
+
         return response()->json([
             'message' => 'Two-factor authentication enabled successfully.',
             'recovery_codes' => $recoveryCodes,
@@ -101,9 +97,6 @@ class TwoFactorController extends Controller
 
     /**
      * Disable 2FA.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function disable(Request $request): JsonResponse
     {
@@ -122,6 +115,9 @@ class TwoFactorController extends Controller
 
         $this->twoFactorService->disable($user);
 
+        // Log 2FA disabled event
+        $this->auditService->log2FADisabled($user);
+
         return response()->json([
             'message' => 'Two-factor authentication disabled.',
         ]);
@@ -129,8 +125,6 @@ class TwoFactorController extends Controller
 
     /**
      * Show 2FA challenge page.
-     *
-     * @return Response
      */
     public function challenge(): Response
     {
@@ -139,9 +133,6 @@ class TwoFactorController extends Controller
 
     /**
      * Verify 2FA code during login.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function verify(Request $request): JsonResponse
     {
@@ -176,7 +167,7 @@ class TwoFactorController extends Controller
             $this->twoFactorService->trustDevice($user, $deviceId);
         }
 
-        $intendedUrl = session()->pull('url.intended', route('dashboard'));
+        $intendedUrl = session()->pull('url.intended', route('core.dashboard'));
 
         return response()->json([
             'message' => 'Verification successful.',
@@ -186,9 +177,6 @@ class TwoFactorController extends Controller
 
     /**
      * Regenerate recovery codes.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function regenerateRecoveryCodes(Request $request): JsonResponse
     {
@@ -212,6 +200,9 @@ class TwoFactorController extends Controller
         }
 
         $codes = $this->twoFactorService->regenerateRecoveryCodes($user);
+
+        // Log recovery codes regenerated event
+        $this->auditService->log2FACodesRegenerated($user);
 
         return response()->json([
             'message' => 'Recovery codes regenerated.',

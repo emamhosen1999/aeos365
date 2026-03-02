@@ -2,8 +2,8 @@
 
 namespace Aero\HRM\Http\Controllers\Employee;
 
-use Aero\HRM\Models\Holiday;
 use Aero\HRM\Http\Controllers\Controller;
+use Aero\HRM\Models\Holiday;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -14,7 +14,7 @@ class HolidayController extends Controller
     public function index(): \Inertia\Response
     {
         $holidays = Holiday::active()
-            ->orderBy('from_date', 'asc')
+            ->orderBy('date', 'asc')
             ->get();
 
         // Get statistics for the dashboard (for reference, but frontend will calculate dynamically)
@@ -28,7 +28,7 @@ class HolidayController extends Controller
             }),
         ];
 
-        return Inertia::render('Holidays', [
+        return Inertia::render('HRM/Holidays', [
             'title' => 'Company Holidays',
             'holidays' => $holidays,
             'stats' => $stats,
@@ -59,8 +59,8 @@ class HolidayController extends Controller
             $data = [
                 'title' => $request->input('title'),
                 'description' => $request->input('description'),
-                'from_date' => $request->input('fromDate'),
-                'to_date' => $request->input('toDate'),
+                'date' => $request->input('fromDate'),
+                'end_date' => $request->input('toDate'),
                 'type' => $request->input('type', 'company'),
                 'is_recurring' => $request->boolean('is_recurring', false),
                 'is_active' => $request->boolean('is_active', true),
@@ -83,7 +83,7 @@ class HolidayController extends Controller
 
             // Get updated holidays for return
             $holidays = Holiday::active()
-                ->orderBy('from_date', 'asc')
+                ->orderBy('date', 'asc')
                 ->get();
 
             return response()->json([
@@ -103,11 +103,10 @@ class HolidayController extends Controller
             // Validate the incoming request
             $request->validate([
                 'id' => 'required|exists:holidays,id',
-                'route' => 'required',
             ]);
 
-            // Find the daily work by ID
-            $holiday = Holiday::find($request->query('id'));
+            // Find the holiday by ID (from JSON body, not query string)
+            $holiday = Holiday::find($request->input('id'));
 
             if (! $holiday) {
                 return response()->json(['error' => 'Holiday not found'], 404);
@@ -118,7 +117,7 @@ class HolidayController extends Controller
 
             // Get updated holidays for return
             $holidays = Holiday::active()
-                ->orderBy('from_date', 'asc')
+                ->orderBy('date', 'asc')
                 ->get();
 
             // Return a success response

@@ -1,1095 +1,919 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Head, usePage, router } from "@inertiajs/react";
-import { hasRoute, safeRoute, safeNavigate, safePost, safePut, safeDelete } from '@/utils/routeUtils';
-import { motion } from 'framer-motion';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Head, usePage } from '@inertiajs/react';
+import { Button, Input, Select, SelectItem, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Pagination, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Avatar, Tabs, Tab, Switch, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Badge, Accordion, AccordionItem } from "@heroui/react";
 import { 
-  Button, 
-  Chip, 
-  ButtonGroup,
-  Card,
-  CardBody,
-  CardHeader,
-  User,
-  Divider,
-  Pagination,
-  Input,
-  Select,
-  SelectItem,
-  Spinner
-} from "@heroui/react";
-
-import { 
-  UserPlusIcon, 
-  UsersIcon, 
-  BuildingOfficeIcon, 
-  BriefcaseIcon, 
-  MagnifyingGlassIcon, 
-  FunnelIcon,
-  UserIcon,
-  ClockIcon,
-  Squares2X2Icon,
-  TableCellsIcon,
-  AdjustmentsHorizontalIcon,
-  EnvelopeIcon,
-  PhoneIcon,
-  PencilIcon,
-  CheckCircleIcon,
-  TrophyIcon,
-  ChartBarIcon
+    UserGroupIcon,
+    PlusIcon,
+    MagnifyingGlassIcon,
+    EyeIcon,
+    PencilIcon,
+    TrashIcon,
+    UserIcon,
+    BuildingOfficeIcon,
+    EnvelopeIcon,
+    PhoneIcon,
+    CalendarDaysIcon,
+    BriefcaseIcon,
+    ChartBarIcon,
+    DocumentTextIcon,
+    EllipsisVerticalIcon,
+    CheckCircleIcon,
+    XMarkIcon,
+    ExclamationTriangleIcon,
+    ClockIcon,
+    CurrencyDollarIcon,
+    UserPlusIcon,
+    ArrowDownTrayIcon,
+    FunnelIcon
 } from "@heroicons/react/24/outline";
-
-import App from "@/Layouts/App.jsx";
-
-import StatsCards from "@/Components/StatsCards.jsx";
-import EmployeeTable from "@/Tables/HRM/EmployeeTable.jsx";
-import ProfileAvatar from "@/Components/ProfileAvatar.jsx";
-import PendingOnboardingSection from "@/Components/HRM/PendingOnboardingSection.jsx";
-
+import App from '@/Layouts/App.jsx';
+import StandardPageLayout from '@/Layouts/StandardPageLayout.jsx';
+import StatsCards from '@/Components/StatsCards.jsx';
+import { ThemedCard } from '@/Components/UI/ThemedCard';
+import { getThemeRadius, getStatusColor, useResponsiveBreakpoints } from '@/utils/themeUtils';
+import { useTheme } from '@/Context/ThemeContext';
 import axios from 'axios';
-import { showToast } from '@/utils/toastUtils';
+import { showToast } from '@/utils/toastUtils.jsx';
+import { useHRMAC } from '@/Hooks/useHRMAC';
 
-
-const EmployeesList = ({ title, departments, designations, attendanceTypes }) => {
-
-  // Custom media query logic - matching AttendanceEmployee
-  const [isMobile, setIsMobile] = useState(false);
-  const [isTablet, setIsTablet] = useState(false);
-  const [isLargeScreen, setIsLargeScreen] = useState(false);
-  const [isMediumScreen, setIsMediumScreen] = useState(false);
-  
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 640);
-      setIsTablet(window.innerWidth < 768);
-      setIsLargeScreen(window.innerWidth >= 1025);
-      setIsMediumScreen(window.innerWidth >= 641 && window.innerWidth <= 1024);
-    };
+const EmployeeList = ({ title, departments = [], designations = [], roles = [] }) => {
+    const { auth } = usePage().props;
+    const { canCreate, canUpdate, canDelete, canView } = useHRMAC();
+    const { getThemeRadius: themeRadius } = useTheme();
     
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
-  
-  // State for employee data with server-side pagination
-  const [employees, setEmployees] = useState([]);
-  const [allManagers, setAllManagers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [totalRows, setTotalRows] = useState(0);
-  const [lastPage, setLastPage] = useState(1);
+    // Use centralized responsive breakpoints
+    const { isMobile, isTablet } = useResponsiveBreakpoints();
 
-  // Filters
-  const [filters, setFilters] = useState({
-    search: '',
-    department: 'all',
-    designation: 'all',
-    attendanceType: 'all'
-  });
-  
-  // View mode (table or grid)
-  const [viewMode, setViewMode] = useState('table');
-  const [showFilters, setShowFilters] = useState(false);
-  
-  // Pagination
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    perPage: 10,
-    total: 0
-  });
-   // Helper function to convert theme borderRadius to HeroUI radius values
-    const getThemeRadius = () => {
-        if (typeof window === 'undefined') return 'lg';
-        
-        const rootStyles = getComputedStyle(document.documentElement);
-        const borderRadius = rootStyles.getPropertyValue('--borderRadius')?.trim() || '12px';
-        
-        const radiusValue = parseInt(borderRadius);
-        if (radiusValue === 0) return 'none';
-        if (radiusValue <= 4) return 'sm';
-        if (radiusValue <= 8) return 'md';
-        if (radiusValue <= 16) return 'lg';
-        return 'full';
+    // State management
+    const [loading, setLoading] = useState(false);
+    const [statsLoading, setStatsLoading] = useState(true);
+    const [employees, setEmployees] = useState([]);
+    const [selectedEmployees, setSelectedEmployees] = useState(new Set());
+    const [viewMode, setViewMode] = useState('table'); // table, grid, org_chart
+    const [filters, setFilters] = useState({ 
+        search: '', 
+        department_id: 'all', 
+        designation_id: 'all',
+        employment_status: 'all',
+        location: 'all',
+        hire_date_from: '',
+        hire_date_to: '',
+        salary_range: 'all',
+        manager_id: 'all',
+        skills: [],
+        performance_rating: 'all'
+    });
+    const [pagination, setPagination] = useState({ currentPage: 1, perPage: 20, total: 0, lastPage: 1 });
+    const [stats, setStats] = useState({ 
+        total_employees: 0, 
+        active_employees: 0, 
+        on_leave: 0, 
+        new_hires_month: 0,
+        pending_reviews: 0,
+        upcoming_birthdays: 0,
+        contract_expiring: 0,
+        departments_count: 0
+    });
+    const [modalStates, setModalStates] = useState({ 
+        add: false, 
+        edit: false, 
+        delete: false, 
+        view: false, 
+        bulk_action: false,
+        org_chart: false,
+        export: false,
+        import: false
+    });
+    const [selectedEmployee, setSelectedEmployee] = useState(null);
+    const [bulkAction, setBulkAction] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: 'full_name', direction: 'asc' });
+
+    // Permission checks
+    const canCreateEmployees = canCreate('hrm.employees');
+    const canEditEmployees = canUpdate('hrm.employees');
+    const canDeleteEmployees = canDelete('hrm.employees');
+    const canViewEmployees = canView('hrm.employees');
+
+    // Stats data for StatsCards component
+    const statsData = useMemo(() => [
+        { 
+            title: "Total Employees", 
+            value: stats.total_employees, 
+            icon: <UserGroupIcon className="w-6 h-6" />, 
+            color: "text-primary", 
+            iconBg: "bg-primary/20" 
+        },
+        { 
+            title: "Active", 
+            value: stats.active_employees, 
+            icon: <CheckCircleIcon className="w-6 h-6" />, 
+            color: "text-success", 
+            iconBg: "bg-success/20" 
+        },
+        { 
+            title: "On Leave", 
+            value: stats.on_leave, 
+            icon: <CalendarDaysIcon className="w-6 h-6" />, 
+            color: "text-warning", 
+            iconBg: "bg-warning/20" 
+        },
+        { 
+            title: "New Hires", 
+            value: stats.new_hires_month, 
+            icon: <UserPlusIcon className="w-6 h-6" />, 
+            color: "text-secondary", 
+            iconBg: "bg-secondary/20" 
+        },
+    ], [stats]);
+
+    // Configuration options
+    const employmentStatuses = [
+        { key: 'active', label: 'Active', color: 'success' },
+        { key: 'inactive', label: 'Inactive', color: 'default' },
+        { key: 'on_leave', label: 'On Leave', color: 'warning' },
+        { key: 'terminated', label: 'Terminated', color: 'danger' },
+        { key: 'retired', label: 'Retired', color: 'secondary' },
+        { key: 'probation', label: 'Probation', color: 'primary' },
+    ];
+
+    const salaryRanges = [
+        { key: '0-30000', label: '$0 - $30,000' },
+        { key: '30000-50000', label: '$30,000 - $50,000' },
+        { key: '50000-75000', label: '$50,000 - $75,000' },
+        { key: '75000-100000', label: '$75,000 - $100,000' },
+        { key: '100000-150000', label: '$100,000 - $150,000' },
+        { key: '150000+', label: '$150,000+' },
+    ];
+
+    const performanceRatings = [
+        { key: 'excellent', label: 'Excellent (4.5-5.0)', color: 'success' },
+        { key: 'good', label: 'Good (3.5-4.4)', color: 'primary' },
+        { key: 'satisfactory', label: 'Satisfactory (2.5-3.4)', color: 'warning' },
+        { key: 'needs_improvement', label: 'Needs Improvement (1.5-2.4)', color: 'danger' },
+        { key: 'unsatisfactory', label: 'Unsatisfactory (1.0-1.4)', color: 'danger' },
+    ];
+
+    const bulkActions = [
+        { key: 'export_selected', label: 'Export Selected' },
+        { key: 'send_message', label: 'Send Message' },
+        { key: 'assign_training', label: 'Assign Training' },
+        { key: 'update_department', label: 'Update Department' },
+        { key: 'update_status', label: 'Update Status' },
+        { key: 'generate_reports', label: 'Generate Reports' },
+    ];
+
+    const getEmployeeStatusColor = (status) => {
+        return getStatusColor(status);
     };
 
-  // Stats - Updated to match comprehensive backend stats structure
-  const [stats, setStats] = useState({
-    overview: {
-      total_employees: 0,
-      active_employees: 0,
-      inactive_employees: 0,
-      total_departments: 0,
-      total_designations: 0,
-      total_attendance_types: 0
-    },
-    distribution: {
-      by_department: [],
-      by_designation: [],
-      by_attendance_type: []
-    },
-    hiring_trends: {
-      recent_hires: {
-        last_30_days: 0,
-        last_90_days: 0,
-        last_year: 0
-      },
-      monthly_growth_rate: 0,
-      current_month_hires: 0
-    },
-    workforce_health: {
-      status_ratio: {
-        active_percentage: 0,
-        inactive_percentage: 0,
-        retention_rate: 0
-      },
-      retention_rate: 0,
-      turnover_rate: 0
-    },
-    quick_metrics: {
-      headcount: 0,
-      active_ratio: 0,
-      department_diversity: 0,
-      role_diversity: 0,
-      recent_activity: 0
-    }
-  });
+    const getPerformanceColor = (rating) => {
+        if (rating >= 4.5) return 'success';
+        if (rating >= 3.5) return 'primary';
+        if (rating >= 2.5) return 'warning';
+        return 'danger';
+    };
 
-  // Fetch employees with pagination and filters
-  const fetchEmployees = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data } = await axios.get(route('employees.paginate'), {
-        params: {
-          page: pagination.currentPage,
-          perPage: pagination.perPage,
-          search: filters.search,
-          department: filters.department,
-          designation: filters.designation,
-          attendanceType: filters.attendanceType
+    const formatSalary = (salary) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(salary);
+    };
+
+    const formatDate = (dateString) => {
+        if (!dateString) return 'N/A';
+        return new Date(dateString).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    };
+
+    const calculateTenure = (hireDate) => {
+        if (!hireDate) return 'N/A';
+        const hire = new Date(hireDate);
+        const now = new Date();
+        const diffTime = Math.abs(now - hire);
+        const diffYears = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 365));
+        const diffMonths = Math.floor((diffTime % (1000 * 60 * 60 * 24 * 365)) / (1000 * 60 * 60 * 24 * 30));
+        
+        if (diffYears > 0) {
+            return `${diffYears}y ${diffMonths}m`;
+        } else {
+            return `${diffMonths}m`;
         }
-      });
-      
-      setEmployees(data.employees.data);
-      setTotalRows(data.employees.total);
-      setLastPage(data.employees.last_page);
-      setPagination(prev => ({
-        ...prev,
-        total: data.employees.total
-      }));
-      
-      // Update allManagers for Report To dropdown
-      if (data.allManagers) {
-        setAllManagers(data.allManagers);
-      }
-      
-      // Update stats if included in response
-      if (data.stats) {
-        setStats(data.stats);
-      }
-    } catch (error) {
-      console.error('Error fetching employees:', error);
-      showToast.error('Failed to load employees. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, [pagination.currentPage, pagination.perPage, filters]);
+    };
 
-  // Fetch employee stats separately
-  const fetchStats = useCallback(async () => {
-    try {
-      const { data } = await axios.get(route('employees.stats'));
-      if (data.stats) {
-        setStats(data.stats);
-      }
-    } catch (error) {
-      console.error('Error fetching employee stats:', error);
-    }
-  }, []);
+    // Data fetching
+    const fetchEmployees = useCallback(async () => {
+        setLoading(true);
+        try {
+            const response = await axios.get(route('hrm.employees.paginate'), {
+                params: { 
+                    page: pagination.currentPage, 
+                    perPage: pagination.perPage,
+                    sort_by: sortConfig.key,
+                    sort_direction: sortConfig.direction,
+                    ...filters
+                }
+            });
+            if (response.status === 200) {
+                setEmployees(response.data.employees || []);
+                setPagination(prev => ({
+                    ...prev,
+                    total: response.data.total || 0,
+                    lastPage: response.data.last_page || 1
+                }));
+            }
+        } catch (error) {
+            showToast.promise(Promise.reject(error), {
+                error: 'Failed to fetch employees'
+            });
+        } finally {
+            setLoading(false);
+        }
+    }, [filters, pagination.currentPage, pagination.perPage, sortConfig]);
 
-  // Initial data fetch
-  useEffect(() => {
-    fetchEmployees();
-    fetchStats();
-  }, [fetchEmployees, fetchStats]);
+    const fetchStats = useCallback(async () => {
+        setStatsLoading(true);
+        try {
+            const response = await axios.get(route('hrm.employees.stats'));
+            if (response.status === 200) {
+                setStats(response.data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch employee stats:', error);
+        } finally {
+            setStatsLoading(false);
+        }
+    }, []);
 
-  // Handle filter changes
-  const handleSearchChange = useCallback((value) => {
-    setFilters(prev => ({ ...prev, search: value }));
-    setPagination(prev => ({ ...prev, currentPage: 1 })); // Reset to first page on search
-  }, []);
+    useEffect(() => {
+        fetchEmployees();
+        fetchStats();
+    }, [fetchEmployees, fetchStats]);
 
-  const handleDepartmentFilterChange = useCallback((value) => {
-    setFilters(prev => ({ 
-      ...prev, 
-      department: value,
-      designation: value !== 'all' ? 'all' : prev.designation // Reset designation when department changes
-    }));
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
-  }, []);
+    // CRUD operations
+    const handleDelete = async () => {
+        if (!selectedEmployee) return;
 
-  const handleDesignationFilterChange = useCallback((value) => {
-    setFilters(prev => ({ ...prev, designation: value }));
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
-  }, []);
+        const promise = new Promise(async (resolve, reject) => {
+            try {
+                const response = await axios.delete(route('hrm.employees.destroy', selectedEmployee.id));
+                if (response.status === 200) {
+                    resolve([response.data.message || 'Employee deleted successfully']);
+                    fetchEmployees();
+                    fetchStats();
+                    closeModal('delete');
+                }
+            } catch (error) {
+                reject(error.response?.data?.errors || ['Failed to delete employee']);
+            }
+        });
 
-  const handleAttendanceTypeFilterChange = useCallback((value) => {
-    setFilters(prev => ({ ...prev, attendanceType: value }));
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
-  }, []);
+        showToast.promise(promise, {
+            loading: 'Deleting employee...',
+            success: (data) => data.join(', '),
+            error: (data) => Array.isArray(data) ? data.join(', ') : data,
+        });
+    };
 
-  // Handle pagination changes
-  const handlePageChange = useCallback((page) => {
-    setPagination(prev => ({ ...prev, currentPage: page }));
-  }, []);
+    // Bulk operations
+    const handleBulkAction = async () => {
+        if (!bulkAction || selectedEmployees.size === 0) return;
 
-  const handleRowsPerPageChange = useCallback((perPage) => {
-    setPagination(prev => ({ ...prev, perPage: perPage, currentPage: 1 }));
-  }, []);
+        const promise = new Promise(async (resolve, reject) => {
+            try {
+                const response = await axios.post(route('hrm.employees.bulk_action'), {
+                    action: bulkAction,
+                    employee_ids: Array.from(selectedEmployees)
+                });
+                if (response.status === 200) {
+                    resolve([response.data.message || 'Bulk action completed successfully']);
+                    fetchEmployees();
+                    fetchStats();
+                    setSelectedEmployees(new Set());
+                    closeModal('bulk_action');
+                }
+            } catch (error) {
+                reject(error.response?.data?.errors || ['Failed to perform bulk action']);
+            }
+        });
 
-  // Optimistic updates
-  const updateEmployeeOptimized = useCallback((id, updatedFields) => {
-    setEmployees(prev => 
-      prev.map(employee => 
-        employee.id === id ? { ...employee, ...updatedFields } : employee
-      )
-    );
-  }, []);
+        showToast.promise(promise, {
+            loading: 'Processing bulk action...',
+            success: (data) => data.join(', '),
+            error: (data) => Array.isArray(data) ? data.join(', ') : data,
+        });
+    };
 
-  const deleteEmployeeOptimized = useCallback((id) => {
-    setEmployees(prev => prev.filter(employee => employee.id !== id));
-    setTotalRows(prev => prev - 1);
-    setPagination(prev => ({
-      ...prev,
-      total: prev.total - 1
-    }));
-    fetchStats(); // Refresh stats after deletion
-  }, [fetchStats]);
+    // Export functionality
+    const handleExport = async (format = 'excel') => {
+        const promise = new Promise(async (resolve, reject) => {
+            try {
+                const response = await axios.post(route('hrm.employees.export'), {
+                    format,
+                    filters,
+                    selected_ids: selectedEmployees.size > 0 ? Array.from(selectedEmployees) : null
+                });
+                if (response.status === 200) {
+                    // Handle file download
+                    const url = window.URL.createObjectURL(new Blob([response.data]));
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.setAttribute('download', `employees_${new Date().toISOString().split('T')[0]}.${format}`);
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    window.URL.revokeObjectURL(url);
+                    
+                    resolve(['Export completed successfully']);
+                    closeModal('export');
+                }
+            } catch (error) {
+                reject(error.response?.data?.errors || ['Failed to export data']);
+            }
+        });
 
+        showToast.promise(promise, {
+            loading: 'Generating export...',
+            success: (data) => data.join(', '),
+            error: (data) => Array.isArray(data) ? data.join(', ') : data,
+        });
+    };
 
+    // Modal handlers
+    const openModal = (type, employee = null) => {
+        setSelectedEmployee(employee);
+        setModalStates(prev => ({ ...prev, [type]: true }));
+    };
 
-  // Get filtered designations based on selected department
-  const filteredDesignations = useMemo(() => {
-    if (filters.department === 'all') return designations;
-    return designations.filter(d => d.department_id === parseInt(filters.department));
-  }, [designations, filters.department]);
+    const closeModal = (type) => {
+        setModalStates(prev => ({ ...prev, [type]: false }));
+        setSelectedEmployee(null);
+        if (type === 'bulk_action') {
+            setBulkAction('');
+        }
+    };
 
-  // Prepare comprehensive stats data for StatsCards component
-  const statsData = useMemo(() => [
-    {
-      title: "Total Employees",
-      value: stats.overview?.total_employees || 0,
-      icon: <UsersIcon />,
-      color: "text-blue-400",
-      iconBg: "bg-blue-500/20",
-      description: "Total Headcount"
-    },
-    {
-      title: "Active Employees", 
-      value: stats.overview?.active_employees || 0,
-      icon: <CheckCircleIcon />,
-      color: "text-green-400",
-      iconBg: "bg-green-500/20", 
-      description: `${stats.workforce_health?.status_ratio?.active_percentage || 0}% Active`
-    },
-    {
-      title: "Departments",
-      value: stats.overview?.total_departments || 0,
-      icon: <BuildingOfficeIcon />,
-      color: "text-purple-400", 
-      iconBg: "bg-purple-500/20",
-      description: "Department Diversity"
-    },
-    {
-      title: "Designations",
-      value: stats.overview?.total_designations || 0,
-      icon: <BriefcaseIcon />,
-      color: "text-orange-400",
-      iconBg: "bg-orange-500/20",
-      description: "Role Diversity"
-    },
-    {
-      title: "Retention Rate",
-      value: `${stats.workforce_health?.retention_rate || 0}%`,
-      icon: <TrophyIcon />,
-      color: "text-emerald-400",
-      iconBg: "bg-emerald-500/20",
-      description: "Employee Retention"
-    },
-    {
-      title: "Recent Hires",
-      value: stats.hiring_trends?.recent_hires?.last_30_days || 0,
-      icon: <UserPlusIcon />,
-      color: "text-cyan-400",
-      iconBg: "bg-cyan-500/20",
-      description: "Last 30 Days"
-    },
-    {
-      title: "Growth Rate",
-      value: `${stats.hiring_trends?.monthly_growth_rate || 0}%`,
-      icon: <ChartBarIcon />,
-      color: "text-pink-400",
-      iconBg: "bg-pink-500/20",
-      description: "Monthly Growth"
-    },
-    {
-      title: "Attendance Types",
-      value: stats.overview?.total_attendance_types || 0,
-      icon: <ClockIcon />,
-      color: "text-indigo-400",
-      iconBg: "bg-indigo-500/20",
-      description: "Available Types"
-    }
-  ], [stats]);
+    // Filter handlers
+    const handleFilterChange = (key, value) => {
+        setFilters(prev => ({ ...prev, [key]: value }));
+        setPagination(prev => ({ ...prev, currentPage: 1 }));
+    };
 
-  // Grid card component for employee display
-  const EmployeeCard = ({ user, index }) => {
-    const department = departments?.find(d => d.id === user.department_id);
-    const designation = designations?.find(d => d.id === user.designation_id);
-    const attendanceType = attendanceTypes?.find(a => a.id === user.attendance_type_id);
+    const clearFilters = () => {
+        setFilters({
+            search: '', 
+            department_id: 'all', 
+            designation_id: 'all',
+            employment_status: 'all',
+            location: 'all',
+            hire_date_from: '',
+            hire_date_to: '',
+            salary_range: 'all',
+            manager_id: 'all',
+            skills: [],
+            performance_rating: 'all'
+        });
+    };
+
+    // Selection handlers
+    const handleSelectAll = (isSelected) => {
+        if (isSelected) {
+            setSelectedEmployees(new Set(employees.map(emp => emp.id)));
+        } else {
+            setSelectedEmployees(new Set());
+        }
+    };
+
+    const handleSelectEmployee = (employeeId, isSelected) => {
+        const newSelected = new Set(selectedEmployees);
+        if (isSelected) {
+            newSelected.add(employeeId);
+        } else {
+            newSelected.delete(employeeId);
+        }
+        setSelectedEmployees(newSelected);
+    };
+
+    // Sorting
+    const handleSort = (key) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    // Table columns
+    const columns = [
+        { uid: 'select', name: '#' },
+        { uid: 'employee', name: 'Employee' },
+        { uid: 'department', name: 'Department' },
+        { uid: 'designation', name: 'Position' },
+        { uid: 'contact', name: 'Contact' },
+        { uid: 'employment', name: 'Employment' },
+        { uid: 'performance', name: 'Performance' },
+        { uid: 'status', name: 'Status' },
+        { uid: 'actions', name: 'Actions' },
+    ];
+
+    const renderCell = useCallback((employee, columnKey) => {
+        switch (columnKey) {
+            case 'select':
+                return (
+                    <input
+                        type="checkbox"
+                        checked={selectedEmployees.has(employee.id)}
+                        onChange={(e) => handleSelectEmployee(employee.id, e.target.checked)}
+                        className="w-4 h-4 rounded"
+                    />
+                );
+            case 'employee':
+                return (
+                    <div className="flex items-center gap-3">
+                        <Avatar
+                            src={employee.avatar}
+                            name={employee.full_name}
+                            size="sm"
+                            className="flex-shrink-0"
+                        />
+                        <div>
+                            <p className="font-medium">{employee.full_name}</p>
+                            <p className="text-xs text-default-500">#{employee.employee_id}</p>
+                            <p className="text-xs text-default-500">Hired: {formatDate(employee.hire_date)}</p>
+                        </div>
+                    </div>
+                );
+            case 'department':
+                return (
+                    <div className="text-sm">
+                        <div className="flex items-center gap-1">
+                            <BuildingOfficeIcon className="w-4 h-4" />
+                            <span className="font-medium">{employee.department?.name || 'N/A'}</span>
+                        </div>
+                        {employee.manager && (
+                            <p className="text-xs text-default-500 mt-1">Manager: {employee.manager.full_name}</p>
+                        )}
+                    </div>
+                );
+            case 'designation':
+                return (
+                    <div className="text-sm">
+                        <div className="flex items-center gap-1">
+                            <BriefcaseIcon className="w-4 h-4" />
+                            <span className="font-medium">{employee.designation?.title || 'N/A'}</span>
+                        </div>
+                        <p className="text-xs text-default-500">Level: {employee.level || 'N/A'}</p>
+                        <p className="text-xs text-default-500">Tenure: {calculateTenure(employee.hire_date)}</p>
+                    </div>
+                );
+            case 'contact':
+                return (
+                    <div className="text-sm">
+                        <div className="flex items-center gap-1 mb-1">
+                            <EnvelopeIcon className="w-4 h-4" />
+                            <span>{employee.email}</span>
+                        </div>
+                        {employee.phone && (
+                            <div className="flex items-center gap-1">
+                                <PhoneIcon className="w-4 h-4" />
+                                <span>{employee.phone}</span>
+                            </div>
+                        )}
+                    </div>
+                );
+            case 'employment':
+                return (
+                    <div className="text-sm">
+                        <p className="font-medium">{employee.employment_type || 'Full-time'}</p>
+                        {employee.salary && (
+                            <p className="text-xs text-success">{formatSalary(employee.salary)}</p>
+                        )}
+                        <p className="text-xs text-default-500">Location: {employee.location || 'Office'}</p>
+                    </div>
+                );
+            case 'performance':
+                return (
+                    <div className="text-sm">
+                        {employee.performance_rating && (
+                            <div className="flex items-center gap-1">
+                                <Chip
+                                    size="sm"
+                                    color={getPerformanceColor(employee.performance_rating)}
+                                    variant="flat"
+                                >
+                                    {employee.performance_rating}/5.0
+                                </Chip>
+                            </div>
+                        )}
+                        <p className="text-xs text-default-500 mt-1">
+                            Last Review: {formatDate(employee.last_review_date)}
+                        </p>
+                    </div>
+                );
+            case 'status':
+                return (
+                    <div className="flex flex-col gap-1">
+                        <Chip 
+                            color={getStatusColor(employee.employment_status)} 
+                            size="sm" 
+                            variant="flat"
+                        >
+                            {employee.employment_status?.replace('_', ' ').toUpperCase()}
+                        </Chip>
+                        {employee.is_on_leave && (
+                            <Chip size="sm" color="warning" variant="flat">
+                                On Leave
+                            </Chip>
+                        )}
+                    </div>
+                );
+            case 'actions':
+                return (
+                    <div className="flex items-center gap-1">
+                        <Button
+                            isIconOnly
+                            size="sm"
+                            variant="light"
+                            onPress={() => openModal('view', employee)}
+                        >
+                            <EyeIcon className="w-4 h-4" />
+                        </Button>
+                        {canEditEmployees && (
+                            <Button
+                                isIconOnly
+                                size="sm"
+                                variant="light"
+                                onPress={() => window.location.href = route('hrm.employees.edit', employee.id)}
+                            >
+                                <PencilIcon className="w-4 h-4" />
+                            </Button>
+                        )}
+                        <Dropdown>
+                            <DropdownTrigger>
+                                <Button
+                                    isIconOnly
+                                    size="sm"
+                                    variant="light"
+                                >
+                                    <EllipsisVerticalIcon className="w-4 h-4" />
+                                </Button>
+                            </DropdownTrigger>
+                            <DropdownMenu aria-label="Employee Actions">
+                                <DropdownItem key="profile" startContent={<UserIcon className="w-4 h-4" />}>
+                                    View Profile
+                                </DropdownItem>
+                                <DropdownItem key="performance" startContent={<ChartBarIcon className="w-4 h-4" />}>
+                                    Performance Review
+                                </DropdownItem>
+                                <DropdownItem key="documents" startContent={<DocumentTextIcon className="w-4 h-4" />}>
+                                    Documents
+                                </DropdownItem>
+                                {canDeleteEmployees && (
+                                    <DropdownItem 
+                                        key="delete" 
+                                        className="text-danger" 
+                                        color="danger"
+                                        startContent={<TrashIcon className="w-4 h-4" />}
+                                        onPress={() => openModal('delete', employee)}
+                                    >
+                                        Delete
+                                    </DropdownItem>
+                                )}
+                            </DropdownMenu>
+                        </Dropdown>
+                    </div>
+                );
+            default:
+                return employee[columnKey] || '-';
+        }
+    }, [selectedEmployees, canEditEmployees, canDeleteEmployees]);
 
     return (
-      <Card 
-        className="bg-white/10 backdrop-blur-md border-white/20 hover:bg-white/15 transition-all duration-200 cursor-pointer h-full"
-        onPress={() => safeNavigate('profile', { user: user.id })}
-      >
-        <CardBody className="p-4 flex flex-col h-full">
-          {/* Card Header with Employee Info */}
-          <div className="flex items-start gap-3 mb-3 pb-3 border-b border-white/10">
-            <div className="shrink-0">
-              <ProfileAvatar
-                src={user?.profile_image_url || user?.profile_image}
-                name={user?.name}
-                size="md"
-                fallback={<UserIcon className="w-4 h-4" />}
-              />
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="font-semibold text-foreground text-left text-sm">{user?.name}</span>
-              <span className="text-default-500 text-left text-xs">ID: {user?.employee_id || 'N/A'}</span>
-            </div>
-            <div className="flex-1 min-w-0 flex justify-end">
-              <Button
-                isIconOnly
-                size="sm"
-                variant="light"
-                className="text-default-400 hover:text-foreground"
-                onPress={(e) => {
-                  e.stopPropagation();
-                  safeNavigate('profile', { user: user.id });
-                }}
-              >
-                <PencilIcon className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-          
-          {/* Card Content */}
-          <div className="flex-1 flex flex-col gap-3">
-            {/* Contact Info */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-sm">
-                <EnvelopeIcon className="w-4 h-4 text-default-400 shrink-0" />
-                <span className="text-default-600 text-xs truncate">{user?.email}</span>
-              </div>
-              {user?.phone && (
-                <div className="flex items-center gap-2 text-sm">
-                  <PhoneIcon className="w-4 h-4 text-default-400 shrink-0" />
-                  <span className="text-default-600 text-xs">{user?.phone}</span>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Card Footer with Tags */}
-          <div className="mt-3 pt-3 border-t border-white/10 flex flex-wrap gap-2">
-            {/* Department */}
-            {department && (
-              <Chip
-                size="sm"
-                variant="flat"
-                color="primary"
-                className="text-xs"
-                startContent={<BuildingOfficeIcon className="w-3 h-3" />}
-              >
-                {department.name}
-              </Chip>
-            )}
+        <>
+            <Head title={title} />
             
-            {/* Designation */}
-            {designation && (
-              <Chip
-                size="sm"
-                variant="flat"
-                color="secondary"
-                className="text-xs"
-                startContent={<BriefcaseIcon className="w-3 h-3" />}
-              >
-                {designation.title}
-              </Chip>
+            {/* Delete Confirmation Modal */}
+            {modalStates.delete && (
+                <Modal isOpen={modalStates.delete} onOpenChange={() => closeModal('delete')}>
+                    <ModalContent>
+                        <ModalHeader>
+                            <h2 className="text-lg font-semibold text-danger">Delete Employee</h2>
+                        </ModalHeader>
+                        <ModalBody>
+                            <p>Are you sure you want to delete <strong>"{selectedEmployee?.full_name}"</strong>?</p>
+                            <p className="text-sm text-danger">This action cannot be undone and will remove all associated data.</p>
+                        </ModalBody>
+                        <ModalFooter>
+                            <Button variant="flat" onPress={() => closeModal('delete')}>Cancel</Button>
+                            <Button color="danger" onPress={handleDelete}>Delete Employee</Button>
+                        </ModalFooter>
+                    </ModalContent>
+                </Modal>
             )}
-            
-            {/* Attendance Type */}
-            {attendanceType && (
-              <Chip
-                size="sm"
-                variant="bordered"
-                className="text-xs"
-                startContent={<ClockIcon className="w-3 h-3" />}
-              >
-                {attendanceType.name}
-              </Chip>
-            )}
-          </div>
-        </CardBody>
-      </Card>
-    );
-  };
 
-  return (
-    <>
-      <Head title={title || "Employee Directory"} />
-      <div 
-        className="flex flex-col w-full h-full p-4"
-        role="main"
-        aria-label="Employee Directory Management"
-      >
-        <div className="space-y-4">
-          <div className="w-full">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.5 }}
-            >
-              <Card 
-                className="transition-all duration-200"
-                style={{
-                  border: `var(--borderWidth, 2px) solid transparent`,
-                  borderRadius: `var(--borderRadius, 12px)`,
-                  fontFamily: `var(--fontFamily, "Inter")`,
-                  transform: `scale(var(--scale, 1))`,
-                  background: `linear-gradient(135deg, 
-                    var(--theme-content1, #FAFAFA) 20%, 
-                    var(--theme-content2, #F4F4F5) 10%, 
-                    var(--theme-content3, #F1F3F4) 20%)`,
-                }}
-              >
-                <CardHeader 
-                  className="border-b p-0"
-                  style={{
-                    borderColor: `var(--theme-divider, #E4E4E7)`,
-                    background: `linear-gradient(135deg, 
-                      color-mix(in srgb, var(--theme-content1) 50%, transparent) 20%, 
-                      color-mix(in srgb, var(--theme-content2) 30%, transparent) 10%)`,
-                  }}
-                >
-                  <div className={`${isLargeScreen ? 'p-6' : isMediumScreen ? 'p-4' : 'p-3'} w-full`}>
-                    <div className="flex flex-col space-y-4">
-                      {/* Main Header Content */}
-                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                        {/* Title Section */}
-                        <div className="flex items-center gap-3 lg:gap-4">
-                          <div 
-                            className={`
-                              ${isLargeScreen ? 'p-3' : isMediumScreen ? 'p-2.5' : 'p-2'} 
-                              rounded-xl flex items-center justify-center
-                            `}
-                            style={{
-                              background: `color-mix(in srgb, var(--theme-primary) 15%, transparent)`,
-                              borderColor: `color-mix(in srgb, var(--theme-primary) 25%, transparent)`,
-                              borderWidth: `var(--borderWidth, 2px)`,
-                              borderRadius: `var(--borderRadius, 12px)`,
-                            }}
-                          >
-                            <UsersIcon 
-                              className={`
-                                ${isLargeScreen ? 'w-8 h-8' : isMediumScreen ? 'w-6 h-6' : 'w-5 h-5'}
-                              `}
-                              style={{ color: 'var(--theme-primary)' }}
-                            />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h4 
-                              className={`
-                                ${isLargeScreen ? 'text-2xl' : isMediumScreen ? 'text-xl' : 'text-lg'}
-                                font-bold text-foreground
-                                ${!isLargeScreen ? 'truncate' : ''}
-                              `}
-                              style={{
-                                fontFamily: `var(--fontFamily, "Inter")`,
-                              }}
+            {/* Bulk Action Modal */}
+            {modalStates.bulk_action && (
+                <Modal isOpen={modalStates.bulk_action} onOpenChange={() => closeModal('bulk_action')}>
+                    <ModalContent>
+                        <ModalHeader>
+                            <h2 className="text-lg font-semibold">Bulk Action</h2>
+                        </ModalHeader>
+                        <ModalBody>
+                            <p className="mb-4">{selectedEmployees.size} employees selected</p>
+                            <Select
+                                label="Select Action"
+                                placeholder="Choose an action"
+                                selectedKeys={bulkAction ? [bulkAction] : []}
+                                onSelectionChange={(keys) => setBulkAction(Array.from(keys)[0] || '')}
+                                radius={getThemeRadius()}
                             >
-                              Employee Directory
-                            </h4>
-                            <p 
-                              className={`
-                                ${isLargeScreen ? 'text-sm' : 'text-xs'} 
-                                text-default-500
-                                ${!isLargeScreen ? 'truncate' : ''}
-                              `}
-                              style={{
-                                fontFamily: `var(--fontFamily, "Inter")`,
-                              }}
-                            >
-                              Manage employee information and organizational structure
-                            </p>
-                          </div>
-                        </div>
-                        
-                        {/* Action Buttons */}
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            as={Link}
-                            href={route('users')}
-                            className="text-white font-medium"
-                            style={{
-                              background: `linear-gradient(135deg, var(--theme-primary), color-mix(in srgb, var(--theme-primary) 80%, var(--theme-secondary)))`,
-                              borderRadius: getThemeRadius(),
-                            }}
-                            startContent={<UserPlusIcon className="w-4 h-4" />}
-                          >
-                            {isMobile ? "Go to Users" : "Add from User List"}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-
-                <CardBody className="p-6">
-                  {/* Statistics Cards */}
-                  <StatsCards stats={statsData} className="mb-6" />
-                  
-                  {/* Pending Onboarding Section */}
-                  <PendingOnboardingSection
-                    departments={departments || []}
-                    designations={designations || []}
-                    managers={allManagers || []}
-                    onOnboardingComplete={(employee) => {
-                      // Refresh employees list after successful onboarding
-                      fetchEmployees();
-                      fetchStats();
-                    }}
-                  />
-
-                {/* Analytics Dashboard */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                  {/* Department Distribution */}
-                  <div 
-                    className="p-4"
-                    style={{
-                      background: `color-mix(in srgb, var(--theme-content2) 50%, transparent)`,
-                      border: `1px solid color-mix(in srgb, var(--theme-content3) 50%, transparent)`,
-                      borderRadius: getThemeRadius(),
-                      backdropFilter: 'blur(16px)',
-                    }}
-                  >
-                    <h3 
-                      className="text-lg font-semibold mb-4"
-                      style={{ color: 'var(--theme-foreground)' }}
-                    >
-                      Department Distribution
-                    </h3>
-                    <div className="space-y-3">
-                      {stats.distribution?.by_department?.slice(0, 5).map((dept, index) => (
-                        <div key={index} className="flex items-center justify-between">
-                          <span 
-                            className="text-sm opacity-80"
-                            style={{ color: 'var(--theme-foreground)' }}
-                          >
-                            {dept.name}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-20 h-2 rounded-full overflow-hidden"
-                              style={{ background: 'color-mix(in srgb, var(--theme-content3) 40%, transparent)' }}
-                            >
-                              <div 
-                                className="h-full rounded-full"
-                                style={{ 
-                                  width: `${dept.percentage}%`,
-                                  background: `linear-gradient(90deg, var(--theme-primary), color-mix(in srgb, var(--theme-primary) 80%, var(--theme-secondary)))`
-                                }}
-                              />
-                            </div>
-                            <span 
-                              className="text-xs w-8 opacity-70"
-                              style={{ color: 'var(--theme-foreground)' }}
-                            >
-                              {dept.count}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Hiring Trends */}
-                  <div 
-                    className="p-4"
-                    style={{
-                      background: `color-mix(in srgb, var(--theme-content2) 50%, transparent)`,
-                      border: `1px solid color-mix(in srgb, var(--theme-content3) 50%, transparent)`,
-                      borderRadius: getThemeRadius(),
-                      backdropFilter: 'blur(16px)',
-                    }}
-                  >
-                    <h3 
-                      className="text-lg font-semibold mb-4"
-                      style={{ color: 'var(--theme-foreground)' }}
-                    >
-                      Hiring Trends
-                    </h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span 
-                          className="text-sm opacity-80"
-                          style={{ color: 'var(--theme-foreground)' }}
-                        >
-                          Last 30 Days
-                        </span>
-                        <span 
-                          className="text-sm font-medium"
-                          style={{ color: 'var(--theme-foreground)' }}
-                        >
-                          {stats.hiring_trends?.recent_hires?.last_30_days || 0}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span 
-                          className="text-sm opacity-80"
-                          style={{ color: 'var(--theme-foreground)' }}
-                        >
-                          Last 90 Days
-                        </span>
-                        <span 
-                          className="text-sm font-medium"
-                          style={{ color: 'var(--theme-foreground)' }}
-                        >
-                          {stats.hiring_trends?.recent_hires?.last_90_days || 0}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-default-600">This Year</span>
-                        <span className="text-sm font-medium text-foreground">
-                          {stats.hiring_trends?.recent_hires?.last_year || 0}
-                        </span>
-                      </div>
-                      <div className="pt-2 border-t border-white/10">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-default-600">Monthly Growth</span>
-                          <span className={`text-sm font-medium ${(stats.hiring_trends?.monthly_growth_rate || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {stats.hiring_trends?.monthly_growth_rate || 0}%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Workforce Health */}
-                  <div className="bg-white/5 backdrop-blur-md rounded-lg border border-white/10 p-4">
-                    <h3 className="text-lg font-semibold text-foreground mb-4">
-                      Workforce Health
-                    </h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-default-600">Retention Rate</span>
-                        <span className="text-sm font-medium text-green-400">
-                          {stats.workforce_health?.retention_rate || 0}%
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-default-600">Turnover Rate</span>
-                        <span className="text-sm font-medium text-orange-400">
-                          {stats.workforce_health?.turnover_rate || 0}%
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-default-600">Active Employees</span>
-                        <span className="text-sm font-medium text-blue-400">
-                          {stats.workforce_health?.status_ratio?.active_percentage || 0}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Attendance Type Distribution */}
-                  <div className="bg-white/5 backdrop-blur-md rounded-lg border border-white/10 p-4">
-                    <h3 className="text-lg font-semibold text-foreground mb-4">
-                      Attendance Types
-                    </h3>
-                    <div className="space-y-3">
-                      {stats.distribution?.by_attendance_type?.map((type, index) => (
-                        <div key={index} className="flex items-center justify-between">
-                          <span className="text-sm text-default-600">{type.name}</span>
-                          <div className="flex items-center gap-2">
-                            <div className="w-16 h-2 bg-white/10 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-linear-to-r from-green-500 to-emerald-500 rounded-full"
-                                style={{ width: `${type.percentage}%` }}
-                              />
-                            </div>
-                            <span className="text-xs text-default-500 w-8">{type.count}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                 {/* Filters Section */}
-                  <div className="mb-6">
-                    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
-                      <div className="flex-1">
-                        <Input
-                          label="Search Employees"
-                          placeholder="Search by name, email, or employee ID..."
-                          value={filters.search}
-                          onChange={(e) => handleSearchChange(e.target.value)}
-                          startContent={<MagnifyingGlassIcon className="w-4 h-4 text-default-400" />}
-                          variant="bordered"
-                          size="sm"
-                          radius={getThemeRadius()}
-                          classNames={{
-                            input: "text-sm",
-                          }}
-                          style={{
-                            fontFamily: `var(--fontFamily, "Inter")`,
-                          }}
-                          aria-label="Search employees"
-                        />
-                      </div>
-                      
-                      <div className="flex gap-2 items-end">
-                        {/* View Toggle */}
-                        <ButtonGroup 
-                          variant="bordered"
-                          style={{
-                            background: 'color-mix(in srgb, var(--theme-content2) 30%, transparent)',
-                            border: `1px solid color-mix(in srgb, var(--theme-content3) 50%, transparent)`,
-                            borderRadius: getThemeRadius(),
-                          }}
-                        >
-                          <Button
-                            isIconOnly={isMobile}
-                            color={viewMode === 'table' ? 'primary' : 'default'}
-                            onPress={() => setViewMode('table')}
-                            style={{
-                              background: viewMode === 'table' 
-                                ? `var(--theme-primary)` 
-                                : 'transparent',
-                              color: viewMode === 'table' 
-                                ? 'white' 
-                                : 'var(--theme-foreground)',
-                            }}
-                          >
-                            <TableCellsIcon className="w-4 h-4" />
-                            {!isMobile && <span className="ml-1">Table</span>}
-                          </Button>
-                          <Button
-                            isIconOnly={isMobile}
-                            color={viewMode === 'grid' ? 'primary' : 'default'}
-                            onPress={() => setViewMode('grid')}
-                            style={{
-                              background: viewMode === 'grid' 
-                                ? `var(--theme-primary)` 
-                                : 'transparent',
-                              color: viewMode === 'grid' 
-                                ? 'white' 
-                                : 'var(--theme-foreground)',
-                            }}
-                          >
-                            <Squares2X2Icon className="w-4 h-4" />
-                            {!isMobile && <span className="ml-1">Grid</span>}
-                          </Button>
-                        </ButtonGroup>
-                        
-                        <Button
-                          isIconOnly
-                          variant="bordered"
-                          onPress={() => setShowFilters(!showFilters)}
-                          style={{
-                            background: showFilters 
-                              ? 'color-mix(in srgb, var(--theme-primary) 20%, transparent)' 
-                              : 'color-mix(in srgb, var(--theme-content2) 30%, transparent)',
-                            border: `1px solid color-mix(in srgb, var(--theme-content3) 50%, transparent)`,
-                            color: showFilters 
-                              ? 'var(--theme-primary)' 
-                              : 'var(--theme-foreground)',
-                            borderRadius: getThemeRadius(),
-                          }}
-                        >
-                          <FunnelIcon className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Expanded Filters Section */}
-                    {showFilters && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="mt-4"
-                      >
-                        <div 
-                          className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
-                          style={{
-                            background: 'color-mix(in srgb, var(--theme-content2) 50%, transparent)',
-                            border: `1px solid color-mix(in srgb, var(--theme-content3) 50%, transparent)`,
-                            borderRadius: getThemeRadius(),
-                            backdropFilter: 'blur(16px)',
-                          }}
-                        >
-                          {/* Department Filter */}
-                          <Select
-                            label="Department"
-                            placeholder="All Departments"
-                            selectedKeys={filters.department !== 'all' ? [filters.department] : []}
-                            onSelectionChange={(keys) => {
-                              const value = Array.from(keys)[0];
-                              handleDepartmentFilterChange(value || 'all');
-                            }}
-                            variant="bordered"
-                            size="sm"
-                            radius={getThemeRadius()}
-                            startContent={<BuildingOfficeIcon className="w-4 h-4 text-default-400" />}
-                            classNames={{
-                              trigger: "bg-white/10 backdrop-blur-md border-white/20",
-                            }}
-                          >
-                            {departments?.map((dept) => (
-                              <SelectItem key={String(dept.id)} textValue={dept.name}>
-                                {dept.name}
-                              </SelectItem>
-                            ))}
-                          </Select>
-
-                          {/* Designation Filter */}
-                          <Select
-                            label="Designation"
-                            placeholder="All Designations"
-                            selectedKeys={filters.designation !== 'all' ? [filters.designation] : []}
-                            onSelectionChange={(keys) => {
-                              const value = Array.from(keys)[0];
-                              handleDesignationFilterChange(value || 'all');
-                            }}
-                            variant="bordered"
-                            size="sm"
-                            radius={getThemeRadius()}
-                            isDisabled={filters.department === 'all'}
-                            startContent={<BriefcaseIcon className="w-4 h-4 text-default-400" />}
-                            classNames={{
-                              trigger: "bg-white/10 backdrop-blur-md border-white/20",
-                            }}
-                          >
-                            {filteredDesignations?.map((desig) => (
-                              <SelectItem key={String(desig.id)} textValue={desig.title}>
-                                {desig.title}
-                              </SelectItem>
-                            ))}
-                          </Select>
-
-                          {/* Attendance Type Filter */}
-                          <Select
-                            label="Attendance Type"
-                            placeholder="All Attendance Types"
-                            selectedKeys={filters.attendanceType !== 'all' ? [filters.attendanceType] : []}
-                            onSelectionChange={(keys) => {
-                              const value = Array.from(keys)[0];
-                              handleAttendanceTypeFilterChange(value || 'all');
-                            }}
-                            variant="bordered"
-                            size="sm"
-                            radius={getThemeRadius()}
-                            startContent={<ClockIcon className="w-4 h-4 text-default-400" />}
-                            classNames={{
-                              trigger: "bg-white/10 backdrop-blur-md border-white/20",
-                            }}
-                          >
-                            {attendanceTypes?.map((type) => (
-                              <SelectItem key={String(type.id)} textValue={type.name}>
-                                {type.name}
-                              </SelectItem>
-                            ))}
-                          </Select>
-
-                          {/* Clear Filters Button */}
-                          <div className="flex items-end">
-                            <Button
-                              variant="flat"
-                              size="sm"
-                              className="w-full"
-                              onPress={() => {
-                                setFilters({
-                                  search: '',
-                                  department: 'all',
-                                  designation: 'all',
-                                  attendanceType: 'all'
-                                });
-                                setPagination(prev => ({ ...prev, currentPage: 1 }));
-                              }}
-                              isDisabled={
-                                filters.search === '' && 
-                                filters.department === 'all' && 
-                                filters.designation === 'all' && 
-                                filters.attendanceType === 'all'
-                              }
-                              style={{
-                                background: 'color-mix(in srgb, var(--theme-danger) 20%, transparent)',
-                                color: 'var(--theme-danger)',
-                                borderRadius: getThemeRadius(),
-                              }}
-                            >
-                              Clear Filters
+                                {bulkActions.map(action => (
+                                    <SelectItem key={action.key}>
+                                        {action.label}
+                                    </SelectItem>
+                                ))}
+                            </Select>
+                        </ModalBody>
+                        <ModalFooter>
+                            <Button variant="flat" onPress={() => closeModal('bulk_action')}>Cancel</Button>
+                            <Button color="primary" onPress={handleBulkAction} isDisabled={!bulkAction}>
+                                Execute Action
                             </Button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </div>
+                        </ModalFooter>
+                    </ModalContent>
+                </Modal>
+            )}
 
-                {/* Employee Table Section */}
-                <Card 
-                  className="transition-all duration-200"
-                  style={{
-                    border: `var(--borderWidth, 2px) solid transparent`,
-                    borderRadius: `var(--borderRadius, 12px)`,
-                    fontFamily: `var(--fontFamily, "Inter")`,
-                    background: `linear-gradient(135deg, 
-                      var(--theme-content1, #FAFAFA) 20%, 
-                      var(--theme-content2, #F4F4F5) 10%, 
-                      var(--theme-content3, #F1F3F4) 20%)`,
-                  }}
-                >
-                  <CardHeader 
-                    className="border-b pb-2"
-                    style={{
-                      borderColor: `var(--theme-divider, #E4E4E7)`,
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="p-2 rounded-lg flex items-center justify-center"
-                        style={{
-                          background: `color-mix(in srgb, var(--theme-primary) 15%, transparent)`,
-                          borderColor: `color-mix(in srgb, var(--theme-primary) 25%, transparent)`,
-                        }}
-                      >
-                        <UsersIcon 
-                          className="w-6 h-6" 
-                          style={{ color: 'var(--theme-primary)' }}
-                        />
-                      </div>
-                      <h1 
-                        className="text-xl sm:text-2xl md:text-3xl font-semibold text-foreground"
-                        style={{
-                          fontFamily: `var(--fontFamily, "Inter")`,
-                        }}
-                      >
-                        Employee Directory
-                      </h1>
+            {/* Export Modal */}
+            {modalStates.export && (
+                <Modal isOpen={modalStates.export} onOpenChange={() => closeModal('export')}>
+                    <ModalContent>
+                        <ModalHeader>
+                            <h2 className="text-lg font-semibold">Export Employees</h2>
+                        </ModalHeader>
+                        <ModalBody>
+                            <div className="space-y-4">
+                                <p>Export {selectedEmployees.size > 0 ? `${selectedEmployees.size} selected` : 'all'} employees</p>
+                                <div className="flex gap-2">
+                                    <Button color="primary" onPress={() => handleExport('excel')}>
+                                        Export to Excel
+                                    </Button>
+                                    <Button color="secondary" onPress={() => handleExport('csv')}>
+                                        Export to CSV
+                                    </Button>
+                                    <Button color="success" onPress={() => handleExport('pdf')}>
+                                        Export to PDF
+                                    </Button>
+                                </div>
+                            </div>
+                        </ModalBody>
+                        <ModalFooter>
+                            <Button variant="flat" onPress={() => closeModal('export')}>Cancel</Button>
+                        </ModalFooter>
+                    </ModalContent>
+                </Modal>
+            )}
+            
+            {/* Main content using StandardPageLayout */}
+            <StandardPageLayout
+                title="Employee Directory"
+                subtitle="Comprehensive employee management and directory"
+                icon={<UserGroupIcon />}
+                actions={
+                    <div className="flex gap-2 flex-wrap">
+                        <Button 
+                            color="secondary" 
+                            variant="flat"
+                            startContent={<ArrowDownTrayIcon className="w-4 h-4" />}
+                            onPress={() => openModal('export')}
+                            size={isMobile ? "sm" : "md"}
+                        >
+                            Export
+                        </Button>
+                        {selectedEmployees.size > 0 && (
+                            <Button 
+                                color="warning" 
+                                variant="flat"
+                                startContent={<Badge content={selectedEmployees.size} size="sm"><UserGroupIcon className="w-4 h-4" /></Badge>}
+                                onPress={() => openModal('bulk_action')}
+                                size={isMobile ? "sm" : "md"}
+                            >
+                                Bulk Actions
+                            </Button>
+                        )}
+                        {canCreateEmployees && (
+                            <Button 
+                                color="primary" 
+                                variant="shadow"
+                                startContent={<PlusIcon className="w-4 h-4" />}
+                                onPress={() => window.location.href = route('hrm.employees.create')}
+                                size={isMobile ? "sm" : "md"}
+                            >
+                                Add Employee
+                            </Button>
+                        )}
                     </div>
-                  </CardHeader>
-                  <CardBody>
-                    <div className="max-h-[84vh] overflow-y-auto">
-                      {loading ? (
-                        <div className="text-center py-8">
-                          <Spinner size="lg" color="primary" />
-                          <p className="mt-4 text-default-500">
-                            Loading employees data...
-                          </p>
-                        </div>
-                      ) : viewMode === 'table' ? (
-                        <EmployeeTable 
-                      allUsers={employees} 
-                      allManagers={allManagers}
-                      departments={departments}
-                      designations={designations}
-                      attendanceTypes={attendanceTypes}
-                      setUsers={setEmployees}
-                      isMobile={isMobile}
-                      isTablet={isTablet}
-                      pagination={pagination}
-                      onPageChange={handlePageChange}
-                      onRowsPerPageChange={handleRowsPerPageChange}
-                      totalUsers={totalRows}
-                      loading={loading}
-                      updateEmployeeOptimized={updateEmployeeOptimized}
-                      deleteEmployeeOptimized={deleteEmployeeOptimized}
-                    />
-                  ) : (
-                    <div className="p-4">
-                      {employees.length > 0 ? (
-                        <div className={`grid gap-4 ${
-                          isMobile 
-                            ? 'grid-cols-1' 
-                            : isTablet 
-                              ? 'grid-cols-2' 
-                              : 'grid-cols-3 xl:grid-cols-4'
-                        }`}>
-                          {employees.map((user, index) => (
-                            <EmployeeCard key={user.id} user={user} index={index} />
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8">
-                          <UsersIcon className="w-12 h-12 mx-auto text-default-300 mb-2" />
-                          <p className="text-base text-default-500">
-                            No employees found
-                          </p>
-                          <p className="text-sm text-default-500">
-                            Try adjusting your search or filters
-                          </p>
-                        </div>
-                      )}
-                      
-                      {/* Pagination for Grid View */}
-                      {employees.length > 0 && (
-                        <div 
-                                className="flex flex-col sm:flex-row items-center justify-between px-4 py-2"
-                                style={{
-                                  borderTop: `1px solid color-mix(in srgb, var(--theme-content3) 30%, transparent)`,
-                                  background: `color-mix(in srgb, var(--theme-content2) 30%, transparent)`,
-                                  backdropFilter: 'blur(16px)',
-                                }}
-                              >
-                                <span 
-                                  className="text-xs mb-3 sm:mb-0 opacity-70"
-                                  style={{ color: 'var(--theme-foreground)' }}
+                }
+                stats={<StatsCards stats={statsData} isLoading={statsLoading} />}
+                filters={
+                    <ThemedCard>
+                        <div className="p-4">
+                            <div className="flex items-center justify-between w-full mb-4">
+                                <h5 className="text-lg font-semibold">Filters & Search</h5>
+                                <Button
+                                    size="sm"
+                                    variant="flat"
+                                    onPress={clearFilters}
+                                    startContent={<XMarkIcon className="w-4 h-4" />}
                                 >
-                                  Showing {((pagination.currentPage - 1) * pagination.perPage) + 1} to {
-                                    Math.min(pagination.currentPage * pagination.perPage, pagination.total)
-                                  } of {pagination.total} employees
-                                </span>
-                                
-                                <Pagination
-                                  total={Math.ceil(pagination.total / pagination.perPage)}
-                                  initialPage={pagination.currentPage}
-                                  page={pagination.currentPage}
-                                  onChange={handlePageChange}
-                                  size={isMobile ? "sm" : "md"}
-                                  variant="bordered"
-                                  showControls
-                                  style={{
-                                    '--pagination-item-bg': 'color-mix(in srgb, var(--theme-content2) 50%, transparent)',
-                                    '--pagination-item-border': 'color-mix(in srgb, var(--theme-content3) 50%, transparent)',
-                                  }}
-                                />
-                              </div>
-                      )}
+                                    Clear
+                                </Button>
+                            </div>
+                            <div className="space-y-4">
+                                {/* Primary Filters */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <Input
+                                        label="Search"
+                                        placeholder="Name, email, ID..."
+                                        value={filters.search}
+                                        onChange={(e) => handleFilterChange('search', e.target.value)}
+                                        startContent={<MagnifyingGlassIcon className="w-4 h-4" />}
+                                        variant="bordered"
+                                        size="sm"
+                                        radius={getThemeRadius()}
+                                    />
+                                    
+                                    <Select
+                                        placeholder="All Departments"
+                                        selectedKeys={filters.department_id !== 'all' ? [filters.department_id] : []}
+                                        onSelectionChange={(keys) => handleFilterChange('department_id', Array.from(keys)[0] || 'all')}
+                                        size="sm"
+                                    >
+                                        <SelectItem key="all">All Departments</SelectItem>
+                                        {departments.map(department => (
+                                            <SelectItem key={department.id}>{department.name}</SelectItem>
+                                        ))}
+                                    </Select>
+
+                                    <Select
+                                        placeholder="All Positions"
+                                        selectedKeys={filters.designation_id !== 'all' ? [filters.designation_id] : []}
+                                        onSelectionChange={(keys) => handleFilterChange('designation_id', Array.from(keys)[0] || 'all')}
+                                        size="sm"
+                                    >
+                                        <SelectItem key="all">All Positions</SelectItem>
+                                        {designations.map(designation => (
+                                            <SelectItem key={designation.id}>{designation.title}</SelectItem>
+                                        ))}
+                                    </Select>
+
+                                    <Select
+                                        placeholder="All Status"
+                                        selectedKeys={filters.employment_status !== 'all' ? [filters.employment_status] : []}
+                                        onSelectionChange={(keys) => handleFilterChange('employment_status', Array.from(keys)[0] || 'all')}
+                                        size="sm"
+                                    >
+                                        <SelectItem key="all">All Status</SelectItem>
+                                        {employmentStatuses.map(status => (
+                                            <SelectItem key={status.key}>{status.label}</SelectItem>
+                                        ))}
+                                    </Select>
+                                </div>
+
+                                {/* Secondary Filters */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <Select
+                                        placeholder="All Salary Ranges"
+                                        selectedKeys={filters.salary_range !== 'all' ? [filters.salary_range] : []}
+                                        onSelectionChange={(keys) => handleFilterChange('salary_range', Array.from(keys)[0] || 'all')}
+                                        size="sm"
+                                    >
+                                        <SelectItem key="all">All Salary Ranges</SelectItem>
+                                        {salaryRanges.map(range => (
+                                            <SelectItem key={range.key}>{range.label}</SelectItem>
+                                        ))}
+                                    </Select>
+
+                                    <Select
+                                        placeholder="All Performance"
+                                        selectedKeys={filters.performance_rating !== 'all' ? [filters.performance_rating] : []}
+                                        onSelectionChange={(keys) => handleFilterChange('performance_rating', Array.from(keys)[0] || 'all')}
+                                        size="sm"
+                                    >
+                                        <SelectItem key="all">All Performance</SelectItem>
+                                        {performanceRatings.map(rating => (
+                                            <SelectItem key={rating.key}>{rating.label}</SelectItem>
+                                        ))}
+                                    </Select>
+
+                                    <div className="flex gap-2">
+                                        <Input
+                                            label="Hired After"
+                                            type="date"
+                                            value={filters.hire_date_from}
+                                            onChange={(e) => handleFilterChange('hire_date_from', e.target.value)}
+                                            size="sm"
+                                            radius={getThemeRadius()}
+                                        />
+                                        <Input
+                                            label="Hired Before"
+                                            type="date"
+                                            value={filters.hire_date_to}
+                                            onChange={(e) => handleFilterChange('hire_date_to', e.target.value)}
+                                            size="sm"
+                                            radius={getThemeRadius()}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </ThemedCard>
+                }
+                pagination={
+                    pagination.total > pagination.perPage ? (
+                        <div className="flex justify-center">
+                            <Pagination
+                                total={pagination.lastPage}
+                                page={pagination.currentPage}
+                                onChange={(page) => setPagination(prev => ({ ...prev, currentPage: page }))}
+                                showControls
+                                showShadow
+                                color="primary"
+                                size={isMobile ? "sm" : "md"}
+                            />
+                        </div>
+                    ) : null
+                }
+                ariaLabel="Employee Management"
+            >
+                {/* Selection Summary */}
+                {selectedEmployees.size > 0 && (
+                    <div className="mb-4 p-3 bg-primary/10 rounded-lg flex items-center justify-between">
+                        <span className="text-sm font-medium">
+                            {selectedEmployees.size} employee{selectedEmployees.size !== 1 ? 's' : ''} selected
+                        </span>
+                        <Button
+                            size="sm"
+                            variant="flat"
+                            onPress={() => setSelectedEmployees(new Set())}
+                        >
+                            Clear Selection
+                        </Button>
                     </div>
-                  )}
-                    </div>
-                  </CardBody>
-                </Card>
-                </CardBody>
-              </Card>
-            </motion.div>
-          </div>
-        </div>
-      </div>
-    </>
-  );
+                )}
+                
+                <Table 
+                    aria-label="Employee Directory" 
+                    classNames={{
+                        wrapper: "shadow-none border border-divider rounded-lg",
+                        th: "bg-default-100 text-default-600 font-semibold",
+                        td: "py-3"
+                    }}
+                    sortDescriptor={{
+                        column: sortConfig.key,
+                        direction: sortConfig.direction
+                    }}
+                    onSortChange={(sort) => {
+                        handleSort(sort.column);
+                    }}
+                >
+                    <TableHeader columns={columns}>
+                        {(column) => (
+                            <TableColumn 
+                                key={column.uid} 
+                                allowsSorting={column.uid !== 'select' && column.uid !== 'actions'}
+                            >
+                                {column.uid === 'select' ? (
+                                    <input
+                                        type="checkbox"
+                                        checked={employees.length > 0 && selectedEmployees.size === employees.length}
+                                        onChange={(e) => handleSelectAll(e.target.checked)}
+                                        className="w-4 h-4 rounded"
+                                    />
+                                ) : column.name}
+                            </TableColumn>
+                        )}
+                    </TableHeader>
+                    <TableBody 
+                        items={employees} 
+                        emptyContent={loading ? "Loading..." : "No employees found"}
+                        isLoading={loading}
+                    >
+                        {(item) => (
+                            <TableRow key={item.id}>
+                                {(columnKey) => <TableCell>{renderCell(item, columnKey)}</TableCell>}
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </StandardPageLayout>
+        </>
+    );
 };
 
-EmployeesList.layout = (page) => <App>{page}</App>;
-export default EmployeesList;
+EmployeeList.layout = (page) => <App children={page} />;
+export default EmployeeList;

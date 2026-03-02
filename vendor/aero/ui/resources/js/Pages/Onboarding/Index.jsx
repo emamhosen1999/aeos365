@@ -36,9 +36,7 @@ import {
     X,
     Sparkles,
     SkipForward,
-    CubeIcon,
 } from 'lucide-react';
-import { getThemedCardStyle } from '@/Components/UI/ThemedCard';
 import { showToast, toastStyles } from '@/utils/toastUtils';
 import { useTheme } from '@/Context/ThemeContext.jsx';
 import { ToastContainer } from 'react-toastify';
@@ -1131,7 +1129,7 @@ export default function OnboardingWizard({
                                             <Card
                                                 key={module.code}
                                                 className="transition-all duration-200"
-                                                style={getThemedCardStyle()}
+                                               
                                             >
                                                 <CardBody className="flex flex-row items-center gap-4">
                                                     <div className="p-3 rounded-lg bg-primary/10">
@@ -1148,10 +1146,10 @@ export default function OnboardingWizard({
                                     })}
                                 </div>
                             ) : (
-                                <Card className="transition-all duration-200" style={getThemedCardStyle()}>
+                                <Card className="transition-all duration-200">
                                     <CardBody className="text-center py-8">
                                         <Puzzle className="w-12 h-12 text-default-300 mx-auto mb-4" />
-                                        <p className="text-default-500">No additional modules available.</p>
+                                        <p className="text-default-500">No additional products available.</p>
                                         <p className="text-sm text-default-400">Core features are already included in your subscription.</p>
                                     </CardBody>
                                 </Card>
@@ -1352,3 +1350,5 @@ export default function OnboardingWizard({
         </>
     );
 }
+
+

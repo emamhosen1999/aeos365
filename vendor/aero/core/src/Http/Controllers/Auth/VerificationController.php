@@ -19,7 +19,7 @@ class VerificationController extends Controller
     public function notice(Request $request): Response|RedirectResponse
     {
         return $request->user()->hasVerifiedEmail()
-            ? SafeRedirect::intended('dashboard')
+            ? SafeRedirect::intended('core.dashboard')
             : Inertia::render('Shared/Auth/VerifyEmail', ['status' => session('status')]);
     }
 
@@ -30,9 +30,10 @@ class VerificationController extends Controller
     {
         if ($request->user()->hasVerifiedEmail()) {
             // Use SafeRedirect with intended URL and append query parameter
-            $dashboardUrl = SafeRedirect::routeExists('dashboard') 
-                ? route('dashboard').'?verified=1' 
+            $dashboardUrl = SafeRedirect::routeExists('core.dashboard')
+                ? route('core.dashboard').'?verified=1'
                 : '/?verified=1';
+
             return redirect($dashboardUrl);
         }
 
@@ -40,9 +41,10 @@ class VerificationController extends Controller
             event(new Verified($request->user()));
         }
 
-        $dashboardUrl = SafeRedirect::routeExists('dashboard') 
-            ? route('dashboard').'?verified=1' 
+        $dashboardUrl = SafeRedirect::routeExists('core.dashboard')
+            ? route('core.dashboard').'?verified=1'
             : '/?verified=1';
+
         return redirect($dashboardUrl);
     }
 
@@ -52,11 +54,11 @@ class VerificationController extends Controller
     public function resend(Request $request): RedirectResponse
     {
         if ($request->user()->hasVerifiedEmail()) {
-            return SafeRedirect::intended('dashboard');
+            return SafeRedirect::intended('core.dashboard');
         }
 
         $request->user()->sendEmailVerificationNotification();
 
-        return SafeRedirect::back('dashboard')->with('status', 'verification-link-sent');
+        return SafeRedirect::back('core.dashboard')->with('status', 'verification-link-sent');
     }
 }

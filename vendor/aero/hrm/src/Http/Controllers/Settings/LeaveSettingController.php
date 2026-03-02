@@ -2,8 +2,8 @@
 
 namespace Aero\HRM\Http\Controllers\Settings;
 
-use Aero\HRM\Models\LeaveSetting;
 use Aero\HRM\Http\Controllers\Controller;
+use Aero\HRM\Models\LeaveSetting;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -13,7 +13,7 @@ class LeaveSettingController extends Controller
     {
         $leaveSettings = LeaveSetting::all();
 
-        return Inertia::render('Pages/HRM/Settings/LeaveSettings', [
+        return Inertia::render('HRM/Settings/LeaveSettings', [
             'title' => 'Leave Settings',
             'leaveTypes' => $leaveSettings,
         ]);

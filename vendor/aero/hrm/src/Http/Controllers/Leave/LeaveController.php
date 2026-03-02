@@ -2,17 +2,18 @@
 
 namespace Aero\HRM\Http\Controllers\Leave;
 
-use Aero\HRM\Http\Resources\LeaveResource;
-use Aero\HRM\Http\Resources\LeaveResourceCollection;
-use Aero\HRM\Models\Department;
-use Aero\HRM\Models\Leave;
-use Aero\HRM\Models\LeaveSetting;
 use Aero\HRM\Events\Leave\LeaveApproved;
 use Aero\HRM\Events\Leave\LeaveCancelled;
 use Aero\HRM\Events\Leave\LeaveRejected;
 use Aero\HRM\Events\Leave\LeaveRequested;
 use Aero\HRM\Http\Controllers\Controller;
-use Aero\Core\Models\User;
+use Aero\HRM\Http\Resources\LeaveResource;
+use Aero\HRM\Http\Resources\LeaveResourceCollection;
+use Aero\HRM\Models\Department;
+use Aero\HRM\Models\Employee;
+use Aero\HRM\Models\Leave;
+use Aero\HRM\Models\LeaveSetting;
+use Aero\HRM\Services\EmployeeResolutionService;
 use Aero\HRM\Services\LeaveApprovalService;
 use Aero\HRM\Services\LeaveBalanceService;
 use Aero\HRM\Services\LeaveCrudService;
@@ -44,6 +45,16 @@ class LeaveController extends Controller
 
     protected LeaveBalanceService $balanceService;
 
+    protected EmployeeResolutionService $employeeResolver;
+
+    /**
+     * Resolve configured user model to avoid cross-package coupling.
+     */
+    protected function userModel(): string
+    {
+        return config('hrm.user_model', config('auth.providers.users.model'));
+    }
+
     public function __construct(
         LeaveValidationService $validationService,
         LeaveOverlapService $overlapService,
@@ -51,7 +62,8 @@ class LeaveController extends Controller
         LeaveQueryService $queryService,
         LeaveSummaryService $summaryService,
         LeaveApprovalService $approvalService,
-        LeaveBalanceService $balanceService
+        LeaveBalanceService $balanceService,
+        EmployeeResolutionService $employeeResolver
     ) {
         $this->validationService = $validationService;
         $this->overlapService = $overlapService;
@@ -60,22 +72,23 @@ class LeaveController extends Controller
         $this->summaryService = $summaryService;
         $this->approvalService = $approvalService;
         $this->balanceService = $balanceService;
+        $this->employeeResolver = $employeeResolver;
     }
 
     public function index1(): \Inertia\Response
     {
-        return Inertia::render('Pages/HRM/TimeOff/EmployeeLeaves', [
-            'title' => 'Leaves',
-            'allUsers' => User::all(),
+        return Inertia::render('HRM/LeavesEmployee', [
+            'title' => 'My Leaves',
+            'allUsers' => $this->userModel()::all(),
 
         ]);
     }
 
     public function index2(): \Inertia\Response
     {
-        return Inertia::render('Pages/HRM/TimeOff/AdminLeaves', [
+        return Inertia::render('HRM/LeavesAdmin', [
             'title' => 'Leaves',
-            'allUsers' => User::all(),
+            'allUsers' => $this->userModel()::all(),
         ]);
     }
 
@@ -152,8 +165,8 @@ class LeaveController extends Controller
             $daysCount = $request->input('daysCount');
             $leaveTypeString = $request->input('leaveType');
 
-            // Get leave type ID
-            $leaveTypeId = LeaveSetting::where('type', $leaveTypeString)->value('id');
+            // Get leave type ID (support both 'name' and 'type' columns for compatibility)
+            $leaveTypeId = LeaveSetting::where('name', $leaveTypeString)->value('id');
             if (! $leaveTypeId) {
                 return response()->json([
                     'success' => false,
@@ -162,8 +175,9 @@ class LeaveController extends Controller
             }
 
             // Check for sufficient leave balance
-            $user = User::findOrFail($userId);
-            if (! $this->balanceService->hasSufficientBalance($user, $leaveTypeId, $daysCount, $fromDate->year)) {
+            // Get the Employee record for balance checking (LeaveBalanceService requires Employee model)
+            $employee = Employee::where('user_id', $userId)->first();
+            if ($employee && ! $this->balanceService->hasSufficientBalance($employee, $leaveTypeId, $daysCount, $fromDate->year)) {
                 return response()->json([
                     'success' => false,
                     'error' => 'Insufficient leave balance. Please check your available leave days.',
@@ -330,7 +344,7 @@ class LeaveController extends Controller
 
         $summaryData = $this->summaryService->generateLeaveSummary($filters);
 
-        return Inertia::render('Pages/HRM/TimeOff/Summary', [
+        return Inertia::render('HRM/TimeOff/Summary', [
             'title' => 'Leave Summary',
             'summaryData' => $summaryData,
         ]);
@@ -511,13 +525,27 @@ class LeaveController extends Controller
     {
         try {
             $user = Auth::user();
-            $pendingLeaves = $this->approvalService->getPendingApprovalsForUser($user);
-            $stats = $this->approvalService->getApprovalStats($user);
+            $employee = $this->employeeResolver->resolveFromUserId($user->id);
+            $pendingLeaves = $this->approvalService->getPendingApprovalsForEmployee($employee);
+            $stats = $this->approvalService->getApprovalStats($employee);
 
             return response()->json([
                 'success' => true,
                 'pending_leaves' => $pendingLeaves,
                 'stats' => $stats,
+            ], 200);
+        } catch (\Aero\HRM\Exceptions\UserNotOnboardedException $e) {
+            // User is not onboarded as employee - return empty data gracefully
+            return response()->json([
+                'success' => true,
+                'pending_leaves' => [],
+                'stats' => [
+                    'pending' => 0,
+                    'approved' => 0,
+                    'rejected' => 0,
+                    'total' => 0,
+                ],
+                'message' => 'User is not onboarded as an employee.',
             ], 200);
         } catch (\Throwable $e) {
             report($e);
@@ -624,12 +652,12 @@ class LeaveController extends Controller
         }
 
         return $query->join('leave_settings', 'leaves.leave_type', '=', 'leave_settings.id')
-            ->select('leave_settings.type', DB::raw('count(*) as count'))
-            ->groupBy('leave_settings.type')
+            ->select('leave_settings.name', DB::raw('count(*) as count'))
+            ->groupBy('leave_settings.name')
             ->get()
             ->map(function ($item) {
                 return [
-                    'type' => $item->type,
+                    'type' => $item->name,
                     'count' => $item->count,
                 ];
             });

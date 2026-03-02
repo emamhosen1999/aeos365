@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Head, usePage} from '@inertiajs/react';
 import dayjs from 'dayjs';
-import {useMediaQuery} from '@/Hooks/useMediaQuery.js';
+import {useThemeRadius} from '@/Hooks/useThemeRadius.js';
 import {Button, Card, CardBody, CardHeader, Divider, Select, SelectItem} from "@heroui/react";
 import {
     ArrowPathIcon,
@@ -13,6 +13,7 @@ import {
 import {XCircleIcon as XCircleSolid} from '@heroicons/react/24/solid';
 import {motion} from "framer-motion";
 import App from '@/Layouts/App.jsx';
+import StandardPageLayout from '@/Layouts/StandardPageLayout.jsx';
 
 import LeaveEmployeeTable from '@/Tables/HRM/LeaveEmployeeTable.jsx';
 import LeaveForm from '@/Forms/HRM/LeaveForm.jsx';
@@ -21,12 +22,32 @@ import BulkLeaveModal from '@/Components/HRM/BulkLeave/BulkLeaveModal.jsx';
 import BulkDeleteModal from '@/Components/HRM/BulkDelete/BulkDeleteModal.jsx';
 import {showToast} from '@/utils/toastUtils.jsx';
 import axios from 'axios';
+import { useHRMAC } from '@/Hooks/useHRMAC';
 
 const LeavesEmployee = ({ title, allUsers }) => {
   const { auth } = usePage().props;
-
-  const isMobile = useMediaQuery('(max-width: 640px)');
-  const isTablet = useMediaQuery('(min-width: 641px) and (max-width: 1024px)');
+  const themeRadius = useThemeRadius();
+  
+  // Manual responsive state management (HRMAC pattern)
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+  
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 640);
+      setIsTablet(window.innerWidth < 768);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+  
+  // TODO: Update with proper HRMAC module hierarchy path once defined
+  const { canCreate, canUpdate, canDelete, isSuperAdmin } = useHRMAC();
+  const canCreateLeave = canCreate('hrm.leaves') || isSuperAdmin();
+  const canEditLeave = canUpdate('hrm.leaves') || isSuperAdmin();
+  const canDeleteLeave = canDelete('hrm.leaves') || isSuperAdmin();
     const [totalRows, setTotalRows] = useState(0);
       const [lastPage, setLastPage] = useState(0);
   // State management
@@ -52,22 +73,6 @@ const LeavesEmployee = ({ title, allUsers }) => {
     year: new Date().getFullYear() 
   });
 
-  const [isLargeScreen, setIsLargeScreen] = useState(false);
-      const [isMediumScreen, setIsMediumScreen] = useState(false);
-     
-         
-      
-      useEffect(() => {
-          const checkScreenSize = () => {
-              
-              setIsLargeScreen(window.innerWidth >= 1025);
-              setIsMediumScreen(window.innerWidth >= 641 && window.innerWidth <= 1024);
-          };
-          
-          checkScreenSize();
-          window.addEventListener('resize', checkScreenSize);
-          return () => window.removeEventListener('resize', checkScreenSize);
-      }, []);
   // Function to update pagination metadata
   const updatePaginationMetadata = useCallback((metadata) => {
     if (metadata) {
@@ -80,21 +85,7 @@ const LeavesEmployee = ({ title, allUsers }) => {
       }));
     }
   }, []);
-   // Helper function to convert theme borderRadius to HeroUI radius values
-    const getThemeRadius = () => {
-        if (typeof window === 'undefined') return 'lg';
-        
-        const rootStyles = getComputedStyle(document.documentElement);
-        const borderRadius = rootStyles.getPropertyValue('--borderRadius')?.trim() || '12px';
-        
-        const radiusValue = parseInt(borderRadius);
-        if (radiusValue === 0) return 'none';
-        if (radiusValue <= 4) return 'sm';
-        if (radiusValue <= 8) return 'md';
-        if (radiusValue <= 16) return 'lg';
-        return 'full';
-    };
-
+   
    // Fetch leaves data with error handling
   const fetchLeaves = useCallback(async () => {
  setTableLoading(true); // Use tableLoading for table refresh
@@ -103,7 +94,7 @@ const LeavesEmployee = ({ title, allUsers }) => {
       const { year } = filters;
       
       
-      const response = await axios.get(route('leaves.paginate'), {
+      const response = await axios.get(route('hrm.leaves.paginate'), {
         params: { 
           page, 
           perPage, 
@@ -279,7 +270,7 @@ const LeavesEmployee = ({ title, allUsers }) => {
   // Fetch leave statistics
   const fetchLeavesStats = useCallback(async () => {
     try {
-      const response = await axios.get(route('leaves.stats'), {
+      const response = await axios.get(route('hrm.leaves.stats'), {
         params: {
           year: filters.year,
         },
@@ -585,30 +576,52 @@ const LeavesEmployee = ({ title, allUsers }) => {
 
   // Action buttons for the header
   const actionButtons = [
-    {
-      label: "Add Leave",
-      icon: <PlusIcon className="w-4 h-4" />,
-      onPress: () => openModal('add_leave'),
-      className: "bg-linear-to-r from-(--theme-primary) to-(--theme-secondary) text-white font-medium hover:opacity-90"
-    },
-    {
-      label: "Add Bulk",
-      icon: <CalendarIcon className="w-4 h-4" />,
-      onPress: () => openModal('bulk_leave'),
-      className: "bg-linear-to-r from-(--theme-primary) to-(--theme-secondary) text-white font-medium hover:opacity-90"
-    },
-    {
-      label: "Current Year",
-      icon: <CalendarIcon className="w-4 h-4" />,
-      onPress: () => handleFilterChange('year', new Date().getFullYear()),
-      className: "bg-linear-to-r from-(--theme-primary) to-(--theme-secondary) text-white font-medium hover:opacity-90"
-    },
-    {
-      label: "Refresh",
-      icon: <ArrowPathIcon className="w-4 h-4" />,
-      onPress: fetchLeaves,
-      className: "bg-linear-to-r from-[rgba(var(--theme-success-rgb),0.8)] to-[rgba(var(--theme-success-rgb),1)] text-white font-medium hover:opacity-90"
-    }
+    <Button
+      key="add"
+      color="primary"
+      variant="shadow"
+      size={isMobile ? 'sm' : 'md'}
+      startContent={<PlusIcon className="w-4 h-4" />}
+      onPress={() => openModal('add_leave')}
+      className="font-medium"
+      style={{ fontFamily: `var(--fontFamily, "Inter")` }}
+    >
+      Add Leave
+    </Button>,
+    <Button
+      key="bulk"
+      color="primary"
+      variant="shadow"
+      size={isMobile ? 'sm' : 'md'}
+      startContent={<CalendarIcon className="w-4 h-4" />}
+      onPress={() => openModal('bulk_leave')}
+      className="font-medium"
+      style={{ fontFamily: `var(--fontFamily, "Inter")` }}
+    >
+      Add Bulk
+    </Button>,
+    <Button
+      key="year"
+      color="secondary"
+      variant="flat"
+      size={isMobile ? 'sm' : 'md'}
+      startContent={<CalendarIcon className="w-4 h-4" />}
+      onPress={() => handleFilterChange('year', new Date().getFullYear())}
+      className="font-medium"
+    >
+      Current Year
+    </Button>,
+    <Button
+      key="refresh"
+      color="success"
+      variant="flat"
+      size={isMobile ? 'sm' : 'md'}
+      startContent={<ArrowPathIcon className="w-4 h-4" />}
+      onPress={fetchLeaves}
+      className="font-medium"
+    >
+      Refresh
+    </Button>
   ];
 
   // Render leave type cards with responsive design
@@ -620,7 +633,7 @@ const LeavesEmployee = ({ title, allUsers }) => {
           style={{
             background: `color-mix(in srgb, var(--theme-content2) 50%, transparent)`,
             border: `1px solid color-mix(in srgb, var(--theme-content3) 50%, transparent)`,
-            borderRadius: getThemeRadius(),
+            borderRadius: themeRadius,
           }}
         >
           <CardBody>
@@ -643,9 +656,7 @@ const LeavesEmployee = ({ title, allUsers }) => {
       <div className={`grid gap-4 ${
         isMobile 
           ? 'grid-cols-1' 
-          : isTablet 
-            ? 'grid-cols-2' 
-            : 'grid-cols-4'
+          : 'grid-cols-2 lg:grid-cols-4'
       }`}>
         {leavesData.leaveTypes.map(({ type }) => {
           const leaveCount = userLeaveCounts.find(count => count.leave_type === type) || {};
@@ -660,7 +671,7 @@ const LeavesEmployee = ({ title, allUsers }) => {
               style={{
                 background: `color-mix(in srgb, var(--theme-content2) 60%, transparent)`,
                 border: `1px solid color-mix(in srgb, var(--theme-content3) 50%, transparent)`,
-                borderRadius: getThemeRadius(),
+                borderRadius: themeRadius,
               }}
             >
               <CardHeader className="pb-2">
@@ -940,7 +951,7 @@ const LeavesEmployee = ({ title, allUsers }) => {
                                 '--input-focus-border': 'var(--theme-primary)',
                                 '--input-color': 'var(--theme-foreground)',
                                 '--input-placeholder': 'color-mix(in srgb, var(--theme-foreground) 60%, transparent)',
-                                borderRadius: getThemeRadius(),
+                                borderRadius: themeRadius,
                               }}
                               startContent={<CalendarIcon className="w-4 h-4 opacity-70" />}
                             >
@@ -995,7 +1006,7 @@ const LeavesEmployee = ({ title, allUsers }) => {
                             style={{
                               background: `color-mix(in srgb, var(--theme-content2) 50%, transparent)`,
                               border: `1px solid color-mix(in srgb, var(--theme-content3) 50%, transparent)`,
-                              borderRadius: getThemeRadius(),
+                              borderRadius: themeRadius,
                             }}
                           >
                             <CardBody>
@@ -1016,7 +1027,7 @@ const LeavesEmployee = ({ title, allUsers }) => {
                             style={{
                               background: `color-mix(in srgb, var(--theme-content2) 50%, transparent)`,
                               border: `1px solid color-mix(in srgb, var(--theme-danger) 30%, transparent)`,
-                              borderRadius: getThemeRadius(),
+                              borderRadius: themeRadius,
                             }}
                           >
                             <CardBody>
@@ -1068,7 +1079,7 @@ const LeavesEmployee = ({ title, allUsers }) => {
                             style={{
                               background: `color-mix(in srgb, var(--theme-content2) 50%, transparent)`,
                               border: `1px solid color-mix(in srgb, var(--theme-content3) 50%, transparent)`,
-                              borderRadius: getThemeRadius(),
+                              borderRadius: themeRadius,
                             }}
                           >
                             <CardBody>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { hasRoute, safeRoute, safeNavigate, safePost, safePut, safeDelete } from '@/utils/routeUtils';
 import { motion } from 'framer-motion';
+import { useThemeRadius } from '@/Hooks/useThemeRadius.js';
 import App from '@/Layouts/App';
 import StatsCards from '@/Components/Common/StatsCards';
 import {
@@ -37,9 +38,17 @@ import {
     Legend,
     ResponsiveContainer
 } from 'recharts';
+import { useHRMAC } from '@/Hooks/useHRMAC';
 
 const Analytics = ({ auth, event, analytics }) => {
+    const { auth: pageAuth } = usePage().props;
     const [timeRange, setTimeRange] = React.useState('7');
+    const themeRadius = useThemeRadius();
+    const { canCreate, canUpdate, canDelete, hasAccess, isSuperAdmin } = useHRMAC();
+    
+    // Permissions using HRMAC
+    // TODO: Update with correct HRMAC path once module hierarchy is defined for Events
+    const canViewAnalytics = hasAccess('events.analytics') || isSuperAdmin();
 
     const statsData = useMemo(() => [
         {

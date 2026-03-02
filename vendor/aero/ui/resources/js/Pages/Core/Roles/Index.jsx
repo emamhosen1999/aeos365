@@ -24,7 +24,7 @@ import {
   Switch
 } from "@heroui/react";
 import { useTheme } from '@/Context/ThemeContext.jsx';
-import useMediaQuery from '@/Hooks/useMediaQuery';
+import {useThemeRadius} from '@/Hooks/useThemeRadius.js';
 import { 
   UserGroupIcon, 
   ShieldCheckIcon,
@@ -46,6 +46,7 @@ import UserRolesTable from '@/Tables/UserRolesTable.jsx';
 import App from '@/Layouts/App';
 import axios from 'axios';
 import { showToast } from '@/utils/toastUtils';
+import { useHRMAC } from '@/Hooks/useHRMAC';
 
 // Utility functions
 const normalizeArray = (arr) => Array.isArray(arr) ? [...arr] : [];
@@ -102,6 +103,7 @@ const RoleManagement = (props) => {
     const dataValidationErrors = validatedData.errors;
     const initialUsers = props.users || [];
     const isPlatformContext = props.is_platform_context || false;
+    const dashboardOptions = props.dashboard_options || [];
 
     // Local users state for real-time updates
     const [users, setUsers] = useState(initialUsers);
@@ -117,21 +119,21 @@ const RoleManagement = (props) => {
     // Theme and responsive hooks
     const { themeSettings } = useTheme();
     const isDark = themeSettings?.mode === 'dark';
-    const isMobile = useMediaQuery('(max-width: 640px)');
-    const isTablet = useMediaQuery('(max-width: 768px)');
+    const themeRadius = useThemeRadius();
     
-    // Helper function to get theme-aware radius for HeroUI components
-    const getThemeRadius = () => {
-        if (typeof window === 'undefined') return 'lg';
-        const rootStyles = getComputedStyle(document.documentElement);
-        const borderRadius = rootStyles.getPropertyValue('--borderRadius')?.trim() || '12px';
-        const radiusValue = parseInt(borderRadius);
-        if (radiusValue === 0) return 'none';
-        if (radiusValue <= 4) return 'sm';
-        if (radiusValue <= 8) return 'md';
-        if (radiusValue <= 16) return 'lg';
-        return 'full';
-    };
+    // Manual responsive state management (HRMAC pattern)
+    const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
+    
+    useEffect(() => {
+        const checkScreenSize = () => {
+            setIsMobile(window.innerWidth < 640);
+            setIsTablet(window.innerWidth < 768);
+        };
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
     
     // Main tab management
     const [activeTab, setActiveTab] = useState(0);
@@ -178,6 +180,8 @@ const RoleManagement = (props) => {
         description: '',
         hierarchy_level: 10,
         is_active: true,
+        default_dashboard: '',
+        priority: 0,
         guard_name: 'web' // Will be auto-set based on context
     });
     const [formErrors, setFormErrors] = useState({});
@@ -322,7 +326,9 @@ const RoleManagement = (props) => {
             name: role?.name || '',
             description: role?.description || '',
             hierarchy_level: role?.hierarchy_level || 10,
-            is_active: role?.is_active ?? true
+            is_active: role?.is_active ?? true,
+            default_dashboard: role?.default_dashboard || '',
+            priority: role?.priority || 0
         });
         setRoleDialogOpen(true);
         setFormErrors({});
@@ -338,7 +344,9 @@ const RoleManagement = (props) => {
             name: '',
             description: '',
             hierarchy_level: 10,
-            is_active: true
+            is_active: true,
+            default_dashboard: '',
+            priority: 0
         });
     }, []);
 
@@ -607,7 +615,7 @@ const RoleManagement = (props) => {
                             isRequired
                             isDisabled={isLoading}
                             variant="bordered"
-                            radius={getThemeRadius()}
+                            radius={themeRadius}
                             classNames={{
                                 inputWrapper: "bg-default-100/50 dark:bg-default-50/10 border-default-200/20 hover:border-default-300/30 focus-within:!border-primary/50",
                                 input: "text-foreground placeholder:text-default-400",
@@ -626,11 +634,71 @@ const RoleManagement = (props) => {
                             isDisabled={isLoading}
                             variant="bordered"
                             minRows={2}
-                            radius={getThemeRadius()}
+                            radius={themeRadius}
                             classNames={{
                                 inputWrapper: "bg-default-100/50 dark:bg-default-50/10 border-default-200/20 hover:border-default-300/30 focus-within:!border-primary/50",
                                 input: "text-foreground placeholder:text-default-400",
                                 label: "text-default-500"
+                            }}
+                        />
+                    </div>
+                    
+                    {/* Dashboard Selection Section */}
+                    <div className="col-span-2">
+                        <Divider className="my-4" />
+                        <p className="text-sm font-medium text-default-700 mb-3">Dashboard Settings</p>
+                    </div>
+                    
+                    <div className="col-span-1">
+                        <Select
+                            label="Default Dashboard"
+                            placeholder="Select a dashboard"
+                            selectedKeys={roleForm.default_dashboard ? [roleForm.default_dashboard] : []}
+                            onSelectionChange={(keys) => {
+                                const selected = Array.from(keys)[0] || '';
+                                setRoleForm(prev => ({ ...prev, default_dashboard: selected }));
+                            }}
+                            isDisabled={isLoading}
+                            variant="bordered"
+                            radius={themeRadius}
+                            description="Users with this role will be redirected to this dashboard"
+                            classNames={{
+                                trigger: "bg-default-100/50 dark:bg-default-50/10 border-default-200/20 hover:border-default-300/30 data-[focus=true]:border-primary/50",
+                                label: "text-default-500",
+                                description: "text-default-400"
+                            }}
+                        >
+                            <SelectItem key="" value="">None (use default)</SelectItem>
+                            {dashboardOptions.map((dashboard) => (
+                                <SelectItem 
+                                    key={dashboard.key} 
+                                    value={dashboard.key}
+                                    description={dashboard.description}
+                                >
+                                    {dashboard.label}
+                                </SelectItem>
+                            ))}
+                        </Select>
+                    </div>
+                    
+                    <div className="col-span-1">
+                        <Input
+                            label="Role Priority"
+                            placeholder="0"
+                            type="number"
+                            min={0}
+                            max={1000}
+                            value={String(roleForm.priority)}
+                            onValueChange={(value) => setRoleForm(prev => ({ ...prev, priority: parseInt(value) || 0 }))}
+                            isDisabled={isLoading}
+                            variant="bordered"
+                            radius={themeRadius}
+                            description="Higher priority role's dashboard is used for multi-role users"
+                            classNames={{
+                                inputWrapper: "bg-default-100/50 dark:bg-default-50/10 border-default-200/20 hover:border-default-300/30 focus-within:!border-primary/50",
+                                input: "text-foreground",
+                                label: "text-default-500",
+                                description: "text-default-400"
                             }}
                         />
                     </div>
@@ -705,7 +773,7 @@ const RoleManagement = (props) => {
             {/* Data validation error alerts - shown as a card instead of MUI Alert */}
             {dataValidationErrors.length > 0 && (
                 <div className="mb-4 p-4">
-                    <Card className="bg-warning/10 border border-warning/30" radius={getThemeRadius()}>
+                    <Card className="bg-warning/10 border border-warning/30" radius={themeRadius}>
                         <CardBody className="flex flex-row items-start gap-4">
                             <ExclamationTriangleIcon className="w-6 h-6 text-warning flex-shrink-0 mt-0.5" />
                             <div className="flex-1">
@@ -832,7 +900,7 @@ const RoleManagement = (props) => {
                                                         style={{
                                                             background: `color-mix(in srgb, var(--theme-success) 15%, transparent)`,
                                                             color: `var(--theme-success)`,
-                                                            borderRadius: getThemeRadius(),
+                                                            borderRadius: themeRadius,
                                                             border: `1px solid color-mix(in srgb, var(--theme-success) 30%, transparent)`,
                                                         }}
                                                         startContent={<DocumentArrowDownIcon className="w-4 h-4" />}
@@ -911,7 +979,7 @@ const RoleManagement = (props) => {
                                                                 className="text-white font-medium"
                                                                 style={{
                                                                     background: `linear-gradient(135deg, var(--theme-primary), color-mix(in srgb, var(--theme-primary) 80%, var(--theme-secondary)))`,
-                                                                    borderRadius: getThemeRadius(),
+                                                                    borderRadius: themeRadius,
                                                                 }}
                                                             >
                                                                 Add Role
@@ -925,7 +993,7 @@ const RoleManagement = (props) => {
                                                                 value={roleSearchQuery}
                                                                 onValueChange={handleRoleSearchChange}
                                                                 className="flex-1 min-w-0"
-                                                                radius={getThemeRadius()}
+                                                                radius={themeRadius}
                                                                 startContent={<MagnifyingGlassIcon className="w-4 h-4 text-default-400" />}
                                                                 variant="bordered"
                                                                 classNames={{
@@ -940,7 +1008,7 @@ const RoleManagement = (props) => {
                                                                 selectedKeys={[roleStatusFilter]}
                                                                 onSelectionChange={(keys) => handleRoleStatusFilterChange(Array.from(keys)[0])}
                                                                 className="w-full sm:w-[140px] sm:flex-shrink-0"
-                                                                radius={getThemeRadius()}
+                                                                radius={themeRadius}
                                                                 classNames={{
                                                                     trigger: "bg-white/10 backdrop-blur-md border-white/20",
                                                                 }}
@@ -998,7 +1066,7 @@ const RoleManagement = (props) => {
                                                                 value={userSearchQuery}
                                                                 onValueChange={handleUserSearchChange}
                                                                 className="flex-1 min-w-0"
-                                                                radius={getThemeRadius()}
+                                                                radius={themeRadius}
                                                                 startContent={<MagnifyingGlassIcon className="w-4 h-4 text-default-400" />}
                                                                 variant="bordered"
                                                                 classNames={{
@@ -1013,7 +1081,7 @@ const RoleManagement = (props) => {
                                                                 selectedKeys={[userRoleFilter]}
                                                                 onSelectionChange={(keys) => handleUserRoleFilterChange(Array.from(keys)[0])}
                                                                 className="w-full sm:w-[160px] sm:flex-shrink-0"
-                                                                radius={getThemeRadius()}
+                                                                radius={themeRadius}
                                                                 classNames={{
                                                                     trigger: "bg-white/10 backdrop-blur-md border-white/20",
                                                                 }}

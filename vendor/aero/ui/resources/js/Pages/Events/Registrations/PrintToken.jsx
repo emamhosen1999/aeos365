@@ -1,8 +1,33 @@
-import React from 'react';
-import { Head } from '@inertiajs/react';
+import React, { useState, useEffect } from 'react';
+import { Head, usePage } from '@inertiajs/react';
+import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
+import { useThemeRadius } from '@/Hooks/useThemeRadius.js';
+import { useHRMAC } from '@/Hooks/useHRMAC';
 
 const PrintToken = ({ registration, event }) => {
+    const { auth } = usePage().props;
+    const themeRadius = useThemeRadius();
+    const { canCreate, canUpdate, canDelete, hasAccess, isSuperAdmin } = useHRMAC();
+    
+    // Manual responsive state management (HRMAC pattern)
+    const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
+    
+    useEffect(() => {
+        const checkScreenSize = () => {
+            setIsMobile(window.innerWidth < 640);
+            setIsTablet(window.innerWidth < 768);
+        };
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
+    
+    // Permissions using HRMAC
+    // TODO: Update with correct HRMAC path once module hierarchy is defined for Events
+    const canViewRegistration = hasAccess('events.registrations') || isSuperAdmin();
+    
     React.useEffect(() => {
         // Auto-print when page loads
         window.print();

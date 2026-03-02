@@ -2,11 +2,12 @@
 
 namespace Aero\HRM\Http\Controllers\Employee;
 
+use Aero\Core\Models\User;
+use Aero\HRM\Events\Safety\SafetyIncidentReported;
+use Aero\HRM\Http\Controllers\Controller;
 use Aero\HRM\Models\Department;
 use Aero\HRM\Models\SafetyIncident;
 use Aero\HRM\Models\SafetyIncidentParticipant;
-use Aero\HRM\Http\Controllers\Controller;
-use Aero\Core\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,7 @@ class SafetyIncidentController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
-        return Inertia::render('Pages/HRM/Safety/Incidents/Index', [
+        return Inertia::render('HRM/Safety/Incidents/Index', [
             'title' => 'Safety Incidents',
             'incidents' => $incidents,
         ]);
@@ -48,7 +49,7 @@ class SafetyIncidentController extends Controller
             ->orderBy('name')
             ->get();
 
-        return Inertia::render('Pages/HRM/Safety/Incidents/Create', [
+        return Inertia::render('HRM/Safety/Incidents/Create', [
             'title' => 'Report Safety Incident',
             'employees' => $employees,
             'departments' => $departments,
@@ -111,6 +112,10 @@ class SafetyIncidentController extends Controller
                 }
             }
 
+            // Dispatch SafetyIncidentReported event
+            $requiresImmediateAction = in_array($validated['severity'], ['high', 'critical']);
+            event(new SafetyIncidentReported($incident, $requiresImmediateAction));
+
             DB::commit();
 
             return redirect()->route('hr.safety.incidents.show', $incident->id)
@@ -135,7 +140,7 @@ class SafetyIncidentController extends Controller
 
         $this->authorize('view', $incident);
 
-        return Inertia::render('Pages/HRM/Safety/Incidents/Show', [
+        return Inertia::render('HRM/Safety/Incidents/Show', [
             'title' => 'Safety Incident Details',
             'incident' => $incident,
         ]);
@@ -160,7 +165,7 @@ class SafetyIncidentController extends Controller
             ->orderBy('name')
             ->get();
 
-        return Inertia::render('Pages/HRM/Safety/Incidents/Edit', [
+        return Inertia::render('HRM/Safety/Incidents/Edit', [
             'title' => 'Edit Safety Incident',
             'incident' => $incident,
             'employees' => $employees,

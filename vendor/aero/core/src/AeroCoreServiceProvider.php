@@ -3,17 +3,21 @@
 namespace Aero\Core;
 
 use Aero\Core\Contracts\TenantScopeInterface;
+use Aero\Core\Providers\CoreModuleProvider;
 use Aero\Core\Providers\ModuleRouteServiceProvider;
+use Aero\Core\Services\DashboardRegistry;
 use Aero\Core\Services\DashboardWidgetRegistry;
 use Aero\Core\Services\ModuleAccessService;
 use Aero\Core\Services\ModuleManager;
 use Aero\Core\Services\ModuleRegistry;
 use Aero\Core\Services\NavigationRegistry;
-use Aero\Core\Services\RoleModuleAccessService;
 use Aero\Core\Services\RuntimeLoader;
 use Aero\Core\Services\StandaloneTenantScope;
 use Aero\Core\Services\UserRelationshipRegistry;
 use Aero\Core\Traits\ParsesHostDomain;
+use Aero\HRMAC\Services\RoleModuleAccessService;
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Fortify\Fortify;
@@ -27,12 +31,17 @@ use Laravel\Fortify\Fortify;
 class AeroCoreServiceProvider extends ServiceProvider
 {
     use ParsesHostDomain;
+
     /**
      * Register services.
      */
     public function register(): void
     {
         try {
+            // Register the Core module service provider
+            // This handles navigation, self-service items, dashboards, etc.
+            $this->app->register(CoreModuleProvider::class);
+
             // CRITICAL: Inject global BootstrapGuard middleware FIRST
             // This ensures ALL requests are intercepted before routing
             // to redirect to /install if system is not installed
@@ -72,6 +81,7 @@ class AeroCoreServiceProvider extends ServiceProvider
             // Merge configuration
             $this->mergeConfigFrom(__DIR__.'/../config/aero.php', 'aero');
             $this->mergeConfigFrom(__DIR__.'/../config/marketplace.php', 'marketplace');
+            $this->mergeConfigFrom(__DIR__.'/../config/security.php', 'security');
             // Module definitions are in config/module.php and loaded by ModuleDiscoveryService
             $this->mergeConfigFrom(__DIR__.'/../config/core.php', 'aero.core');
             $this->mergeConfigFrom(__DIR__.'/../config/permission.php', 'permission');
@@ -84,12 +94,36 @@ class AeroCoreServiceProvider extends ServiceProvider
             $this->app->singleton(NavigationRegistry::class);
             $this->app->singleton(UserRelationshipRegistry::class);
             $this->app->singleton(DashboardWidgetRegistry::class);
+            $this->app->singleton(DashboardRegistry::class);
+
+            // Register Session Encryption Services
+            $this->app->singleton(\Aero\Core\Services\Auth\SessionEncryptionService::class);
+
+            // Register Encrypted Session Handler if encryption is enabled
+            if (config('session.encrypt', false)) {
+                $this->app->extend('session', function ($manager) {
+                    $manager->extend('encrypted_database', function ($app) {
+                        $connection = $app['db']->connection($app['config']['session.connection']);
+                        $encryptionService = $app[\Aero\Core\Services\Auth\SessionEncryptionService::class];
+
+                        return new \Aero\Core\Services\Auth\EncryptedSessionHandler(
+                            $connection,
+                            $app['config']['session.table'],
+                            $app['config']['session.lifetime'],
+                            $app,
+                            $encryptionService
+                        );
+                    });
+
+                    return $manager;
+                });
+            }
 
             // Register Module Access Services (with error handling for missing tables)
             // These services are lazy-loaded, so they won't cause issues pre-install
             $this->app->singleton(ModuleAccessService::class, function ($app) {
                 // Only instantiate if installed to avoid DB queries pre-install
-                if (!file_exists(storage_path('app/aeos.installed'))) {
+                if (! file_exists(storage_path('app/aeos.installed'))) {
                     return new class
                     {
                         public function __call($method, $args)
@@ -114,12 +148,21 @@ class AeroCoreServiceProvider extends ServiceProvider
 
             $this->app->singleton(RoleModuleAccessService::class, function ($app) {
                 // Only instantiate if installed to avoid DB queries pre-install
-                if (!file_exists(storage_path('app/aeos.installed'))) {
+                if (! file_exists(storage_path('app/aeos.installed'))) {
+                    // Return a stub that uses __call for method handling
                     return new class
                     {
                         public function __call($method, $args)
                         {
-                            return [];
+                            // Return appropriate defaults based on method signature
+                            if (str_starts_with($method, 'can') || str_starts_with($method, 'user')) {
+                                return false;
+                            }
+                            if (str_starts_with($method, 'get')) {
+                                return $method === 'getFirstAccessibleRoute' ? null : [];
+                            }
+
+                            return null;
                         }
                     };
                 }
@@ -131,7 +174,14 @@ class AeroCoreServiceProvider extends ServiceProvider
                     {
                         public function __call($method, $args)
                         {
-                            return [];
+                            if (str_starts_with($method, 'can') || str_starts_with($method, 'user')) {
+                                return false;
+                            }
+                            if (str_starts_with($method, 'get')) {
+                                return $method === 'getFirstAccessibleRoute' ? null : [];
+                            }
+
+                            return null;
                         }
                     };
                 }
@@ -140,6 +190,9 @@ class AeroCoreServiceProvider extends ServiceProvider
             // Bind TenantScopeInterface to StandaloneTenantScope as default
             // This can be overridden by aero-platform for SaaS mode
             $this->app->singleton(TenantScopeInterface::class, StandaloneTenantScope::class);
+
+            // Register cross-package contracts for modular architecture
+            $this->registerCrossPackageContracts();
 
             // Register RuntimeLoader as singleton (lazy-loaded)
             $this->app->singleton(RuntimeLoader::class, function ($app) {
@@ -185,10 +238,14 @@ class AeroCoreServiceProvider extends ServiceProvider
     {
         // Force file-based sessions BEFORE any session driver is instantiated
         // This allows installation to work without database tables
-        if (!$this->installed()) {
+        if (! $this->installed()) {
             // Pre-configure session driver to file (before StartSession middleware runs)
             config(['session.driver' => 'file', 'cache.default' => 'file']);
         }
+
+        // Register Authorization Gates for Role and Module Management
+        // These gates control access to admin functionality for managing roles and modules
+        $this->registerAuthorizationGates();
 
         // Load migrations from Core package (takes priority)
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
@@ -240,6 +297,7 @@ class AeroCoreServiceProvider extends ServiceProvider
             // Register console commands
             if ($this->app->runningInConsole()) {
                 $this->registerCommands();
+                $this->registerSchedule();
             }
 
             // Only register navigation and widgets if installed
@@ -249,6 +307,9 @@ class AeroCoreServiceProvider extends ServiceProvider
 
                 // Register Core dashboard widgets
                 $this->registerDashboardWidgets();
+
+                // Register Core dashboards in the DashboardRegistry
+                $this->registerDashboards();
             }
         } catch (\Throwable $e) {
             // Ignore errors during early boot/package discovery
@@ -299,6 +360,33 @@ class AeroCoreServiceProvider extends ServiceProvider
     }
 
     /**
+     * Register Core dashboards with DashboardRegistry.
+     *
+     * The DashboardRegistry allows roles to be assigned to specific dashboards.
+     * When users navigate to /dashboard, the DashboardRedirectMiddleware
+     * will redirect them to their role's assigned dashboard.
+     */
+    protected function registerDashboards(): void
+    {
+        // Only register if the registry is available
+        if (! $this->app->bound(DashboardRegistry::class)) {
+            return;
+        }
+
+        $registry = $this->app->make(DashboardRegistry::class);
+
+        // Register Core Dashboard (for system administrators)
+        // Route name is 'core.dashboard' which maps to /dashboard
+        $registry->register(
+            'core.dashboard',
+            'Admin Dashboard',
+            'core',
+            'System overview for administrators',
+            'HomeIcon'
+        );
+    }
+
+    /**
      * Register Core routes.
      *
      * Route Architecture:
@@ -319,11 +407,12 @@ class AeroCoreServiceProvider extends ServiceProvider
         // Always register public API routes on all domains (version check, error logging)
         $this->registerPublicApiRoutes();
 
-        if (!$this->installed()) {
+        if (! $this->installed()) {
             // System NOT installed - ONLY load installation routes
             // These work on ANY domain (platform, tenant, or standalone)
             Route::middleware(['web'])
-                ->group($routesPath.'/install.php');
+                ->group($routesPath.'/installation.php');
+
             return;
         }
 
@@ -348,7 +437,7 @@ class AeroCoreServiceProvider extends ServiceProvider
         if ($this->isSaasMode()) {
             // SaaS Mode: Core routes ONLY on tenant subdomains
             // Skip registration entirely on central domains to prevent route conflicts
-            if (request() && $this->isHostOnCentralDomain(request()->getHost())) {
+            if (request() && $this->isOnCentralDomain(request()->getHost())) {
                 // On central domains (admin.domain.com, domain.com), Platform handles everything
                 // Do NOT register Core routes - this prevents route matching conflicts
                 return;
@@ -382,7 +471,7 @@ class AeroCoreServiceProvider extends ServiceProvider
     {
         $reporter = \Aero\Core\Services\PlatformErrorReporter::class;
 
-        // Version check API - available on all domains
+        // Version check API - available on all domains (no CSRF required)
         Route::post('/api/version/check', function (\Illuminate\Http\Request $request) {
             $clientVersion = $request->input('version', '1.0.0');
             $serverVersion = config('app.version', '1.0.0');
@@ -393,9 +482,11 @@ class AeroCoreServiceProvider extends ServiceProvider
                 'server_version' => $serverVersion,
                 'timestamp' => now()->toIso8601String(),
             ]);
-        })->name('api.version.check')->middleware(['web', 'throttle:30,1']);
+        })->name('api.version.check')
+            ->middleware(['web', 'throttle:30,1'])
+            ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
-        // Error logging API - available on all domains
+        // Error logging API - available on all domains (no CSRF required)
         Route::post('/api/error-log', function (\Illuminate\Http\Request $request) use ($reporter) {
             $reporterInstance = app($reporter);
             $traceId = $reporterInstance->reportFrontendError($request->all());
@@ -405,7 +496,9 @@ class AeroCoreServiceProvider extends ServiceProvider
                 'trace_id' => $traceId,
                 'message' => 'Error reported successfully',
             ]);
-        })->name('api.error-log')->middleware(['web', 'throttle:30,1']);
+        })->name('api.error-log')
+            ->middleware(['web', 'throttle:30,1'])
+            ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
         // Health check API - available on all domains
         Route::get('/aero-core/health', function () {
@@ -459,6 +552,17 @@ class AeroCoreServiceProvider extends ServiceProvider
     }
 
     /**
+     * Check if current domain is the admin subdomain.
+     * Used in standalone mode to skip Core routes on admin.domain.com
+     */
+    protected function isHostAdminDomain(string $host): bool
+    {
+        $hostWithoutPort = preg_replace('/:\d+$/', '', $host);
+
+        return str_starts_with($hostWithoutPort, 'admin.');
+    }
+
+    /**
      * Register Core middleware.
      */
     protected function registerMiddleware(): void
@@ -481,12 +585,15 @@ class AeroCoreServiceProvider extends ServiceProvider
             // Register 'tenant' middleware alias for tenant-only routes
             // This ensures requests have a valid tenant context (used after InitializeTenancyIfNotCentral)
             $router->aliasMiddleware('tenant', \Aero\Core\Http\Middleware\EnsureTenantContext::class);
+
+            // Register 'dashboard.redirect' middleware alias for role-based dashboard routing
+            $router->aliasMiddleware('dashboard.redirect', \Aero\Core\Http\Middleware\DashboardRedirectMiddleware::class);
         });
     }
 
     /**
      * Check if aero-platform is active.
-     * 
+     *
      * @deprecated Use isSaasMode() instead for mode detection
      */
     protected function isPlatformActive(): bool
@@ -497,10 +604,8 @@ class AeroCoreServiceProvider extends ServiceProvider
     /**
      * Check if system is in SaaS mode using file-based detection.
      * Mode is set during installation and immutable at runtime.
-     * 
+     *
      * This is the ONLY authoritative method for mode detection.
-     * 
-     * @return bool
      */
     protected function isSaasMode(): bool
     {
@@ -597,8 +702,24 @@ class AeroCoreServiceProvider extends ServiceProvider
         $this->commands([
             Console\Commands\InstallCommand::class,
             Console\Commands\SyncModuleHierarchy::class,
+            Console\Commands\SyncModuleMigrations::class,
             Console\Commands\SeedCommand::class,
+            Console\Commands\CleanupExpiredSessions::class,
         ]);
+    }
+
+    /**
+     * Register scheduled tasks for Core module.
+     */
+    protected function registerSchedule(): void
+    {
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            // Clean up expired sessions hourly
+            $schedule->command('sessions:cleanup')
+                ->hourly()
+                ->withoutOverlapping()
+                ->description('Clean up expired user sessions');
+        });
     }
 
     /**
@@ -669,6 +790,49 @@ class AeroCoreServiceProvider extends ServiceProvider
             ModuleAccessService::class,
             RoleModuleAccessService::class,
         ];
+    }
+
+    /**
+     * Register authorization gates for role and module management.
+     *
+     * Gates define who can manage roles and modules in the system.
+     * - 'manage-roles': Create, update, delete roles and manage role-module access
+     * - 'manage-modules': View modules, sync role access, manage module hierarchy
+     *
+     * By default, only Super Administrator and Administrator roles have these permissions.
+     * These gates are used by the 'can:' middleware on role and module routes.
+     */
+    protected function registerAuthorizationGates(): void
+    {
+        // Only register gates if the system is installed
+        // Pre-installation, there are no users or roles to check
+        if (! $this->installed()) {
+            return;
+        }
+
+        try {
+            // Gate: manage-roles
+            // Allows user to create, update, delete roles and assign module access
+            Gate::define('manage-roles', function ($user) {
+                // Super Administrators and Administrators can manage roles
+                // Check if user has one of the authorized roles
+                return $user->hasRole(['Super Administrator', 'Administrator']);
+            });
+
+            // Gate: manage-modules
+            // Allows user to view modules, sync access, manage module hierarchy
+            Gate::define('manage-modules', function ($user) {
+                // Super Administrators and Administrators can manage modules
+                // Check if user has one of the authorized roles
+                return $user->hasRole(['Super Administrator', 'Administrator']);
+            });
+        } catch (\Throwable $e) {
+            // Silently fail if User model or hasRole method not available
+            // This can happen during migrations or in test environments
+            \Illuminate\Support\Facades\Log::warning('Failed to register authorization gates', [
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -777,14 +941,140 @@ class AeroCoreServiceProvider extends ServiceProvider
 
     /**
      * Check if the system is installed using file-based detection.
-     * 
+     *
      * This is the ONLY authoritative method for checking installation status.
      * Never use database queries for installation detection.
-     * 
-     * @return bool
      */
     protected function installed(): bool
     {
         return file_exists(storage_path('app/aeos.installed'));
+    }
+
+    /**
+     * Register cross-package contracts for modular architecture.
+     *
+     * These contracts enable communication between packages without direct dependencies:
+     * - EmployeeServiceContract: HRM domain → Core (employee data access)
+     * - NotificationRoutingContract: HRMAC-based notification recipient resolution
+     */
+    protected function registerCrossPackageContracts(): void
+    {
+        // EmployeeServiceContract - bound by aero-hrm when loaded
+        // Core provides a null-safe default that returns empty results
+        $this->app->singleton(
+            \Aero\Core\Contracts\EmployeeServiceContract::class,
+            function ($app) {
+                // Check if HRM package has registered its implementation
+                if ($app->bound(\Aero\HRM\Services\EmployeeService::class)) {
+                    return $app->make(\Aero\HRM\Services\EmployeeService::class);
+                }
+
+                // Return a null-safe stub if HRM is not installed
+                return new class implements \Aero\Core\Contracts\EmployeeServiceContract
+                {
+                    public function getById(int $employeeId): ?object
+                    {
+                        return null;
+                    }
+
+                    public function getByUserId(int $userId): ?object
+                    {
+                        return null;
+                    }
+
+                    public function getUserId(int $employeeId): ?int
+                    {
+                        return null;
+                    }
+
+                    public function getEmployeeId(int $userId): ?int
+                    {
+                        return null;
+                    }
+
+                    public function getManagerEmployeeId(int $employeeId): ?int
+                    {
+                        return null;
+                    }
+
+                    public function getDepartmentId(int $employeeId): ?int
+                    {
+                        return null;
+                    }
+
+                    public function getDepartmentEmployeeIds(int $departmentId): array
+                    {
+                        return [];
+                    }
+
+                    public function getDirectReportEmployeeIds(int $managerEmployeeId): array
+                    {
+                        return [];
+                    }
+
+                    public function getReportingChainEmployeeIds(int $employeeId): array
+                    {
+                        return [];
+                    }
+
+                    public function batchResolveUserIds(array $employeeIds): array
+                    {
+                        return [];
+                    }
+                };
+            }
+        );
+
+        // NotificationRoutingContract - HRMAC-based notification routing
+        $this->app->singleton(
+            \Aero\Core\Contracts\NotificationRoutingContract::class,
+            function ($app) {
+                // Only instantiate if HRMAC and installed
+                if (! file_exists(storage_path('app/aeos.installed'))) {
+                    return new class implements \Aero\Core\Contracts\NotificationRoutingContract
+                    {
+                        public function getRecipients(string $moduleCode, string $subModuleCode, ?string $componentCode = null, ?string $actionCode = null, array $context = []): \Illuminate\Support\Collection
+                        {
+                            return collect();
+                        }
+
+                        public function getRecipientsByScope(string $moduleCode, string $subModuleCode, string $scope, array $context): \Illuminate\Support\Collection
+                        {
+                            return collect();
+                        }
+
+                        public function shouldNotify(int $userId, string $moduleCode, string $subModuleCode, ?string $componentCode = null, ?string $actionCode = null): bool
+                        {
+                            return false;
+                        }
+                    };
+                }
+
+                try {
+                    return new \Aero\Core\Services\HrmacNotificationRoutingService(
+                        $app->make(\Aero\HRMAC\Contracts\RoleModuleAccessInterface::class),
+                        $app->make(\Aero\Core\Contracts\EmployeeServiceContract::class)
+                    );
+                } catch (\Throwable $e) {
+                    return new class implements \Aero\Core\Contracts\NotificationRoutingContract
+                    {
+                        public function getRecipients(string $moduleCode, string $subModuleCode, ?string $componentCode = null, ?string $actionCode = null, array $context = []): \Illuminate\Support\Collection
+                        {
+                            return collect();
+                        }
+
+                        public function getRecipientsByScope(string $moduleCode, string $subModuleCode, string $scope, array $context): \Illuminate\Support\Collection
+                        {
+                            return collect();
+                        }
+
+                        public function shouldNotify(int $userId, string $moduleCode, string $subModuleCode, ?string $componentCode = null, ?string $actionCode = null): bool
+                        {
+                            return false;
+                        }
+                    };
+                }
+            }
+        );
     }
 }

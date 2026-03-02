@@ -4,8 +4,8 @@ namespace Aero\Platform\Http\Controllers\Settings;
 
 use Aero\HRM\Models\AttendanceSetting;
 use Aero\HRM\Models\AttendanceType;
-use Aero\Platform\Services\Attendance\QrCodeValidator;
 use Aero\Platform\Http\Controllers\Controller;
+use Aero\Platform\Services\Attendance\QrCodeValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -25,7 +25,7 @@ class AttendanceSettingController extends Controller
             ]);
         }
 
-        return Inertia::render('Pages/HRM/Settings/AttendanceSettings', [
+        return Inertia::render('HRM/Settings/AttendanceSettings', [
             'title' => 'Attendance Settings',
             'attendanceSettings' => $attendanceSettings,
             'attendanceTypes' => $attendanceTypes,

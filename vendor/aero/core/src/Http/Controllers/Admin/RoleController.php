@@ -3,17 +3,19 @@
 namespace Aero\Core\Http\Controllers\Admin;
 
 use Aero\Core\Http\Controllers\Controller;
-use Aero\Core\Models\User;
 use Aero\Core\Models\Module;
+use Aero\Core\Models\User;
+use Aero\Core\Services\AuditService;
+use Aero\Core\Services\DashboardRegistry;
 use Aero\Core\Support\TenantCache;
+use Aero\HRMAC\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
-use Spatie\Permission\Models\Role;
 
 /**
  * Shared Admin Role Controller
@@ -39,7 +41,7 @@ class RoleController extends Controller
      */
     protected function getViewPath(): string
     {
-        return 'Roles/Index';
+        return 'Core/Roles/Index';
     }
 
     /**
@@ -48,6 +50,7 @@ class RoleController extends Controller
     protected function isSuperAdmin(): bool
     {
         $user = $this->getCurrentUser();
+
         return $user?->hasRole('Super Administrator') ?? false;
     }
 
@@ -60,7 +63,7 @@ class RoleController extends Controller
         header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
         header('Pragma: no-cache');
         header('Expires: 0');
-        
+
         try {
             $user = $this->getCurrentUser();
             $isSuperAdmin = $this->isSuperAdmin();
@@ -74,6 +77,12 @@ class RoleController extends Controller
                 ->orderBy('name')
                 ->get()
                 ->map(function ($role) {
+                    // Fetch extended fields from the roles table
+                    $extraFields = DB::table('roles')
+                        ->where('id', $role->id)
+                        ->select(['default_dashboard', 'priority'])
+                        ->first();
+
                     return [
                         'id' => $role->id,
                         'name' => $role->name,
@@ -81,6 +90,8 @@ class RoleController extends Controller
                         'guard_name' => $role->guard_name,
                         'scope' => $role->scope ?? 'platform',
                         'is_protected' => $role->is_protected ?? false,
+                        'default_dashboard' => $extraFields->default_dashboard ?? null,
+                        'priority' => $extraFields->priority ?? 0,
                         'users_count' => $role->users()->count(),
                         'created_at' => $role->created_at,
                         'updated_at' => $role->updated_at,
@@ -97,7 +108,7 @@ class RoleController extends Controller
                         'id' => $u->id,
                         'name' => $u->name,
                         'email' => $u->email,
-                        'roles' => $u->roles->map(fn($role) => [
+                        'roles' => $u->roles->map(fn ($role) => [
                             'id' => $role->id,
                             'name' => $role->name,
                         ]),
@@ -118,48 +129,48 @@ class RoleController extends Controller
                         },
                         'subModules.components.actions' => function ($query) {
                             $query->where('is_active', true)->orderBy('priority');
-                        }
+                        },
                     ])
-                    ->where('is_active', true)
-                    ->orderBy('priority')
-                    ->get()
-                    ->map(function ($module) {
-                        return [
-                            'id' => $module->id,
-                            'code' => $module->code,
-                            'name' => $module->name,
-                            'description' => $module->description,
-                            'icon' => $module->icon,
-                            'is_core' => $module->is_core,
-                            'sub_modules' => $module->subModules->map(function ($subModule) {
-                                return [
-                                    'id' => $subModule->id,
-                                    'code' => $subModule->code,
-                                    'name' => $subModule->name,
-                                    'description' => $subModule->description,
-                                    'components' => $subModule->components->map(function ($component) {
-                                        return [
-                                            'id' => $component->id,
-                                            'code' => $component->code,
-                                            'name' => $component->name,
-                                            'description' => $component->description,
-                                            'type' => $component->type,
-                                            'actions' => $component->actions->map(function ($action) {
-                                                return [
-                                                    'id' => $action->id,
-                                                    'code' => $action->code,
-                                                    'name' => $action->name,
-                                                    'description' => $action->description,
-                                                ];
-                                            })->values(),
-                                        ];
-                                    })->values(),
-                                ];
-                            })->values(),
-                        ];
-                    });
+                        ->where('is_active', true)
+                        ->orderBy('priority')
+                        ->get()
+                        ->map(function ($module) {
+                            return [
+                                'id' => $module->id,
+                                'code' => $module->code,
+                                'name' => $module->name,
+                                'description' => $module->description,
+                                'icon' => $module->icon,
+                                'is_core' => $module->is_core,
+                                'sub_modules' => $module->subModules->map(function ($subModule) {
+                                    return [
+                                        'id' => $subModule->id,
+                                        'code' => $subModule->code,
+                                        'name' => $subModule->name,
+                                        'description' => $subModule->description,
+                                        'components' => $subModule->components->map(function ($component) {
+                                            return [
+                                                'id' => $component->id,
+                                                'code' => $component->code,
+                                                'name' => $component->name,
+                                                'description' => $component->description,
+                                                'type' => $component->type,
+                                                'actions' => $component->actions->map(function ($action) {
+                                                    return [
+                                                        'id' => $action->id,
+                                                        'code' => $action->code,
+                                                        'name' => $action->name,
+                                                        'description' => $action->description,
+                                                    ];
+                                                })->values(),
+                                            ];
+                                        })->values(),
+                                    ];
+                                })->values(),
+                            ];
+                        });
                 } catch (\Exception $e) {
-                    Log::warning('Could not load module hierarchy: ' . $e->getMessage());
+                    Log::warning('Could not load module hierarchy: '.$e->getMessage());
                 }
             }
 
@@ -171,6 +182,7 @@ class RoleController extends Controller
                 'role_has_permissions' => [], // Empty - not using permissions
                 'enterprise_modules' => [], // Empty - not using permissions
                 'module_hierarchy' => $moduleHierarchy, // NEW: Module hierarchy for permission assignment
+                'dashboard_options' => app(DashboardRegistry::class)->getDashboardOptions(), // Dashboard options for role assignment - no user filtering, show all available
                 'can_manage_super_admin' => $isSuperAdmin,
                 'is_platform_context' => false,
                 'users' => $users,
@@ -181,7 +193,7 @@ class RoleController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Failed to load role management interface: ' . $e->getMessage(), [
+            Log::error('Failed to load role management interface: '.$e->getMessage(), [
                 'stack_trace' => $e->getTraceAsString(),
             ]);
 
@@ -219,12 +231,25 @@ class RoleController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:roles,name',
             'description' => 'nullable|string|max:500',
+            'is_active' => 'nullable|boolean',
+            'default_dashboard' => 'nullable|string|max:100',
+            'priority' => 'nullable|integer|min:0|max:1000',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'errors' => $validator->errors(),
             ], 422);
+        }
+
+        // Validate dashboard route if provided
+        if ($request->filled('default_dashboard')) {
+            $dashboardRegistry = app(DashboardRegistry::class);
+            if (! $dashboardRegistry->isValid($request->default_dashboard)) {
+                return response()->json([
+                    'errors' => ['default_dashboard' => ['The selected dashboard is not valid.']],
+                ], 422);
+            }
         }
 
         DB::beginTransaction();
@@ -241,12 +266,24 @@ class RoleController extends Controller
                 'guard_name' => 'web',
             ]);
 
-            // Update description
+            // Update description and is_active
+            $updateData = [];
             if ($request->has('description')) {
-                DB::table('roles')->where('id', $role->id)->update([
-                    'description' => $request->description ?? null,
-                    'updated_at' => now(),
-                ]);
+                $updateData['description'] = $request->description ?? null;
+            }
+            if ($request->has('is_active')) {
+                $updateData['is_active'] = $request->boolean('is_active', true);
+            }
+            // Add default_dashboard and priority
+            if ($request->has('default_dashboard')) {
+                $updateData['default_dashboard'] = $request->default_dashboard;
+            }
+            if ($request->has('priority')) {
+                $updateData['priority'] = (int) $request->priority;
+            }
+            if (! empty($updateData)) {
+                $updateData['updated_at'] = now();
+                DB::table('roles')->where('id', $role->id)->update($updateData);
             }
 
             Log::info('Role created', [
@@ -254,6 +291,13 @@ class RoleController extends Controller
                 'role_name' => $role->name,
                 'created_by' => Auth::id(),
             ]);
+
+            // AUDIT: Log role creation
+            try {
+                app(AuditService::class)->logRoleCreated($role->fresh());
+            } catch (\Exception $e) {
+                Log::warning('Failed to create audit log for role creation: '.$e->getMessage());
+            }
 
             DB::commit();
             $this->clearCache();
@@ -265,7 +309,7 @@ class RoleController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Role creation failed: ' . $e->getMessage());
+            Log::error('Role creation failed: '.$e->getMessage());
 
             return response()->json([
                 'error' => 'Failed to create role',
@@ -280,8 +324,11 @@ class RoleController extends Controller
     public function updateRole(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:roles,name,' . $id,
+            'name' => 'required|string|max:255|unique:roles,name,'.$id,
             'description' => 'nullable|string|max:500',
+            'is_active' => 'nullable|boolean',
+            'default_dashboard' => 'nullable|string|max:100',
+            'priority' => 'nullable|integer|min:0|max:1000',
         ]);
 
         if ($validator->fails()) {
@@ -290,29 +337,60 @@ class RoleController extends Controller
             ], 422);
         }
 
+        // Validate dashboard route if provided
+        if ($request->filled('default_dashboard')) {
+            $dashboardRegistry = app(DashboardRegistry::class);
+            if (! $dashboardRegistry->isValid($request->default_dashboard)) {
+                return response()->json([
+                    'errors' => ['default_dashboard' => ['The selected dashboard is not valid.']],
+                ], 422);
+            }
+        }
+
         DB::beginTransaction();
 
         try {
-            $role = Role::findById($id);
+            $role = Role::find($id);
 
             if (! $role) {
                 return response()->json(['error' => 'Role not found'], 404);
             }
 
+            // SECURITY: Backend protection for protected roles
             if ($this->isProtectedRole($role)) {
                 return response()->json([
-                    'error' => 'Super Administrator role cannot be edited.',
+                    'error' => 'Cannot modify protected role. Protected roles (Super Administrator) cannot be edited.',
                 ], 403);
             }
+
+            // Capture old data for audit trail
+            $oldData = [
+                'name' => $role->name,
+                'description' => DB::table('roles')->where('id', $id)->value('description'),
+                'is_active' => DB::table('roles')->where('id', $id)->value('is_active'),
+            ];
 
             $role->name = $request->name;
             $role->save();
 
+            // Update additional fields
+            $updateData = [];
             if ($request->has('description')) {
-                DB::table('roles')->where('id', $role->id)->update([
-                    'description' => $request->description,
-                    'updated_at' => now(),
-                ]);
+                $updateData['description'] = $request->description;
+            }
+            if ($request->has('is_active')) {
+                $updateData['is_active'] = $request->boolean('is_active');
+            }
+            // Add default_dashboard and priority
+            if ($request->has('default_dashboard')) {
+                $updateData['default_dashboard'] = $request->default_dashboard;
+            }
+            if ($request->has('priority')) {
+                $updateData['priority'] = (int) $request->priority;
+            }
+            if (! empty($updateData)) {
+                $updateData['updated_at'] = now();
+                DB::table('roles')->where('id', $role->id)->update($updateData);
             }
 
             Log::info('Role updated', [
@@ -320,6 +398,20 @@ class RoleController extends Controller
                 'role_name' => $role->name,
                 'updated_by' => Auth::id(),
             ]);
+
+            // Capture new data for audit trail
+            $newData = [
+                'name' => $role->name,
+                'description' => $request->description ?? null,
+                'is_active' => $request->boolean('is_active') ?? $oldData['is_active'],
+            ];
+
+            // AUDIT: Log role update with changes
+            try {
+                app(AuditService::class)->logRoleUpdated($role->fresh(), $oldData, $newData);
+            } catch (\Exception $e) {
+                Log::warning('Failed to create audit log for role update: '.$e->getMessage());
+            }
 
             DB::commit();
             $this->clearCache();
@@ -331,7 +423,7 @@ class RoleController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Role update failed: ' . $e->getMessage());
+            Log::error('Role update failed: '.$e->getMessage());
 
             return response()->json([
                 'error' => 'Failed to update role',
@@ -348,15 +440,16 @@ class RoleController extends Controller
         DB::beginTransaction();
 
         try {
-            $role = Role::findById($id);
+            $role = Role::find($id);
 
             if (! $role) {
                 return response()->json(['error' => 'Role not found'], 404);
             }
 
+            // SECURITY: Backend protection for protected roles
             if ($this->isProtectedRole($role)) {
                 return response()->json([
-                    'error' => 'Super Administrator role cannot be deleted.',
+                    'error' => 'Cannot delete protected role. Protected roles (Super Administrator) are system-critical and cannot be removed.',
                 ], 403);
             }
 
@@ -373,6 +466,15 @@ class RoleController extends Controller
                 'deleted_by' => Auth::id(),
             ]);
 
+            // AUDIT: Log role deletion before actually deleting
+            try {
+                app(AuditService::class)->logRoleDeleted($role);
+            } catch (\Exception $e) {
+                Log::warning('Failed to create audit log for role deletion: '.$e->getMessage());
+            }
+
+            // Delete the role - the Role model's booted() deleting event handles module access cleanup
+            // and bootHasPermissions() override prevents Spatie from touching the permissions table
             $role->delete();
 
             DB::commit();
@@ -384,7 +486,7 @@ class RoleController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Role deletion failed: ' . $e->getMessage());
+            Log::error('Role deletion failed: '.$e->getMessage());
 
             return response()->json([
                 'error' => 'Failed to delete role',
@@ -434,7 +536,7 @@ class RoleController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Role assignment failed: ' . $e->getMessage());
+            Log::error('Role assignment failed: '.$e->getMessage());
 
             return response()->json([
                 'error' => 'Failed to assign roles',
@@ -462,7 +564,7 @@ class RoleController extends Controller
             TenantCache::forget('roles_with_users');
             app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
         } catch (\Exception $e) {
-            Log::warning('Cache clear failed: ' . $e->getMessage());
+            Log::warning('Cache clear failed: '.$e->getMessage());
         }
     }
 
@@ -501,10 +603,90 @@ class RoleController extends Controller
     public function refreshData()
     {
         $this->clearCache();
-        
+
         return response()->json([
             'message' => 'Data refreshed successfully',
             'timestamp' => now()->toISOString(),
         ]);
+    }
+
+    /**
+     * Toggle role active status (activate/deactivate)
+     * FEATURE: Role deactivation without deletion
+     */
+    public function toggleRoleStatus(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'is_active' => 'required|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $role = Role::find($id);
+
+            if (! $role) {
+                return response()->json(['error' => 'Role not found'], 404);
+            }
+
+            // SECURITY: Backend protection for protected roles
+            if ($this->isProtectedRole($role)) {
+                return response()->json([
+                    'error' => 'Cannot modify protected role status. Protected roles cannot be deactivated.',
+                ], 403);
+            }
+
+            $newStatus = $request->boolean('is_active');
+            $oldStatus = DB::table('roles')->where('id', $id)->value('is_active') ?? true;
+
+            // Update is_active status
+            DB::table('roles')->where('id', $role->id)->update([
+                'is_active' => $newStatus,
+                'updated_at' => now(),
+            ]);
+
+            $action = $newStatus ? 'activated' : 'deactivated';
+
+            Log::info("Role {$action}", [
+                'role_id' => $role->id,
+                'role_name' => $role->name,
+                'is_active' => $newStatus,
+                'changed_by' => Auth::id(),
+            ]);
+
+            // AUDIT: Log status change
+            try {
+                app(AuditService::class)->logRoleUpdated(
+                    $role->fresh(),
+                    ['is_active' => $oldStatus],
+                    ['is_active' => $newStatus]
+                );
+            } catch (\Exception $e) {
+                Log::warning('Failed to create audit log for role status change: '.$e->getMessage());
+            }
+
+            DB::commit();
+            $this->clearCache();
+
+            return response()->json([
+                'message' => "Role {$action} successfully",
+                'role' => $role->fresh(),
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Role status toggle failed: '.$e->getMessage());
+
+            return response()->json([
+                'error' => 'Failed to toggle role status',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

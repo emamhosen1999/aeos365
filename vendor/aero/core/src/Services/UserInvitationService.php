@@ -2,6 +2,7 @@
 
 namespace Aero\Core\Services;
 
+use Aero\Core\Mail\UserInvitationMail;
 use Aero\Core\Models\User;
 use Aero\Core\Models\UserInvitation;
 use Illuminate\Support\Facades\DB;
@@ -49,11 +50,12 @@ class UserInvitationService
                 ]);
             }
 
-            // TODO: Send invitation email
-            // Mail::to($invitation->email)
-            //     ->send(new UserInvitationMail($invitation));
+            // Send invitation email
+            Mail::to($invitation->email)
+                ->send(new UserInvitationMail($invitation));
 
             DB::commit();
+
             return $invitation;
         } catch (\Exception $e) {
             DB::rollBack();
@@ -83,7 +85,7 @@ class UserInvitationService
             ]);
 
             // Assign roles
-            if (!empty($invitation->roles)) {
+            if (! empty($invitation->roles)) {
                 $user->syncRoles($invitation->roles);
             }
 
@@ -91,6 +93,7 @@ class UserInvitationService
             $invitation->markAsAccepted();
 
             DB::commit();
+
             return $user;
         } catch (\Exception $e) {
             DB::rollBack();
@@ -115,9 +118,9 @@ class UserInvitationService
             'expires_at' => now()->addDays(7),
         ]);
 
-        // TODO: Send invitation email
-        // Mail::to($invitation->email)
-        //     ->send(new UserInvitationMail($invitation));
+        // Send invitation email
+        Mail::to($invitation->email)
+            ->send(new UserInvitationMail($invitation));
 
         return $invitation;
     }

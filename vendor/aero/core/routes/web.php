@@ -11,6 +11,9 @@ use Aero\Core\Http\Controllers\Auth\InvitationController;
 use Aero\Core\Http\Controllers\Auth\NewPasswordController;
 use Aero\Core\Http\Controllers\Auth\PasswordResetLinkController;
 use Aero\Core\Http\Controllers\DashboardController;
+use Aero\Core\Http\Controllers\Profile\NotificationPreferenceController;
+use Aero\Core\Http\Controllers\Profile\UserProfileImageController;
+use Aero\Core\Http\Controllers\Settings\NotificationSettingController;
 use Aero\Core\Http\Controllers\Settings\SystemSettingController;
 use Aero\Core\Services\PlatformErrorReporter;
 use Illuminate\Http\Request;
@@ -58,6 +61,28 @@ Route::get('/aero-core/health', function () {
     ]);
 })->name('core.health')->withoutMiddleware(['auth']);
 
+// PWA Manifest (Public - No Auth Required)
+Route::get('/manifest.json', function () {
+    $appName = config('app.name', 'aeos365');
+    $icon = asset('favicon.ico');
+
+    return response()->json([
+        'name' => $appName,
+        'short_name' => $appName,
+        'start_url' => '/',
+        'display' => 'standalone',
+        'background_color' => '#0f172a',
+        'theme_color' => '#0f172a',
+        'icons' => [
+            [
+                'src' => $icon,
+                'sizes' => '64x64 32x32 24x24 16x16',
+                'type' => 'image/x-icon',
+            ],
+        ],
+    ], 200, ['Content-Type' => 'application/manifest+json']);
+})->name('core.manifest')->withoutMiddleware(['auth']);
+
 // ERROR LOGGING API - Receives frontend errors and forwards to platform (No Auth Required)
 Route::post('/api/error-log', function (Request $request) {
     $reporter = app(PlatformErrorReporter::class);
@@ -68,7 +93,9 @@ Route::post('/api/error-log', function (Request $request) {
         'trace_id' => $traceId,
         'message' => 'Error reported successfully',
     ]);
-})->name('core.api.error-log')->middleware('throttle:30,1')->withoutMiddleware(['auth']);
+})->name('core.api.error-log')
+    ->middleware('throttle:30,1')
+    ->withoutMiddleware(['auth', \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
 // VERSION CHECK API - Public endpoint for frontend version checking (No Auth Required)
 Route::post('/api/version/check', function (Request $request) {
@@ -81,13 +108,58 @@ Route::post('/api/version/check', function (Request $request) {
         'server_version' => $serverVersion,
         'timestamp' => now()->toIso8601String(),
     ]);
-})->name('core.api.version.check')->middleware('throttle:30,1')->withoutMiddleware(['auth']);
+})->name('core.api.version.check')
+    ->middleware('throttle:30,1')
+    ->withoutMiddleware(['auth', \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
 // ============================================================================
-// ROOT ROUTE - Redirect to dashboard or login
+// ROOT ROUTE - Smart redirect to first accessible page
 // ============================================================================
 Route::get('/', function () {
-    return redirect('/dashboard');
+    // Check if HRMAC package is available for smart landing
+    if (class_exists('Aero\HRMAC\Contracts\RoleModuleAccessInterface')) {
+        $service = app(\Aero\HRMAC\Contracts\RoleModuleAccessInterface::class);
+        $user = auth()->user();
+
+        if ($user) {
+            // Super admin goes directly to dashboard
+            if ($user->hasRole(['Super Administrator', 'super-admin', 'tenant_super_administrator'])) {
+                return redirect()->route('core.dashboard');
+            }
+
+            // Check Dashboard access first
+            if ($service->userCanAccessSubModule($user, 'core', 'dashboard')) {
+                return redirect()->route('core.dashboard');
+            }
+
+            // Get first accessible route
+            $firstRoute = $service->getFirstAccessibleRoute($user);
+            if ($firstRoute) {
+                // Check if it's a named route
+                try {
+                    if (\Illuminate\Support\Facades\Route::has($firstRoute)) {
+                        return redirect()->route($firstRoute);
+                    }
+                } catch (\Exception $e) {
+                    // Not a named route
+                }
+
+                // Treat as URL path
+                $url = $firstRoute;
+                if (! str_starts_with($url, '/')) {
+                    $url = '/'.$url;
+                }
+
+                return redirect($url);
+            }
+
+            // No accessible routes - still redirect to dashboard (will show access denied)
+            return redirect()->route('core.dashboard');
+        }
+    }
+
+    // Fallback for standalone mode or when HRMAC isn't loaded
+    return redirect()->route('core.dashboard');
 })->middleware(['auth:web']);
 
 // ============================================================================
@@ -153,11 +225,19 @@ Route::middleware('auth:web')->group(function () {
         ->name('core.verification.send');
 
     // Dashboard Routes
-    // Named 'dashboard' for backward compatibility (previously 'core.dashboard')
-    // This allows route('dashboard') to work for tenant login redirects
-    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('dashboard/stats', [DashboardController::class, 'stats'])->name('core.dashboard.stats');
-    Route::get('dashboard/widget/{widgetKey}', [DashboardController::class, 'widgetData'])->name('core.dashboard.widget');
+    // All dashboard routes use 'core.dashboard.*' prefix for consistency
+    // This allows proper route grouping and makes route('core.dashboard') work consistently
+    // Protected by role.access middleware to enforce role_module_access table checks
+    // dashboard.redirect middleware redirects users to their role's assigned dashboard
+    $dashboardMiddleware = class_exists('Aero\HRMAC\Http\Middleware\CheckRoleModuleAccess')
+        ? ['dashboard.redirect', 'role.access:core,dashboard']
+        : ['dashboard.redirect'];
+
+    Route::middleware($dashboardMiddleware)->group(function () {
+        Route::get('dashboard', [DashboardController::class, 'index'])->name('core.dashboard');
+        Route::get('dashboard/stats', [DashboardController::class, 'stats'])->name('core.dashboard.stats');
+        Route::get('dashboard/widget/{widgetKey}', [DashboardController::class, 'widgetData'])->name('core.dashboard.widget');
+    });
 
     // Session & Auth Check Routes
     Route::get('/session-check', function () {
@@ -205,6 +285,12 @@ Route::middleware('auth:web')->group(function () {
         // Delete
         Route::delete('/{id}', [CoreUserController::class, 'destroy'])->name('destroy');
 
+        // Restore soft-deleted user
+        Route::post('/{id}/restore', [CoreUserController::class, 'restore'])->name('restore');
+
+        // Force delete (permanent)
+        Route::delete('/{id}/force', [CoreUserController::class, 'forceDelete'])->name('forceDelete');
+
         // Bulk operations
         Route::post('/bulk/toggle-status', [CoreUserController::class, 'bulkToggleStatus'])->name('bulk.toggleStatus');
         Route::post('/bulk/assign-roles', [CoreUserController::class, 'bulkAssignRoles'])->name('bulk.assignRoles');
@@ -212,9 +298,6 @@ Route::middleware('auth:web')->group(function () {
 
         // Export
         Route::post('/export', [CoreUserController::class, 'exportUsers'])->name('export');
-
-        // Restore
-        Route::post('/{id}/restore', [CoreUserController::class, 'restoreUser'])->name('restore');
 
         // Account Security
         Route::post('/{id}/lock', [CoreUserController::class, 'lockAccount'])->name('lock');
@@ -229,7 +312,13 @@ Route::middleware('auth:web')->group(function () {
         Route::get('/invitations/pending', [CoreUserController::class, 'pendingInvitations'])->name('invitations.pending');
         Route::post('/invitations/{invitation}/resend', [CoreUserController::class, 'resendInvitation'])->name('invitations.resend');
         Route::delete('/invitations/{invitation}', [CoreUserController::class, 'cancelInvitation'])->name('invitations.cancel');
+
+        // Impersonation
+        Route::post('/{id}/impersonate', [CoreUserController::class, 'startImpersonation'])->name('impersonate');
     });
+
+    // Impersonation Stop (separate from user management group - needs to work while impersonating)
+    Route::post('/impersonation/stop', [CoreUserController::class, 'stopImpersonation'])->name('core.impersonation.stop');
 
     // ========================================================================
     // DEVICE MANAGEMENT ROUTES (Security)
@@ -249,7 +338,9 @@ Route::middleware('auth:web')->group(function () {
     // ========================================================================
     // ROLE & PERMISSIONS MANAGEMENT
     // ========================================================================
-    Route::prefix('roles')->name('core.roles.')->group(function () {
+    // CRITICAL: Authorization middleware added for security
+    // Only users with 'manage-roles' capability can access these routes
+    Route::prefix('roles')->name('core.roles.')->middleware(['can:manage-roles'])->group(function () {
         // View
         Route::get('/', [RoleController::class, 'index'])->name('index');
         Route::get('/export', [RoleController::class, 'exportRoles'])->name('export');
@@ -261,6 +352,7 @@ Route::middleware('auth:web')->group(function () {
 
         // Update
         Route::put('/{id}', [RoleController::class, 'updateRole'])->name('update');
+        Route::patch('/{id}/toggle-status', [RoleController::class, 'toggleRoleStatus'])->name('toggle-status');
         Route::post('/assign-user', [RoleController::class, 'assignRolesToUser'])->name('assign-user');
 
         // Delete
@@ -270,7 +362,9 @@ Route::middleware('auth:web')->group(function () {
     // ========================================================================
     // MODULE REGISTRY MANAGEMENT
     // ========================================================================
-    Route::prefix('modules')->name('core.modules.')->group(function () {
+    // CRITICAL: Authorization middleware added for security
+    // Only users with 'manage-modules' capability can access these routes
+    Route::prefix('modules')->name('core.modules.')->middleware(['can:manage-modules'])->group(function () {
         // View
         Route::get('/', [ModuleController::class, 'index'])->name('index');
         Route::get('/api', [ModuleController::class, 'apiIndex'])->name('api.index');
@@ -279,7 +373,7 @@ Route::middleware('auth:web')->group(function () {
 
         // Role Access Management
         Route::get('/role-access/{roleId}', [ModuleController::class, 'getRoleAccess'])->name('role-access.show');
-        Route::post('/role-access/{roleId}', [ModuleController::class, 'syncRoleAccess'])->name('role-access.sync');
+        Route::post('/role-access/{roleId}/sync', [ModuleController::class, 'syncRoleAccess'])->name('role-access.sync');
 
         // Permission Sync
         Route::post('/{module}/sync-permissions', [ModuleController::class, 'syncModulePermissions'])->name('sync-permissions');
@@ -327,9 +421,23 @@ Route::middleware('auth:web')->group(function () {
     Route::prefix('settings')->name('core.settings.')->group(function () {
         // System Settings
         Route::get('/system', [SystemSettingController::class, 'index'])->name('system.index');
+        Route::get('/security', [SystemSettingController::class, 'index'])->name('security.index'); // Security settings
+        Route::get('/branding', [SystemSettingController::class, 'index'])->name('branding.index'); // Branding & appearance
+        Route::get('/localization', [SystemSettingController::class, 'index'])->name('localization.index'); // Localization settings
+        Route::get('/mail', [SystemSettingController::class, 'index'])->name('mail.index'); // Email (SMTP) settings
+        Route::get('/integrations', [SystemSettingController::class, 'index'])->name('integrations.index'); // API & integrations
         Route::put('/system', [SystemSettingController::class, 'update'])->name('system.update');
         Route::post('/system/test-email', [SystemSettingController::class, 'sendTestEmail'])->name('system.test-email');
         Route::post('/system/test-sms', [SystemSettingController::class, 'sendTestSms'])->name('system.test-sms');
+
+        // Notification Settings
+        Route::prefix('notifications')->name('notifications.')->group(function () {
+            Route::get('/', [NotificationSettingController::class, 'index'])->name('index');
+            Route::get('/stats', [NotificationSettingController::class, 'stats'])->name('stats');
+            Route::post('/', [NotificationSettingController::class, 'update'])->name('update');
+            Route::post('/retry', [NotificationSettingController::class, 'updateRetry'])->name('update-retry');
+            Route::post('/test-channel', [NotificationSettingController::class, 'testChannel'])->name('test-channel');
+        });
 
         // Domain Management (SaaS mode only - requires aero-platform)
         Route::prefix('domains')->name('domains.')->group(function () {
@@ -362,15 +470,59 @@ Route::middleware('auth:web')->group(function () {
     });
 
     // ========================================================================
+    // TWO-FACTOR AUTHENTICATION ROUTES
+    // ========================================================================
+    Route::prefix('auth/two-factor')->name('auth.two-factor.')->group(function () {
+        Route::get('/', [\Aero\Core\Http\Controllers\Auth\TwoFactorController::class, 'index'])->name('index');
+        Route::post('/setup', [\Aero\Core\Http\Controllers\Auth\TwoFactorController::class, 'setup'])->name('setup');
+        Route::post('/confirm', [\Aero\Core\Http\Controllers\Auth\TwoFactorController::class, 'confirm'])->name('confirm');
+        Route::post('/disable', [\Aero\Core\Http\Controllers\Auth\TwoFactorController::class, 'disable'])->name('disable');
+        Route::post('/regenerate-codes', [\Aero\Core\Http\Controllers\Auth\TwoFactorController::class, 'regenerateRecoveryCodes'])->name('regenerate-codes');
+        Route::get('/challenge', [\Aero\Core\Http\Controllers\Auth\TwoFactorController::class, 'challenge'])->name('challenge');
+        Route::post('/verify', [\Aero\Core\Http\Controllers\Auth\TwoFactorController::class, 'verify'])
+            ->middleware('throttle:5,1') // 5 attempts per minute
+            ->name('verify');
+    });
+
+    // ========================================================================
     // PROFILE ROUTES
     // ========================================================================
     Route::prefix('profile')->name('core.profile.')->group(function () {
         Route::get('/', function () {
-            return inertia('Core/Profile/Index', [
-                'title' => 'My Profile',
-                'user' => auth()->user(),
-            ]);
+            return redirect()->route('core.profile.security');
         })->name('index');
+
+        Route::get('/security', function () {
+            $user = auth()->user();
+
+            return inertia('Profile/Security', [
+                'title' => 'Security Settings',
+                'twoFactorEnabled' => ! empty($user->two_factor_secret) && ! empty($user->two_factor_enabled_at),
+                'remainingCodes' => ! empty($user->two_factor_recovery_codes)
+                    ? count(json_decode(\Illuminate\Support\Facades\Crypt::decryptString($user->two_factor_recovery_codes) ?: '[]', true))
+                    : 0,
+            ]);
+        })->name('security');
+
+        // Notification Preferences
+        Route::prefix('notifications')->name('notifications.')->group(function () {
+            Route::get('/', [NotificationPreferenceController::class, 'index'])->name('index');
+            Route::post('/', [NotificationPreferenceController::class, 'update'])->name('update');
+            Route::post('/global', [NotificationPreferenceController::class, 'updateGlobal'])->name('update-global');
+            Route::post('/reset', [NotificationPreferenceController::class, 'reset'])->name('reset');
+        });
+
+        // ====================================================================
+        // User Profile Image Routes
+        // ====================================================================
+        // These manage the User's identity/authentication profile image
+        // SEPARATE from Employee HR images which are managed in HRM package
+        // ====================================================================
+        Route::prefix('image')->name('image.')->group(function () {
+            Route::get('/{user}', [UserProfileImageController::class, 'show'])->name('show');
+            Route::post('/upload', [UserProfileImageController::class, 'upload'])->name('upload');
+            Route::delete('/remove', [UserProfileImageController::class, 'remove'])->name('remove');
+        });
     });
 
     // ========================================================================

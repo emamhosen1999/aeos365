@@ -1,14 +1,61 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Aero\HRM\Events\Leave;
 
+use Aero\HRM\Events\BaseHrmEvent;
 use Aero\HRM\Models\Leave;
-use Illuminate\Foundation\Events\Dispatchable;
-use Illuminate\Queue\SerializesModels;
 
-class LeaveApproved
+/**
+ * Leave Approved Event
+ *
+ * Dispatched when a leave request is approved.
+ * Triggers notification to the requesting employee.
+ */
+class LeaveApproved extends BaseHrmEvent
 {
-    use Dispatchable, SerializesModels;
+    public function __construct(
+        public Leave $leave,
+        ?int $approverEmployeeId = null,
+        array $metadata = []
+    ) {
+        parent::__construct($approverEmployeeId, $metadata);
+    }
 
-    public function __construct(public Leave $leave) {}
+    public function getSubModuleCode(): string
+    {
+        return 'leaves';
+    }
+
+    public function getComponentCode(): ?string
+    {
+        return 'leave-requests';
+    }
+
+    public function getActionCode(): string
+    {
+        return 'approve';
+    }
+
+    public function getEntityId(): int
+    {
+        return $this->leave->id;
+    }
+
+    public function getEntityType(): string
+    {
+        return 'leave';
+    }
+
+    public function getNotificationContext(): array
+    {
+        // Note: leave->employee() returns User not Employee model
+        // Core layer uses EmployeeServiceContract to resolve employee from user_id
+        return array_merge(parent::getNotificationContext(), [
+            'leave_id' => $this->leave->id,
+            'user_id' => $this->leave->user_id,
+            'approver_employee_id' => $this->getActorEmployeeId(),
+        ]);
+    }
 }

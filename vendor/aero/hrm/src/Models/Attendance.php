@@ -3,15 +3,47 @@
 namespace Aero\HRM\Models;
 
 use Aero\Core\Models\User;
+use Aero\HRM\Database\Factories\AttendanceFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
+/**
+ * Attendance Model
+ *
+ * @property int $id
+ * @property int $user_id
+ * @property int|null $attendance_type_id
+ * @property \Carbon\Carbon $date
+ * @property \Carbon\Carbon|null $punchin
+ * @property \Carbon\Carbon|null $punchout
+ * @property string|null $punchin_location
+ * @property string|null $punchout_location
+ * @property string|null $punchin_ip
+ * @property string|null $punchout_ip
+ * @property float|null $work_hours
+ * @property float|null $overtime_hours
+ * @property bool $is_late
+ * @property bool $is_early_leave
+ * @property string|null $status
+ * @property bool $is_manual
+ * @property string|null $adjustment_reason
+ * @property int|null $adjusted_by
+ * @property string|null $notes
+ * @property \Carbon\Carbon|null $created_at
+ * @property \Carbon\Carbon|null $updated_at
+ * @property-read User $user
+ */
 class Attendance extends Model implements HasMedia
 {
     use HasFactory, InteractsWithMedia;
+
+    protected static function newFactory(): AttendanceFactory
+    {
+        return AttendanceFactory::new();
+    }
 
     protected $fillable = [
         'user_id',
@@ -53,6 +85,33 @@ class Attendance extends Model implements HasMedia
     public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Get the employee associated with this attendance record.
+     * This is a convenience accessor that goes through the User relationship.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOneThrough|null
+     */
+    public function employee(): \Illuminate\Database\Eloquent\Relations\HasOneThrough
+    {
+        return $this->hasOneThrough(
+            Employee::class,
+            User::class,
+            'id',          // Foreign key on users table
+            'user_id',     // Foreign key on employees table
+            'user_id',     // Local key on attendances table
+            'id'           // Local key on users table
+        );
+    }
+
+    /**
+     * Get the employee_id attribute for convenience.
+     * Returns the employee ID associated with the attendance's user.
+     */
+    public function getEmployeeIdAttribute(): ?int
+    {
+        return $this->user?->employee?->id;
     }
 
     /**

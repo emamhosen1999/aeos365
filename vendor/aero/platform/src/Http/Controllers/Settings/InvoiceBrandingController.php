@@ -2,8 +2,8 @@
 
 namespace Aero\Platform\Http\Controllers\Settings;
 
-use Aero\Platform\Services\Billing\InvoiceBrandingService;
 use Aero\Platform\Http\Controllers\Controller;
+use Aero\Platform\Services\Billing\InvoiceBrandingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -29,7 +29,7 @@ class InvoiceBrandingController extends Controller
     {
         $branding = $this->brandingService->getTenantBranding();
 
-        return Inertia::render('Pages/Core/Settings/InvoiceBrandingSettings', [
+        return Inertia::render('Core/Settings/InvoiceBrandingSettings', [
             'branding' => $branding,
             'previewUrl' => route('settings.invoice-branding.preview'),
         ]);

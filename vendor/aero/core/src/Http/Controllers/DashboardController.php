@@ -4,12 +4,10 @@ namespace Aero\Core\Http\Controllers;
 
 use Aero\Core\Models\User;
 use Aero\Core\Services\DashboardWidgetRegistry;
+use Aero\HRMAC\Models\Role;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
-use Spatie\Permission\Models\Role;
-
-
 
 /**
  * Dashboard Controller
@@ -49,9 +47,9 @@ class DashboardController extends Controller
             }
         }
 
-        // Get dynamic widgets from registry (from Core + all modules)
+        // Get dynamic widgets from registry for Core dashboard only
         // The registry handles lazy loading and permission checks
-        $dynamicWidgets = $this->widgetRegistry->getWidgetsForFrontend();
+        $dynamicWidgets = $this->widgetRegistry->getWidgetsForFrontend('core');
 
         // Note: Navigation is provided by HandleInertiaRequests middleware
         // Do NOT pass 'navigation' here as it would override the middleware's prop

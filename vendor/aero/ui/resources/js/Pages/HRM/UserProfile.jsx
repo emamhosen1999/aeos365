@@ -53,6 +53,7 @@ import SalaryInformationForm from "@/Forms/HRM/SalaryInformationForm.jsx";
 import axios from 'axios';
 import {showToast} from '@/utils/toastUtils';
 import dayjs from 'dayjs';
+import { useHRMAC } from '@/Hooks/useHRMAC';
 import {AnimatePresence, motion} from 'framer-motion';
 
 const projects = [
@@ -79,8 +80,8 @@ const projects = [
     // Add other projects similarly...
 ];
 
-const UserProfile = ({ title, allUsers, report_to, departments, designations }) => {
-    const { auth } = usePage().props;
+const UserProfile = ({ title, allEmployees, report_to, departments, designations }) => {
+    const { auth, employee: employeeProp, user: userProp } = usePage().props;
     
     // Custom media queries
     const [isMobile, setIsMobile] = useState(false);
@@ -97,9 +98,19 @@ const UserProfile = ({ title, allUsers, report_to, departments, designations }) 
         return () => window.removeEventListener('resize', checkScreenSize);
     }, []);
     
-    const [user, setUser] = useState(usePage().props.user);
+    // Use employee data which now contains user fields through the relationship
+    // Maintain backward compatibility with old 'user' prop
+    const initialData = employeeProp || userProp || usePage().props.user;
+    const [user, setUser] = useState(initialData);
     const [selectedTab, setSelectedTab] = useState("overview");
     const [loading, setLoading] = useState(false);
+    
+    // For ProfileForm - we need to pass user_id for updates
+    // When using employee prop, the id should be user_id for the update endpoint
+    const userIdForUpdate = employeeProp ? employeeProp.user_id : initialData?.id;
+    
+    // HRMAC permissions
+    const { canUpdate, hasAccess, isSuperAdmin } = useHRMAC();
     
     // Unified modal state management
     const [modals, setModals] = useState({
@@ -139,11 +150,11 @@ const UserProfile = ({ title, allUsers, report_to, departments, designations }) 
         profile_views: 0
     });
 
-    // Check permissions
-    const canEditProfile = auth.permissions?.includes('profile.own.update') || 
-                          auth.permissions?.includes('profile.update') || 
-                          auth.user.id === user.id;
-    const canViewProfile = auth.permissions?.includes('profile.own.view') || 
+    // Permissions using HRMAC
+    // TODO: Update with correct HRMAC path once module hierarchy is defined for HRM
+    const canEditProfile = canUpdate("hrm.profile") || isSuperAdmin();
+    const canViewProfile = hasAccess("hrm.profile") || isSuperAdmin();
+    const canViewPayroll = hasAccess("hrm.payroll") || isSuperAdmin();
                           auth.permissions?.includes('profile.view') || 
                           auth.user.id === user.id;
 
@@ -718,7 +729,7 @@ const UserProfile = ({ title, allUsers, report_to, departments, designations }) 
                         <p className="text-default-500 text-sm mb-4">
                             Contact HR to assign your salary structure and compensation details.
                         </p>
-                        {canEditProfile && auth.permissions?.includes('hr.payroll.view') && (
+                        {canEditProfile && canViewPayroll && (
                             <Button
                                 color="primary"
                                 variant="bordered"
@@ -847,7 +858,7 @@ const UserProfile = ({ title, allUsers, report_to, departments, designations }) 
                 </div>
 
                 {/* Action Button for HR */}
-                {auth.permissions?.includes('hr.payroll.view') && (
+                {canViewPayroll && (
                     <div className="flex justify-center pt-4">
                         <Button
                             color="primary"
@@ -1150,7 +1161,7 @@ const UserProfile = ({ title, allUsers, report_to, departments, designations }) 
                         <div className="space-y-1">
                             <InfoRow 
                                 label="Employee ID" 
-                                value={user.employee_id} 
+                                value={user.employee_code || user.employee_id} 
                                 icon={<IdentificationIcon />}
                             />
                             <InfoRow 
@@ -1742,8 +1753,8 @@ const UserProfile = ({ title, allUsers, report_to, departments, designations }) 
             <AnimatePresence>
                 {modals.profile && (
                     <ProfileForm
-                        user={user}
-                        allUsers={allUsers}
+                        user={{...user, id: userIdForUpdate || user.id}}
+                        allUsers={allEmployees}
                         departments={departments}
                         designations={designations}
                         open={modals.profile}

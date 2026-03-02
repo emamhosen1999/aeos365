@@ -2,32 +2,23 @@
 
 namespace Aero\HRM\Http\Controllers\Employee;
 
+use Aero\Core\Models\User;
+use Aero\HRM\Http\Controllers\Controller;
 use Aero\HRM\Models\Department;
 use Aero\HRM\Models\Designation;
-use Aero\HRM\Http\Controllers\Controller;
-use Aero\Core\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class DesignationController extends Controller
 {
-    public function __construct()
-    {
-        // Apply authorization middleware or policies
-        $this->middleware('can:manage-designations');
-    }
-
     /**
      * Render the Designations page with dropdown data and stats.
      */
     public function index(Request $request): \Inertia\Response
     {
-        $managers = User::whereHas('roles', function ($q) {
-            $q->where('name', 'like', '%Manager%')
-                ->orWhere('name', 'like', '%Director%')
-                ->orWhere('name', 'like', '%Head%');
-        })->get(['id', 'name']);
+        // Get users with HRM employee management access for managers dropdown
+        $managers = $this->getUsersWithEmployeesAccess();
 
         $parentDesignations = Designation::whereNull('parent_id')
             ->orWhere('parent_id', 0)
@@ -42,7 +33,7 @@ class DesignationController extends Controller
         $departments = Department::all(['id', 'name']);
         $allDesignations = Designation::with('department')->orderBy('hierarchy_level', 'asc')->get();
 
-        return Inertia::render('Designations', [
+        return Inertia::render('HRM/Designations', [
             'title' => 'Designation Management',
             'designations' => [], // Loaded via frontend API
             'allDesignations' => $allDesignations,
@@ -59,7 +50,7 @@ class DesignationController extends Controller
      */
     public function getDesignations(Request $request)
     {
-        $query = Designation::with(['department', 'users']);
+        $query = Designation::with(['department', 'employees']);
 
         // Apply search
         if ($request->filled('search')) {
@@ -225,5 +216,19 @@ class DesignationController extends Controller
         ];
 
         return response()->json(['stats' => $stats]);
+    }
+
+    /**
+     * Get users with HRM employees access for manager dropdowns.
+     */
+    protected function getUsersWithEmployeesAccess(): \Illuminate\Support\Collection
+    {
+        try {
+            return \Aero\HRMAC\Facades\HRMAC::getUsersWithSubModuleAccess('hrm', 'employees')
+                ->map(fn ($user) => ['id' => $user->id, 'name' => $user->name]);
+        } catch (\Exception $e) {
+            // Fallback to all active users
+            return User::where('is_active', true)->get(['id', 'name']);
+        }
     }
 }

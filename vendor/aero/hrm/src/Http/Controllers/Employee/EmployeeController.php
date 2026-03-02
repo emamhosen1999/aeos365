@@ -2,14 +2,20 @@
 
 namespace Aero\HRM\Http\Controllers\Employee;
 
+use Aero\Core\Models\User;
+use Aero\HRM\Events\Employee\EmployeeCreated;
+use Aero\HRM\Events\Employee\EmployeePromoted;
+use Aero\HRM\Events\Employee\EmployeeTerminated;
+use Aero\HRM\Events\Employee\EmployeeUpdated;
+use Aero\HRM\Http\Controllers\Controller;
 use Aero\HRM\Models\AttendanceType;
 use Aero\HRM\Models\Department;
 use Aero\HRM\Models\Designation;
 use Aero\HRM\Models\Employee;
-use Aero\HRM\Http\Controllers\Controller;
-use Aero\HRM\Services\EmployeeOnboardingService;
 use Aero\HRM\Notifications\WelcomeEmployeeNotification;
-use Aero\Core\Models\User;
+use Aero\HRM\Services\EmployeeOnboardingService;
+use Aero\HRM\Services\HRMAuthorizationService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -36,7 +42,7 @@ class EmployeeController extends Controller
      */
     public function index()
     {
-        return Inertia::render('Pages/HRM/Employees/Index', [
+        return Inertia::render('HRM/EmployeeList', [
             'title' => 'Employee Management',
             'departments' => Department::where('is_active', true)->get(),
             'designations' => Designation::where('is_active', true)->get(),
@@ -50,6 +56,19 @@ class EmployeeController extends Controller
     public function index2()
     {
         return $this->index();
+    }
+
+    public function list(): JsonResponse
+    {
+        $employees = Employee::with('user:id,name')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Employee $employee) => [
+                'id' => $employee->id,
+                'name' => $employee->user?->name,
+            ]);
+
+        return response()->json($employees);
     }
 
     /**
@@ -159,7 +178,6 @@ class EmployeeController extends Controller
      * Converts an existing User to an Employee with automatic onboarding initialization.
      * This is the recommended way to create employees from existing users.
      *
-     * @param  Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function onboard(Request $request)
@@ -268,7 +286,6 @@ class EmployeeController extends Controller
      * Processes multiple users with same employment details.
      * Each user is processed in its own transaction for isolation.
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function bulkOnboard(Request $request)
@@ -309,6 +326,7 @@ class EmployeeController extends Controller
                         'message' => 'User already has an employee record',
                     ];
                     DB::rollBack();
+
                     continue;
                 }
 
@@ -365,7 +383,7 @@ class EmployeeController extends Controller
 
                 $failedResults[] = [
                     'user_id' => $userId,
-                    'message' => 'Failed: ' . $e->getMessage(),
+                    'message' => 'Failed: '.$e->getMessage(),
                 ];
             }
         }
@@ -451,6 +469,13 @@ class EmployeeController extends Controller
             // Send welcome notification
             $user->notify(new WelcomeEmployeeNotification($employee, $onboarding));
 
+            // Dispatch EmployeeCreated event
+            event(new EmployeeCreated($employee, Auth::id(), [
+                'onboarding_enabled' => true,
+                'send_welcome_email' => true,
+                'onboarding_id' => $onboarding->id,
+            ]));
+
             DB::commit();
 
             // Load relationships for response
@@ -475,12 +500,12 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Display the specified employee
+     * Display the specified employee profile
      */
     public function show($id)
     {
         // Try to find by employee ID first, then by user ID
-        $employee = Employee::with(['user', 'department', 'designation', 'manager'])
+        $employee = Employee::with(['user', 'department', 'designation', 'manager.user'])
             ->where('id', $id)
             ->orWhere('user_id', $id)
             ->first();
@@ -489,7 +514,9 @@ class EmployeeController extends Controller
             // Fallback: Check if user exists but has no employee record
             $user = User::find($id);
             if ($user) {
-                return response()->json([
+                // Redirect to create employee profile or show message
+                return Inertia::render('HRM/UserProfile', [
+                    'title' => 'Employee Profile',
                     'employee' => [
                         'id' => null,
                         'user_id' => $user->id,
@@ -499,13 +526,30 @@ class EmployeeController extends Controller
                         'is_employee' => false,
                         'message' => 'User exists but has no employee record',
                     ],
+                    'allUsers' => User::where('active', true)->get(['id', 'name', 'email']),
+                    'report_to' => Employee::with('user:id,name')->get()->map(fn ($e) => [
+                        'id' => $e->id,
+                        'name' => $e->user?->name,
+                    ]),
+                    'departments' => Department::where('is_active', true)->get(['id', 'name']),
+                    'designations' => Designation::where('is_active', true)->get(['id', 'title']),
                 ]);
             }
 
-            return response()->json(['error' => 'Employee not found'], 404);
+            abort(404, 'Employee not found');
         }
 
-        return response()->json(['employee' => $this->transformEmployee($employee)]);
+        return Inertia::render('HRM/UserProfile', [
+            'title' => $employee->user?->name ?? 'Employee Profile',
+            'employee' => $this->transformEmployee($employee),
+            'allUsers' => User::where('active', true)->get(['id', 'name', 'email']),
+            'report_to' => Employee::with('user:id,name')->get()->map(fn ($e) => [
+                'id' => $e->id,
+                'name' => $e->user?->name,
+            ]),
+            'departments' => Department::where('is_active', true)->get(['id', 'name']),
+            'designations' => Designation::where('is_active', true)->get(['id', 'title']),
+        ]);
     }
 
     /**
@@ -549,9 +593,20 @@ class EmployeeController extends Controller
 
             DB::beginTransaction();
 
+            // Capture original values before update for change tracking
+            $originalDesignation = $employee->designation_id;
+            $originalDepartment = $employee->department_id;
+            $originalSalary = $employee->basic_salary;
+            $changes = [];
+
             // Update User fields
             $userFields = array_intersect_key($validated, array_flip(['name', 'email', 'phone', 'active', 'attendance_type_id']));
             if (! empty($userFields)) {
+                foreach ($userFields as $key => $value) {
+                    if ($value != $user->$key) {
+                        $changes[$key] = ['old' => $user->$key, 'new' => $value];
+                    }
+                }
                 $user->update($userFields);
             }
 
@@ -561,7 +616,35 @@ class EmployeeController extends Controller
                 'employment_type', 'date_of_joining',
             ]));
             if (! empty($employeeFields)) {
+                foreach ($employeeFields as $key => $value) {
+                    if ($value != $employee->$key) {
+                        $changes[$key] = ['old' => $employee->$key, 'new' => $value];
+                    }
+                }
                 $employee->update($employeeFields);
+            }
+
+            // Dispatch EmployeeUpdated event if there are changes
+            if (! empty($changes)) {
+                event(new EmployeeUpdated($employee, $changes, Auth::id()));
+            }
+
+            // Detect promotion (designation or department change with salary increase)
+            $isPromotion = isset($changes['designation_id']) ||
+                          (isset($changes['department_id']) && isset($changes['basic_salary']) &&
+                           $changes['basic_salary']['new'] > $changes['basic_salary']['old']);
+
+            if ($isPromotion) {
+                event(new EmployeePromoted(
+                    $employee,
+                    $originalDesignation,
+                    $employee->designation_id,
+                    $originalDepartment,
+                    $employee->department_id,
+                    $originalSalary,
+                    $employee->basic_salary,
+                    $request->input('promotion_reason', 'Performance-based promotion')
+                ));
             }
 
             DB::commit();
@@ -627,6 +710,16 @@ class EmployeeController extends Controller
 
             // Deactivate user
             $employee->user->update(['active' => false]);
+
+            // Dispatch EmployeeTerminated event
+            event(new EmployeeTerminated(
+                $employee,
+                now(),
+                now(), // last working date is now for immediate termination
+                'Employee terminated via admin action',
+                true, // immediate
+                Auth::id()
+            ));
 
             DB::commit();
 
@@ -848,28 +941,36 @@ class EmployeeController extends Controller
 
     /**
      * Check if current user can modify the employee
+     *
+     * Uses HRMAuthorizationService for permission-based access control
+     * instead of hardcoded role checks.
      */
     private function canModifyEmployee($currentUser, Employee $employee): bool
     {
-        if ($currentUser->hasAnyRole(['Super Administrator', 'Administrator', 'HR Manager'])) {
-            return true;
-        }
-
-        // Department managers can modify employees in their department
-        if ($currentUser->hasRole('Department Manager')) {
-            $currentUserEmployee = Employee::where('user_id', $currentUser->id)->first();
-            if ($currentUserEmployee && $currentUserEmployee->department_id === $employee->department_id) {
-                return true;
-            }
-        }
-
-        if ($currentUser->can('users.update')) {
-            return true;
-        }
+        $authService = app(HRMAuthorizationService::class);
 
         // Users can modify their own profile
         if ($currentUser->id === $employee->user_id) {
             return true;
+        }
+
+        // Check via authorization service - uses module access system
+        if ($authService->canManageEmployees($currentUser)) {
+            return true;
+        }
+
+        // Department scope: Check if manager of the same department
+        $currentEmployee = Employee::where('user_id', $currentUser->id)->first();
+        if ($currentEmployee) {
+            // Check if current user is manager of target employee's department
+            if ($authService->canManageDepartment($currentUser, $employee->department_id)) {
+                return true;
+            }
+
+            // Check if current user is the direct manager of the employee
+            if ($employee->manager_id === $currentUser->id) {
+                return true;
+            }
         }
 
         return false;
@@ -878,6 +979,12 @@ class EmployeeController extends Controller
     /**
      * Check if current user can delete the employee
      */
+    /**
+     * Check if current user can delete the employee
+     *
+     * Uses HRMAuthorizationService for permission-based access control
+     * instead of hardcoded role checks.
+     */
     private function canDeleteEmployee($currentUser, Employee $employee): bool
     {
         // Cannot delete yourself
@@ -885,15 +992,10 @@ class EmployeeController extends Controller
             return false;
         }
 
-        if ($currentUser->hasAnyRole(['Super Administrator', 'Administrator', 'HR Manager'])) {
-            return true;
-        }
+        $authService = app(HRMAuthorizationService::class);
 
-        if ($currentUser->can('users.delete')) {
-            return true;
-        }
-
-        return false;
+        // Check via authorization service - uses module access system
+        return $authService->canManageEmployees($currentUser);
     }
 
     /**
@@ -1010,19 +1112,22 @@ class EmployeeController extends Controller
     /**
      * Get users who haven't been onboarded as employees yet (pending onboarding).
      *
+     * Only shows users who have the "Employee" role (but may have other roles too).
      * Used by UI to display users that can be converted to employees.
      *
-     * @param  Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function getPendingOnboarding(Request $request)
     {
         try {
             $query = User::whereDoesntHave('employee')
+                ->whereHas('roles', function ($q) {
+                    $q->where('name', 'Employee');
+                })
                 ->when($request->search, function ($query, $search) {
                     $query->where(function ($q) use ($search) {
                         $q->where('name', 'like', "%{$search}%")
-                          ->orWhere('email', 'like', "%{$search}%");
+                            ->orWhere('email', 'like', "%{$search}%");
                     });
                 })
                 ->with('roles')
@@ -1046,27 +1151,26 @@ class EmployeeController extends Controller
     /**
      * Get onboarding analytics data
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function getOnboardingAnalytics(Request $request)
     {
         try {
             $days = $request->get('days', 30);
-            
+
             // Validate days parameter
-            if (!is_numeric($days) || $days < 1 || $days > 365) {
+            if (! is_numeric($days) || $days < 1 || $days > 365) {
                 return response()->json([
                     'error' => 'Days parameter must be between 1 and 365',
                 ], 400);
             }
-            
+
             // Get analytics data with caching (5 minutes)
             $cacheKey = "onboarding_analytics_{$days}_days";
             $analytics = cache()->remember($cacheKey, 300, function () use ($days) {
                 return \Aero\HRM\Models\Onboarding::getAnalytics((int) $days);
             });
-            
+
             return response()->json($analytics);
         } catch (\Exception $e) {
             Log::error('Failed to fetch onboarding analytics', [
@@ -1074,7 +1178,7 @@ class EmployeeController extends Controller
                 'trace' => $e->getTraceAsString(),
                 'user' => Auth::id(),
             ]);
-            
+
             return response()->json([
                 'error' => 'Failed to fetch onboarding analytics',
                 'message' => $e->getMessage(),

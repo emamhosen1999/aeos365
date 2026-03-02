@@ -39,29 +39,37 @@ import {
 import StatsCards from "@/Components/StatsCards.jsx";
 import LeaveAnalytics from "@/Components/Leave/LeaveAnalytics.jsx";
 import {useTheme} from '@/Context/ThemeContext.jsx';
-import {useMediaQuery} from '@/Hooks/useMediaQuery.js';
+import {useThemeRadius} from '@/Hooks/useThemeRadius.js';
+import {useHRMAC} from '@/Hooks/useHRMAC';
 import App from "@/Layouts/App.jsx";
+import StandardPageLayout from '@/Layouts/StandardPageLayout.jsx';
 import axios from 'axios';
 
 const LeaveSummary = ({ title, summaryData }) => {
     const { theme } = useTheme();
-    const isMobile = useMediaQuery('(max-width: 640px)');
-    const isLargeScreen = useMediaQuery('(min-width: 1025px)');
-    const isMediumScreen = useMediaQuery('(min-width: 641px) and (max-width: 1024px)');
+    const themeRadius = useThemeRadius();
     
-    // Theme radius helper function (matching DailyWorksTable)
-    const getThemeRadius = () => {
-        if (typeof window === 'undefined') return 'lg';
+    // Manual responsive state management (HRMAC pattern)
+    const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
+    
+    useEffect(() => {
+        const checkScreenSize = () => {
+            setIsMobile(window.innerWidth < 640);
+            setIsTablet(window.innerWidth < 768);
+        };
         
-        const radiusValue = parseInt(getComputedStyle(document.documentElement)
-            .getPropertyValue('--borderRadius')?.trim() || '12');
-        
-        if (radiusValue === 0) return 'none';
-        if (radiusValue <= 4) return 'sm';
-        if (radiusValue <= 8) return 'md';
-        if (radiusValue <= 16) return 'lg';
-        return 'full';
-    };
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
+    
+    // HRMAC permissions
+    const { hasAccess, isSuperAdmin } = useHRMAC();
+    
+    // TODO: Update with actual HRMAC module hierarchy path once defined
+    const canViewSummary = hasAccess('hrm.leaves.summary') || isSuperAdmin();
+    const canExportSummary = hasAccess('hrm.leaves.export') || isSuperAdmin();
     
     // Destructure summary data
     const {
@@ -381,148 +389,56 @@ const LeaveSummary = ({ title, summaryData }) => {
         return Array.from({ length: 10 }, (_, i) => currentYear - i);
     }, []);
 
+    // Action buttons for StandardPageLayout
+    const actionButtons = useMemo(() => (
+        <>
+            {canExportSummary && (
+                <>
+                    <Button
+                        color="success"
+                        variant="flat"
+                        onPress={exportExcel}
+                        startContent={<DocumentArrowDownIcon className="w-4 h-4" />}
+                        size={isMobile ? "sm" : "md"}
+                        radius={themeRadius}
+                        isDisabled={loading || filteredData.length === 0 || downloading !== ''}
+                        isLoading={downloading === 'excel'}
+                        aria-label="Export leave summary as Excel file"
+                    >
+                        {isMobile ? 'XLS' : 'Excel'}
+                    </Button>
+                    <Button
+                        color="danger"
+                        variant="flat"
+                        onPress={exportPDF}
+                        startContent={<DocumentArrowDownIcon className="w-4 h-4" />}
+                        size={isMobile ? "sm" : "md"}
+                        radius={themeRadius}
+                        isDisabled={loading || filteredData.length === 0 || downloading !== ''}
+                        isLoading={downloading === 'pdf'}
+                        aria-label="Export leave summary as PDF file"
+                    >
+                        {isMobile ? 'PDF' : 'PDF'}
+                    </Button>
+                </>
+            )}
+        </>
+    ), [canExportSummary, isMobile, themeRadius, loading, filteredData.length, downloading, exportExcel, exportPDF]);
+
     return (
         <>
             <Head title={title} />
             
-            <div 
-                className="flex flex-col w-full h-full p-4"
-                role="main"
-                aria-label="Leave Summary"
+            <StandardPageLayout
+                title="Leave Summary"
+                subtitle="Employee leave analytics and reporting"
+                icon={<PresentationChartLineIcon />}
+                actions={actionButtons}
+                stats={<StatsCards stats={statsData} isLoading={loading} />}
+                ariaLabel="Leave Summary"
             >
-                <div className="space-y-4">
-                    <div className="w-full">
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            transition={{ duration: 0.5 }}
-                        >
-                            <Card 
-                                className="transition-all duration-200"
-                                style={{
-                                    border: `var(--borderWidth, 2px) solid transparent`,
-                                    borderRadius: `var(--borderRadius, 12px)`,
-                                    fontFamily: `var(--fontFamily, "Inter")`,
-                                    transform: `scale(var(--scale, 1))`,
-                                    background: `linear-gradient(135deg, 
-                                        var(--theme-content1, #FAFAFA) 20%, 
-                                        var(--theme-content2, #F4F4F5) 10%, 
-                                        var(--theme-content3, #F1F3F4) 20%)`,
-                                }}
-                            >
-                                <CardHeader 
-                                    className="border-b p-0"
-                                    style={{
-                                        borderColor: `var(--theme-divider, #E4E4E7)`,
-                                        background: `linear-gradient(135deg, 
-                                            color-mix(in srgb, var(--theme-content1) 50%, transparent) 20%, 
-                                            color-mix(in srgb, var(--theme-content2) 30%, transparent) 10%)`,
-                                    }}
-                                >
-                                    <div className={`${!isMobile ? 'p-6' : 'p-4'} w-full`}>
-                                        <div className="flex flex-col space-y-4">
-                                            {/* Main Header Content */}
-                                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                                                {/* Title Section */}
-                                                <div className="flex items-center gap-3 lg:gap-4">
-                                                    <div 
-                                                        className={`
-                                                            ${!isMobile ? 'p-3' : 'p-2'} 
-                                                            rounded-xl flex items-center justify-center
-                                                        `}
-                                                        style={{
-                                                            background: `color-mix(in srgb, var(--theme-primary) 15%, transparent)`,
-                                                            borderColor: `color-mix(in srgb, var(--theme-primary) 25%, transparent)`,
-                                                            borderWidth: `var(--borderWidth, 2px)`,
-                                                            borderRadius: `var(--borderRadius, 12px)`,
-                                                        }}
-                                                    >
-                                                        <PresentationChartLineIcon 
-                                                            className={`
-                                                                ${!isMobile ? 'w-8 h-8' : 'w-6 h-6'}
-                                                            `}
-                                                            style={{ color: 'var(--theme-primary)' }}
-                                                        />
-                                                    </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <h4 
-                                                            className={`
-                                                                ${!isMobile ? 'text-2xl' : 'text-xl'}
-                                                                font-bold text-foreground
-                                                                ${isMobile ? 'truncate' : ''}
-                                                            `}
-                                                            style={{
-                                                                fontFamily: `var(--fontFamily, "Inter")`,
-                                                            }}
-                                                        >
-                                                            Leave Summary
-                                                        </h4>
-                                                        <p 
-                                                            className={`
-                                                                ${!isMobile ? 'text-sm' : 'text-xs'} 
-                                                                text-default-500
-                                                                ${isMobile ? 'truncate' : ''}
-                                                            `}
-                                                            style={{
-                                                                fontFamily: `var(--fontFamily, "Inter")`,
-                                                            }}
-                                                        >
-                                                            Employee leave analytics and reporting
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                
-                                                {/* Action Buttons */}
-                                                <div className="flex gap-2 flex-wrap">
-                                                   
-                                                    
-                                                    {/* Export Buttons */}
-                                                    <Button
-                                                        color="success"
-                                                        variant="flat"
-                                                        onPress={exportExcel}
-                                                        startContent={<DocumentArrowDownIcon className="w-4 h-4" />}
-                                                        size={isMobile ? "sm" : "md"}
-                                                        radius={getThemeRadius()}
-                                                        isDisabled={loading || filteredData.length === 0 || downloading !== ''}
-                                                        isLoading={downloading === 'excel'}
-                                                        className="font-semibold"
-                                                        aria-label="Export leave summary as Excel file"
-                                                        style={{
-                                                            fontFamily: `var(--fontFamily, "Inter")`,
-                                                        }}
-                                                    >
-                                                        {isMobile ? 'XLS' : 'Excel'}
-                                                    </Button>
-                                                    <Button
-                                                        color="danger"
-                                                        variant="flat"
-                                                        onPress={exportPDF}
-                                                        startContent={<DocumentArrowDownIcon className="w-4 h-4" />}
-                                                        size={isMobile ? "sm" : "md"}
-                                                        radius={getThemeRadius()}
-                                                        isDisabled={loading || filteredData.length === 0 || downloading !== ''}
-                                                        isLoading={downloading === 'pdf'}
-                                                        className="font-semibold"
-                                                        aria-label="Export leave summary as PDF file"
-                                                        style={{
-                                                            fontFamily: `var(--fontFamily, "Inter")`,
-                                                        }}
-                                                    >
-                                                        PDF
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </CardHeader>
-
-                                <CardBody className="p-6">
-                                    {/* Enhanced Stats */}
-                                    <StatsCards stats={statsData} className="mb-6" isLoading={loading} />
-                                        
-                                    {/* Enhanced Filters Section - Compact and Consistent */}
-                                    <div className="space-y-3 mb-6">
+                {/* Enhanced Filters Section - Compact and Consistent */}
+                <div className="space-y-3 mb-6">
                                         {/* Search Bar */}
                                         <div className="flex flex-col lg:flex-row gap-3">
                                             <div className="flex-1">
@@ -534,7 +450,7 @@ const LeaveSummary = ({ title, summaryData }) => {
                                                     onChange={(e) => setSearchValue(e.target.value)}
                                                     variant="bordered"
                                                     size="sm"
-                                                    radius={getThemeRadius()}
+                                                    radius={themeRadius}
                                                     aria-label="Search employees by name or department"
                                                     classNames={{
                                                         base: "max-w-full",
@@ -559,7 +475,7 @@ const LeaveSummary = ({ title, summaryData }) => {
                                                     onPress={() => setShowFilters(!showFilters)}
                                                     startContent={<AdjustmentsHorizontalIcon className="w-3 h-3" />}
                                                     size="sm"
-                                                    radius={getThemeRadius()}
+                                                    radius={themeRadius}
                                                     aria-label={showFilters ? 'Hide filters panel' : 'Show filters panel'}
                                                     className={showFilters 
                                                         ? 'bg-primary-50 border-primary-200 text-primary-700 font-medium h-10 text-xs' 
@@ -592,7 +508,7 @@ const LeaveSummary = ({ title, summaryData }) => {
                                                             placeholder="Select year"
                                                             variant="bordered"
                                                             size="sm"
-                                                            radius={getThemeRadius()}
+                                                            radius={themeRadius}
                                                             selectedKeys={[String(currentFilters.year || year)]}
                                                             onSelectionChange={(keys) => {
                                                                 const selectedYear = Array.from(keys)[0];
@@ -625,7 +541,7 @@ const LeaveSummary = ({ title, summaryData }) => {
                                                             placeholder="Select department"
                                                             variant="bordered"
                                                             size="sm"
-                                                            radius={getThemeRadius()}
+                                                            radius={themeRadius}
                                                             selectedKeys={currentFilters.department_id ? [String(currentFilters.department_id)] : []}
                                                             onSelectionChange={(keys) => {
                                                                 const deptId = Array.from(keys)[0];
@@ -659,7 +575,7 @@ const LeaveSummary = ({ title, summaryData }) => {
                                                             placeholder="Select status"
                                                             variant="bordered"
                                                             size="sm"
-                                                            radius={getThemeRadius()}
+                                                            radius={themeRadius}
                                                             selectedKeys={currentFilters.status ? [currentFilters.status] : []}
                                                             onSelectionChange={(keys) => {
                                                                 const status = Array.from(keys)[0];
@@ -695,7 +611,7 @@ const LeaveSummary = ({ title, summaryData }) => {
                                                             variant="flat"
                                                             onPress={clearFilters}
                                                             size="sm"
-                                                            radius={getThemeRadius()}
+                                                            radius={themeRadius}
                                                             startContent={<XCircleIcon className="w-3 h-3" />}
                                                             className="bg-primary-50 text-primary-700 border-primary-200 font-medium hover:bg-primary-100 h-8 text-xs"
                                                             aria-label="Clear all applied filters"
@@ -723,7 +639,7 @@ const LeaveSummary = ({ title, summaryData }) => {
                                                 selectedKey={selectedTab}
                                                 onSelectionChange={setSelectedTab}
                                                 variant="underlined"
-                                                radius={getThemeRadius()}
+                                                radius={themeRadius}
                                                 aria-label="Leave summary view options"
                                                 classNames={{
                                                     tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider",
@@ -819,7 +735,7 @@ const LeaveSummary = ({ title, summaryData }) => {
                                                                 isStriped
                                                                 aria-label="Employee leave summary table"
                                                                 isHeaderSticky
-                                                                radius={getThemeRadius()}
+                                                                radius={themeRadius}
                                                             classNames={{
                                                                 base: "max-h-[520px] overflow-auto",
                                                                 table: "min-h-[200px] w-full table-fixed border border-default-200",
@@ -953,7 +869,7 @@ const LeaveSummary = ({ title, summaryData }) => {
                                                                     total={totalPages}
                                                                     onChange={setPage}
                                                                     size={isMobile ? "sm" : "md"}
-                                                                    radius={getThemeRadius()}
+                                                                    radius={themeRadius}
                                                                     aria-label={`Pagination navigation for leave summary, page ${page} of ${totalPages}`}
                                                                     classNames={{
                                                                         wrapper: "bg-content1/80 backdrop-blur-md border-divider/50",
@@ -971,7 +887,7 @@ const LeaveSummary = ({ title, summaryData }) => {
                                                 ) : (
                                                     <Card 
                                                         className="bg-white/5 backdrop-blur-md border-white/10"
-                                                        radius={getThemeRadius()}
+                                                        radius={themeRadius}
                                                         style={{
                                                             border: `var(--borderWidth, 1px) solid var(--theme-divider, rgba(255, 255, 255, 0.1))`,
                                                             borderRadius: `var(--borderRadius, 12px)`,
@@ -1015,7 +931,7 @@ const LeaveSummary = ({ title, summaryData }) => {
                                                         isStriped
                                                         aria-label="Department leave summary table"
                                                         isHeaderSticky
-                                                        radius={getThemeRadius()}
+                                                        radius={themeRadius}
                                                         classNames={{
                                                             base: "max-h-[520px] overflow-auto",
                                                             table: "min-h-[200px] w-full table-fixed border border-default-200",
@@ -1136,13 +1052,7 @@ const LeaveSummary = ({ title, summaryData }) => {
                                             </div>
                                         )}
                                     </div>
-                         
-                                </CardBody>
-                            </Card>
-                        </motion.div>
-                    </div>
-                </div>
-            </div>
+            </StandardPageLayout>
         </>
     );
 };

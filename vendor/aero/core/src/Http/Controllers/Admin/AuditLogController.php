@@ -15,7 +15,7 @@ class AuditLogController extends Controller
      */
     public function index(): Response
     {
-        return Inertia::render('Pages/Core/AuditLogs/Index', [
+        return Inertia::render('Core/AuditLogs/Index', [
             'title' => 'Audit & Activity Logs',
         ]);
     }
@@ -33,7 +33,7 @@ class AuditLogController extends Controller
         $dateTo = $request->get('date_to');
 
         // Check if activity_log table exists
-        if (!$this->tableExists('activity_log')) {
+        if (! $this->tableExists('activity_log')) {
             return response()->json([
                 'data' => [],
                 'meta' => [
@@ -105,7 +105,7 @@ class AuditLogController extends Controller
         $dateTo = $request->get('date_to');
 
         // Check if security_logs table exists
-        if (!$this->tableExists('security_logs')) {
+        if (! $this->tableExists('security_logs')) {
             return response()->json([
                 'data' => [],
                 'meta' => [

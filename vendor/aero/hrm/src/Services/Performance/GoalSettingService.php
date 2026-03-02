@@ -3,7 +3,6 @@
 namespace Aero\HRM\Services\Performance;
 
 use Carbon\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -19,38 +18,91 @@ class GoalSettingService
      * Goal types.
      */
     public const TYPE_INDIVIDUAL = 'individual';
+
     public const TYPE_TEAM = 'team';
+
     public const TYPE_DEPARTMENT = 'department';
+
     public const TYPE_COMPANY = 'company';
 
     /**
      * Goal statuses.
      */
     public const STATUS_DRAFT = 'draft';
+
     public const STATUS_PENDING_APPROVAL = 'pending_approval';
+
     public const STATUS_ACTIVE = 'active';
+
     public const STATUS_ON_TRACK = 'on_track';
+
     public const STATUS_AT_RISK = 'at_risk';
+
     public const STATUS_BEHIND = 'behind';
+
     public const STATUS_COMPLETED = 'completed';
+
     public const STATUS_CANCELLED = 'cancelled';
 
     /**
      * Goal priority levels.
      */
     public const PRIORITY_LOW = 'low';
+
     public const PRIORITY_MEDIUM = 'medium';
+
     public const PRIORITY_HIGH = 'high';
+
     public const PRIORITY_CRITICAL = 'critical';
 
     /**
      * Key result measurement types.
      */
     public const MEASURE_PERCENTAGE = 'percentage';
+
     public const MEASURE_NUMBER = 'number';
+
     public const MEASURE_CURRENCY = 'currency';
+
     public const MEASURE_BOOLEAN = 'boolean';
+
     public const MEASURE_MILESTONE = 'milestone';
+
+    /**
+     * Aggregated arrays for frontend consumption.
+     */
+    public const TYPES = [
+        ['value' => self::TYPE_INDIVIDUAL, 'label' => 'Individual'],
+        ['value' => self::TYPE_TEAM, 'label' => 'Team'],
+        ['value' => self::TYPE_DEPARTMENT, 'label' => 'Department'],
+        ['value' => self::TYPE_COMPANY, 'label' => 'Company'],
+    ];
+
+    public const STATUSES = [
+        ['value' => self::STATUS_DRAFT, 'label' => 'Draft', 'color' => 'default'],
+        ['value' => self::STATUS_PENDING_APPROVAL, 'label' => 'Pending Approval', 'color' => 'warning'],
+        ['value' => self::STATUS_ACTIVE, 'label' => 'Active', 'color' => 'primary'],
+        ['value' => self::STATUS_ON_TRACK, 'label' => 'On Track', 'color' => 'success'],
+        ['value' => self::STATUS_AT_RISK, 'label' => 'At Risk', 'color' => 'warning'],
+        ['value' => self::STATUS_BEHIND, 'label' => 'Behind', 'color' => 'danger'],
+        ['value' => self::STATUS_COMPLETED, 'label' => 'Completed', 'color' => 'success'],
+        ['value' => self::STATUS_CANCELLED, 'label' => 'Cancelled', 'color' => 'default'],
+    ];
+
+    public const MEASUREMENT_TYPES = [
+        ['value' => self::MEASURE_PERCENTAGE, 'label' => 'Percentage', 'icon' => 'percent'],
+        ['value' => self::MEASURE_NUMBER, 'label' => 'Number', 'icon' => 'hash'],
+        ['value' => self::MEASURE_CURRENCY, 'label' => 'Currency', 'icon' => 'dollar-sign'],
+        ['value' => self::MEASURE_BOOLEAN, 'label' => 'Yes/No', 'icon' => 'check'],
+        ['value' => self::MEASURE_MILESTONE, 'label' => 'Milestone', 'icon' => 'flag'],
+    ];
+
+    public const PRIORITIES = [
+        ['value' => self::PRIORITY_LOW, 'label' => 'Low', 'color' => 'default'],
+        ['value' => self::PRIORITY_MEDIUM, 'label' => 'Medium', 'color' => 'primary'],
+        ['value' => self::PRIORITY_HIGH, 'label' => 'High', 'color' => 'warning'],
+        ['value' => self::PRIORITY_CRITICAL, 'label' => 'Critical', 'color' => 'danger'],
+    ];
 
     /**
      * Create a new goal/objective.
@@ -58,7 +110,7 @@ class GoalSettingService
     public function createGoal(array $data): array
     {
         $validation = $this->validateGoalData($data);
-        if (!$validation['valid']) {
+        if (! $validation['valid']) {
             return ['success' => false, 'errors' => $validation['errors']];
         }
 
@@ -193,6 +245,38 @@ class GoalSettingService
     }
 
     /**
+     * Get goals for a user by user ID.
+     * This is a convenience method that looks up the employee and delegates to getEmployeeGoals.
+     *
+     * @param  int  $userId  The user ID
+     * @param  array  $filters  Optional filters (status, type, period, search)
+     * @return array Goals data with summary
+     */
+    public function getGoalsForUser(int $userId, array $filters = []): array
+    {
+        // Find the employee for this user
+        $employee = \Aero\HRM\Models\Employee::where('user_id', $userId)->first();
+
+        if (! $employee) {
+            return [
+                'user_id' => $userId,
+                'employee_id' => null,
+                'goals' => [],
+                'summary' => [
+                    'total' => 0,
+                    'completed' => 0,
+                    'in_progress' => 0,
+                    'at_risk' => 0,
+                    'average_progress' => 0,
+                ],
+                'message' => 'User does not have an employee profile',
+            ];
+        }
+
+        return $this->getEmployeeGoals($employee->id, $filters);
+    }
+
+    /**
      * Get goals for an employee.
      */
     public function getEmployeeGoals(int $employeeId, array $filters = []): array
@@ -283,6 +367,7 @@ class GoalSettingService
     {
         return array_map(function ($kr) use ($goalId) {
             $krId = Str::uuid()->toString();
+
             return [
                 'id' => $krId,
                 'goal_id' => $goalId,
@@ -323,6 +408,7 @@ class GoalSettingService
         }
 
         $progress = (($current - $start) / ($target - $start)) * 100;
+
         return max(0, min(100, round($progress, 2)));
     }
 
@@ -345,12 +431,45 @@ class GoalSettingService
             $errors[] = 'Goal period dates are required';
         }
 
-        if (!empty($data['start_date']) && !empty($data['end_date'])) {
+        if (! empty($data['start_date']) && ! empty($data['end_date'])) {
             if (Carbon::parse($data['start_date'])->gt(Carbon::parse($data['end_date']))) {
                 $errors[] = 'Start date must be before end date';
             }
         }
 
         return ['valid' => empty($errors), 'errors' => $errors];
+    }
+
+    /**
+     * Get goal statistics for a user.
+     */
+    public function getGoalStats(?int $userId = null): array
+    {
+        // In a real implementation, this would query the database
+        // For now, return mock stats structure
+        return [
+            'total' => 0,
+            'in_progress' => 0,
+            'completed' => 0,
+            'overdue' => 0,
+            'on_track' => 0,
+            'at_risk' => 0,
+            'behind' => 0,
+        ];
+    }
+
+    /**
+     * Paginate goals with filters.
+     */
+    public function paginateGoals(array $filters = [], int $perPage = 30): \Illuminate\Pagination\LengthAwarePaginator
+    {
+        // In a real implementation, this would query the database
+        // For now, return empty paginator
+        return new \Illuminate\Pagination\LengthAwarePaginator(
+            [],
+            0,
+            $perPage,
+            1
+        );
     }
 }

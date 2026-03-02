@@ -1,6 +1,6 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { hasRoute, safeRoute, safeNavigate, safePost, safePut, safeDelete } from '@/utils/routeUtils';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
     Tabs,
@@ -22,6 +22,8 @@ import {
 } from '@heroicons/react/24/outline';
 import App from '@/Layouts/App';
 import KanbanBoard from './KanbanBoard';
+import { useThemeRadius } from '@/Hooks/useThemeRadius.js';
+import { useHRMAC } from '@/Hooks/useHRMAC';
 
 export default function Index({
     auth,
@@ -31,8 +33,32 @@ export default function Index({
     pipelines = [],
     users = [],
 }) {
+    const themeRadius = useThemeRadius();
     const [selectedPipelineId, setSelectedPipelineId] = useState(pipeline?.id);
     const [viewMode, setViewMode] = useState('kanban');
+
+    // Manual responsive state management (HRMAC pattern)
+    const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
+    
+    useEffect(() => {
+        const checkScreenSize = () => {
+            setIsMobile(window.innerWidth < 640);
+            setIsTablet(window.innerWidth < 768);
+        };
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
+
+    // HRMAC permissions
+    const { canCreate, canUpdate, canDelete, hasAccess, isSuperAdmin } = useHRMAC();
+    
+    // TODO: Update these paths with actual HRMAC module hierarchy once defined
+    const canViewPipeline = hasAccess('crm.pipeline') || isSuperAdmin();
+    const canManageDeals = canUpdate('crm.deals') || isSuperAdmin();
+    const canCreateDeal = canCreate('crm.deals') || isSuperAdmin();
+    const canDeleteDeal = canDelete('crm.deals') || isSuperAdmin();
 
     // Animation variants
     const containerVariants = {

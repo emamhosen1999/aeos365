@@ -2,6 +2,13 @@
 
 namespace Aero\HRM\Http\Controllers\Employee;
 
+use Aero\Core\Models\User;
+use Aero\HRM\Events\Employee\EmployeeResigned;
+use Aero\HRM\Events\Offboarding\OffboardingCompleted;
+use Aero\HRM\Events\Offboarding\OffboardingStarted;
+use Aero\HRM\Events\Onboarding\OnboardingCompleted;
+use Aero\HRM\Events\Onboarding\OnboardingStarted;
+use Aero\HRM\Http\Controllers\Controller;
 use Aero\HRM\Http\Requests\HR\StoreOffboardingRequest;
 use Aero\HRM\Http\Requests\HR\StoreOnboardingRequest;
 use Aero\HRM\Http\Requests\HR\UpdateOffboardingRequest;
@@ -13,9 +20,8 @@ use Aero\HRM\Models\OffboardingTask;
 use Aero\HRM\Models\Onboarding;
 use Aero\HRM\Models\OnboardingStep;
 use Aero\HRM\Models\OnboardingTask;
-use Aero\HRM\Http\Controllers\Controller;
 use App\Http\Controllers\Tenant\HRM\Employee\Request;
-use Aero\Core\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -33,7 +39,7 @@ class OnboardingController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
-        return Inertia::render('Pages/HRM/Onboarding/Index', [
+        return Inertia::render('HRM/Onboarding/Index', [
             'title' => 'Employee Onboarding',
             'onboardings' => $onboardings,
         ]);
@@ -51,7 +57,7 @@ class OnboardingController extends Controller
             ->orderBy('name')
             ->get();
 
-        return Inertia::render('Pages/HRM/Onboarding/Create', [
+        return Inertia::render('HRM/Onboarding/Create', [
             'title' => 'Create Onboarding Process',
             'employees' => $employees,
         ]);
@@ -88,6 +94,9 @@ class OnboardingController extends Controller
                 ]);
             }
 
+            // Dispatch OnboardingStarted event
+            event(new OnboardingStarted($onboarding, auth()->id()));
+
             DB::commit();
 
             return redirect()->route('hr.onboarding.show', $onboarding->id)
@@ -112,7 +121,7 @@ class OnboardingController extends Controller
 
         $this->authorize('view', $onboarding);
 
-        return Inertia::render('Pages/HRM/Onboarding/Show', [
+        return Inertia::render('HRM/Onboarding/Show', [
             'title' => 'Onboarding Details',
             'onboarding' => $onboarding,
         ]);
@@ -137,7 +146,7 @@ class OnboardingController extends Controller
             ->orderBy('name')
             ->get();
 
-        return Inertia::render('Pages/HRM/Onboarding/Edit', [
+        return Inertia::render('HRM/Onboarding/Edit', [
             'title' => 'Edit Onboarding Process',
             'onboarding' => $onboarding,
             'employees' => $employees,
@@ -266,7 +275,7 @@ class OnboardingController extends Controller
             ->orderBy('name')
             ->get();
 
-        return Inertia::render('Pages/HRM/Onboarding/Wizard', [
+        return Inertia::render('HRM/Onboarding/Wizard', [
             'title' => 'Employee Onboarding Wizard',
             'employee' => $employee,
             'departments' => $departments,
@@ -468,6 +477,13 @@ class OnboardingController extends Controller
             // Mark employee as active
             $employee->update(['active' => true]);
 
+            // Mark onboarding as completed
+            $onboarding->update(['status' => Onboarding::STATUS_COMPLETED]);
+
+            // Dispatch OnboardingCompleted event
+            $daysTaken = $onboarding->start_date->diffInDays(now());
+            event(new OnboardingCompleted($onboarding, now(), $daysTaken));
+
             DB::commit();
 
             return response()->json([
@@ -493,7 +509,7 @@ class OnboardingController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
-        return Inertia::render('Pages/HRM/Offboarding/Index', [
+        return Inertia::render('HRM/Offboarding/Index', [
             'title' => 'Employee Offboarding',
             'offboardings' => $offboardings,
         ]);
@@ -511,7 +527,7 @@ class OnboardingController extends Controller
             ->orderBy('name')
             ->get();
 
-        return Inertia::render('Pages/HRM/Offboarding/Create', [
+        return Inertia::render('HRM/Offboarding/Create', [
             'title' => 'Create Offboarding Process',
             'employees' => $employees,
         ]);
@@ -549,6 +565,21 @@ class OnboardingController extends Controller
                 ]);
             }
 
+            // Dispatch EmployeeResigned event if reason is resignation
+            $employee = User::with('employee')->findOrFail($validated['employee_id']);
+            if (strtolower($validated['reason']) === 'resignation' && $employee->employee) {
+                event(new EmployeeResigned(
+                    $employee->employee,
+                    now(),
+                    $validated['last_working_date'],
+                    $validated['notes'] ?? 'Voluntary resignation',
+                    $validated['initiation_date']->diffInDays($validated['last_working_date'])
+                ));
+            }
+
+            // Dispatch OffboardingStarted event
+            event(new OffboardingStarted($offboarding, $validated['reason'], auth()->id()));
+
             DB::commit();
 
             return redirect()->route('hr.offboarding.show', $offboarding->id)
@@ -571,7 +602,7 @@ class OnboardingController extends Controller
         $offboarding = Offboarding::with(['employee', 'tasks.assignee'])->findOrFail($id);
         $this->authorize('view', $offboarding);
 
-        return Inertia::render('Pages/HRM/Offboarding/Show', [
+        return Inertia::render('HRM/Offboarding/Show', [
             'title' => 'Offboarding Details',
             'offboarding' => $offboarding,
         ]);
@@ -586,6 +617,9 @@ class OnboardingController extends Controller
         $this->authorize('update', $offboarding);
 
         $validated = $request->validated();
+
+        // Track the old status to detect completion
+        $oldStatus = $offboarding->status;
 
         DB::beginTransaction();
         try {
@@ -632,6 +666,20 @@ class OnboardingController extends Controller
                 OffboardingTask::whereIn('id', $tasksToDelete)->delete();
             }
             DB::commit();
+
+            // Dispatch OffboardingCompleted event if status changed to 'completed'
+            if ($oldStatus !== 'completed' && $validated['status'] === 'completed') {
+                // Check if all tasks are completed
+                $offboarding->refresh()->load('tasks');
+                $allClearancesObtained = $offboarding->tasks->every(fn ($task) => $task->status === 'completed');
+
+                event(new OffboardingCompleted(
+                    $offboarding,
+                    now(),
+                    $allClearancesObtained,
+                    Auth::id()
+                ));
+            }
 
             return redirect()->route('hr.offboarding.show', $offboarding->id)
                 ->with('success', 'Offboarding process updated successfully.');

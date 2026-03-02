@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { hasRoute, safeRoute, safeNavigate, safePost, safePut, safeDelete } from '@/utils/routeUtils';
 import { motion } from 'framer-motion';
+import { useThemeRadius } from '@/Hooks/useThemeRadius.js';
 import {
     Button,
     Input,
@@ -44,9 +45,20 @@ import StatsCards from '@/Components/Common/StatsCards';
 import { showToast } from '@/utils/toastUtils';
 import axios from 'axios';
 import dayjs from 'dayjs';
+import { useHRMAC } from '@/Hooks/useHRMAC';
 
 const RegistrationsIndex = ({ event, registrations: initialRegistrations }) => {
     const { auth } = usePage().props;
+    const themeRadius = useThemeRadius();
+    const { canCreate, canUpdate, canDelete, hasAccess, isSuperAdmin } = useHRMAC();
+    
+    // Permissions using HRMAC
+    // TODO: Update with correct HRMAC path once module hierarchy is defined for Events
+    const canViewRegistrations = hasAccess('events.registrations') || isSuperAdmin();
+    const canApproveRegistration = canUpdate('events.registrations') || isSuperAdmin();
+    const canRejectRegistration = canUpdate('events.registrations') || isSuperAdmin();
+    const canDeleteRegistration = canDelete('events.registrations') || isSuperAdmin();
+    
     const [registrations, setRegistrations] = useState(initialRegistrations);
     const [selectedKeys, setSelectedKeys] = useState(new Set([]));
     const [searchQuery, setSearchQuery] = useState('');

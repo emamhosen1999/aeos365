@@ -1,422 +1,193 @@
-import React, {useMemo, useState} from 'react';
-import {Head, router} from '@inertiajs/react';
-import { hasRoute, safeRoute, safeNavigate, safePost, safePut, safeDelete } from '@/utils/routeUtils';
-import {Button, Card, CardBody, CardHeader, Chip, Divider, Progress} from "@heroui/react";
-import {useTheme} from '@/Context/ThemeContext';
-
-import {
-    CalendarDaysIcon,
-    CalendarIcon,
-    ChartBarIcon,
-    CheckCircleIcon,
-    ClockIcon,
-    CogIcon,
-    DocumentTextIcon,
-    GlobeAltIcon,
-    PlusIcon,
-    UserGroupIcon
-} from "@heroicons/react/24/outline";
-
+import React, { useEffect, useMemo, useState } from 'react';
+import { Head, usePage } from '@inertiajs/react';
+import { motion } from 'framer-motion';
+import { SparklesIcon } from "@heroicons/react/24/outline";
+import { Card, CardBody } from "@heroui/react";
 import App from "@/Layouts/App.jsx";
-import PageHeader from "@/Components/PageHeader.jsx";
-import StatsCards from "@/Components/StatsCards.jsx";
+import DynamicWidgetRenderer from "@/Components/DynamicWidgets/DynamicWidgetRenderer.jsx";
 
-const TimeOffDashboard = ({ title, holidays, leaveTypes, userLeaves, stats, currentYear }) => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
-  
-  const [selectedPeriod, setSelectedPeriod] = useState('current_year');
+/**
+ * HRM Dashboard - For HR Managers and Staff
+ * 
+ * DASHBOARD PATTERN:
+ * - NO container Card wrapper - only dynamic widgets are shown
+ * - All widgets come from packages via dynamicWidgets prop
+ * - Widgets are grouped by position and rendered dynamically
+ * - No hardcoded stats or content - everything is widget-based
+ */
+const HRMDashboard = ({ title, dynamicWidgets = [] }) => {
+    const { auth } = usePage().props;
+    
+    // Manual responsive state management (HRMAC pattern)
+    const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
+    
+    useEffect(() => {
+        const checkScreenSize = () => {
+            setIsMobile(window.innerWidth < 640);
+            setIsTablet(window.innerWidth < 768);
+        };
+        
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
 
-  // Calculate comprehensive statistics
-  const dashboardStats = useMemo(() => [
-    {
-      title: "Available PTO",
-      value: Object.values(stats).reduce((sum, stat) => sum + stat.available, 0),
-      icon: <CalendarDaysIcon />,
-      color: "text-green-400",
-      iconBg: "bg-green-500/20",
-      description: "Days available",
-      trend: "+2 from last month"
-    },
-    {
-      title: "Used This Year",
-      value: Object.values(stats).reduce((sum, stat) => sum + stat.used, 0),
-      icon: <CheckCircleIcon />,
-      color: "text-blue-400",
-      iconBg: "bg-blue-500/20",
-      description: "Days taken",
-      trend: `${Math.round((Object.values(stats).reduce((sum, stat) => sum + stat.used, 0) / Object.values(stats).reduce((sum, stat) => sum + stat.allocated, 0)) * 100)}% of allocation`
-    },
-    {
-      title: "Pending Requests",
-      value: Object.values(stats).reduce((sum, stat) => sum + stat.pending, 0),
-      icon: <ClockIcon />,
-      color: "text-orange-400",
-      iconBg: "bg-orange-500/20",
-      description: "Awaiting approval",
-      trend: userLeaves.filter(leave => leave.status === 'pending').length + " requests"
-    },
-    {
-      title: "Company Holidays",
-      value: holidays.length,
-      icon: <GlobeAltIcon />,
-      color: "text-purple-400",
-      iconBg: "bg-purple-500/20",
-      description: "This year",
-      trend: holidays.filter(h => new Date(h.from_date) > new Date()).length + " upcoming"
-    }
-  ], [stats, holidays, userLeaves]);
+    // Group widgets by position
+    const widgetsByPosition = useMemo(() => {
+        const grouped = {
+            welcome: [],
+            stats_row: [],
+            main_left: [],
+            main_right: [],
+            sidebar: [],
+            full_width: [],
+        };
+        
+        (dynamicWidgets || []).forEach(widget => {
+            const pos = widget.position || 'main_left';
+            if (grouped[pos]) {
+                grouped[pos].push(widget);
+            } else {
+                grouped.main_left.push(widget);
+            }
+        });
 
-  // Upcoming holidays
-  const upcomingHolidays = useMemo(() => {
-    return holidays
-      .filter(holiday => new Date(holiday.from_date) > new Date())
-      .slice(0, 3)
-      .map(holiday => ({
-        ...holiday,
-        daysUntil: Math.ceil((new Date(holiday.from_date) - new Date()) / (1000 * 60 * 60 * 24))
-      }));
-  }, [holidays]);
+        // Sort each group by order
+        Object.keys(grouped).forEach(pos => {
+            grouped[pos].sort((a, b) => (a.order || 0) - (b.order || 0));
+        });
 
-  // Recent leave requests
-  const recentLeaveRequests = useMemo(() => {
-    return userLeaves.slice(0, 5);
-  }, [userLeaves]);
+        return grouped;
+    }, [dynamicWidgets]);
 
-  // Leave balance breakdown
-  const leaveBalanceData = useMemo(() => {
-    return Object.entries(stats).map(([leaveType, data]) => ({
-      type: leaveType,
-      ...data,
-      percentage: Math.round((data.used / data.allocated) * 100) || 0
-    }));
-  }, [stats]);
+    // Check for widgets in different positions
+    const hasWelcomeWidgets = widgetsByPosition.welcome.length > 0;
+    const hasStatsWidgets = widgetsByPosition.stats_row.length > 0;
+    const hasMainContent = widgetsByPosition.main_left.length > 0 || widgetsByPosition.main_right.length > 0;
+    const hasFullWidth = widgetsByPosition.full_width.length > 0;
+    
+    // Sidebar widgets (only sidebar position)
+    const sidebarWidgets = widgetsByPosition.sidebar.sort((a, b) => (a.order || 0) - (b.order || 0));
+    const hasSidebar = sidebarWidgets.length > 0;
+    
+    // Check if there are any widgets at all
+    const hasAnyWidgets = dynamicWidgets && dynamicWidgets.length > 0;
 
-  const quickActions = [
-    {
-      label: "Request Time Off",
-      icon: <PlusIcon className="w-4 h-4" />,
-      color: "primary",
-      onClick: () => safeNavigate('leaves-employee'),
-      description: "Submit new request"
-    },
-    {
-      label: "Admin Panel",
-      icon: <UserGroupIcon className="w-4 h-4" />,
-      color: "secondary", 
-      onClick: () => safeNavigate('leaves'),
-      description: "Manage all leaves"
-    },
-    {
-      label: "Leave Reports",
-      icon: <ChartBarIcon className="w-4 h-4" />,
-      color: "success",
-      onClick: () => safeNavigate('leave-summary'),
-      description: "Analytics & insights"
-    }
-  ];
+    return (
+        <>
+            <Head title={title || 'HRM Dashboard'} />
 
-  return (
-    <>
-      <Head title={title} />
-
-      <div className="flex justify-center p-2">
-        <div>
-          <Card className="shadow-lg">
-            <PageHeader
-              title="Time Off Management"
-              subtitle="Manage leave requests, holidays, and time-off policies"
-              icon={<CalendarDaysIcon className="w-8 h-8" />}
-              variant="default"
-              actionButtons={[
-                {
-                  label: isMobile ? "Request" : "Request Time Off",
-                  icon: <PlusIcon className="w-4 h-4" />,
-                  onClick: () => safeNavigate('leaves-employee'),
-                  className: "bg-linear-to-r from-(--theme-primary) to-(--theme-secondary) text-white font-medium hover:opacity-90"
-                }
-              ]}
-            >
-              <div className="p-4 sm:p-6">
-                {/* Statistics Cards */}
-                <StatsCards stats={dashboardStats} className="mb-6" />
-
-                {/* Main Dashboard Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                  
-                  {/* Leave Balance Overview */}
-                  <div className="lg:col-span-2">
-                    <HeroCard className="bg-white/5 backdrop-blur-md border-white/10 h-full">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <Typography variant="h6" className="font-semibold text-foreground">
-                            Leave Balance Overview
-                          </Typography>
-                          <Chip size="sm" variant="flat" color="primary">
-                            {currentYear}
-                          </Chip>
-                        </div>
-                      </CardHeader>
-                      <Divider />
-                      <CardBody className="pt-4">
+            {/* Dashboard content - NO container Card, only dynamic widgets */}
+            <div className="flex flex-col w-full h-full p-4" role="main" aria-label="HRM Dashboard">
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-6"
+                >
+                    {/* Welcome Section Widgets */}
+                    {hasWelcomeWidgets && (
                         <div className="space-y-4">
-                          {leaveBalanceData.map((balance, index) => (
-                            <div key={index} className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-foreground">
-                                  {balance.type}
-                                </span>
-                                <span className="text-xs text-default-500">
-                                  {balance.used}/{balance.allocated} days
-                                </span>
-                              </div>
-                              
-                              <Progress
-                                value={balance.percentage}
-                                color={balance.percentage > 80 ? "danger" : balance.percentage > 60 ? "warning" : "success"}
-                                className="max-w-full"
-                                size="sm"
-                                showValueLabel
-                                formatOptions={{
-                                  style: "percent",
-                                  maximumFractionDigits: 0
-                                }}
-                              />
-                              
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="text-green-500">
-                                  Available: {balance.available} days
-                                </span>
-                                {balance.pending > 0 && (
-                                  <span className="text-orange-500">
-                                    Pending: {balance.pending} days
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          ))}
+                            {widgetsByPosition.welcome.map((widget) => (
+                                <DynamicWidgetRenderer 
+                                    key={widget.key} 
+                                    widgets={[widget]} 
+                                />
+                            ))}
                         </div>
-                      </CardBody>
-                    </HeroCard>
-                  </div>
+                    )}
 
-                  {/* Quick Actions */}
-                  <div className="space-y-4">
-                    <HeroCard className="bg-white/5 backdrop-blur-md border-white/10">
-                      <CardHeader>
-                        <Typography variant="h6" className="font-semibold text-foreground">
-                          Quick Actions
-                        </Typography>
-                      </CardHeader>
-                      <Divider />
-                      <CardBody className="pt-4">
-                        <div className="space-y-3">
-                          {quickActions.map((action, index) => (
-                            <Button
-                              key={index}
-                              variant="flat"
-                              color={action.color}
-                              startContent={action.icon}
-                              className="w-full justify-start"
-                              onPress={action.onClick}
-                            >
-                              <div className="flex flex-col items-start">
-                                <span className="font-medium">{action.label}</span>
-                                <span className="text-xs opacity-70">{action.description}</span>
-                              </div>
-                            </Button>
-                          ))}
+                    {/* Stats Row Widgets */}
+                    {hasStatsWidgets && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {widgetsByPosition.stats_row.map((widget) => (
+                                <DynamicWidgetRenderer 
+                                    key={widget.key} 
+                                    widgets={[widget]} 
+                                />
+                            ))}
                         </div>
-                      </CardBody>
-                    </HeroCard>
-                  </div>
-                </div>
+                    )}
 
-                {/* Secondary Information Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  
-                  {/* Upcoming Holidays */}
-                  <HeroCard className="bg-white/5 backdrop-blur-md border-white/10">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <Typography variant="h6" className="font-semibold text-foreground">
-                          Upcoming Company Holidays
-                        </Typography>
-                        <Button
-                          size="sm"
-                          variant="light"
-                          onPress={() => safeNavigate('holidays')}
-                        >
-                          View All
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <Divider />
-                    <CardBody className="pt-4">
-                      {upcomingHolidays.length > 0 ? (
-                        <div className="space-y-3">
-                          {upcomingHolidays.map((holiday, index) => (
-                            <div key={index} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                                <div>
-                                  <Typography variant="subtitle2" className="font-medium text-foreground">
-                                    {holiday.title}
-                                  </Typography>
-                                  <Typography variant="caption" className="text-default-500">
-                                    {new Date(holiday.from_date).toLocaleDateString('en-US', { 
-                                      month: 'short', 
-                                      day: 'numeric',
-                                      year: holiday.from_date.includes(new Date().getFullYear()) ? undefined : 'numeric'
-                                    })}
-                                  </Typography>
+                    {/* Main Content Grid - Left and Right columns + Sidebar */}
+                    {(hasMainContent || hasSidebar) && (
+                        <div className={`grid ${hasSidebar ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'} gap-6`}>
+                            {/* Main Content Area (Left and Right widgets) */}
+                            {hasMainContent && (
+                                <div className={hasSidebar ? 'lg:col-span-2' : 'col-span-1'}>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Left Column */}
+                                        <div className="space-y-4">
+                                            {widgetsByPosition.main_left.map((widget) => (
+                                                <DynamicWidgetRenderer 
+                                                    key={widget.key} 
+                                                    widgets={[widget]} 
+                                                />
+                                            ))}
+                                        </div>
+                                        
+                                        {/* Right Column */}
+                                        <div className="space-y-4">
+                                            {widgetsByPosition.main_right.map((widget) => (
+                                                <DynamicWidgetRenderer 
+                                                    key={widget.key} 
+                                                    widgets={[widget]} 
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
-                              </div>
-                              <Chip size="sm" variant="flat" color="danger">
-                                {holiday.daysUntil} days
-                              </Chip>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-4">
-                          <CalendarIcon className="w-8 h-8 mx-auto text-default-300 mb-2" />
-                          <Typography variant="body2" color="textSecondary">
-                            No upcoming holidays
-                          </Typography>
-                        </div>
-                      )}
-                    </CardBody>
-                  </HeroCard>
+                            )}
 
-                  {/* Recent Leave Requests */}
-                  <HeroCard className="bg-white/5 backdrop-blur-md border-white/10">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <Typography variant="h6" className="font-semibold text-foreground">
-                          Recent Leave Requests
-                        </Typography>
-                        <Button
-                          size="sm"
-                          variant="light"
-                          onPress={() => safeNavigate('leaves-employee')}
-                        >
-                          View All
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <Divider />
-                    <CardBody className="pt-4">
-                      {recentLeaveRequests.length > 0 ? (
-                        <div className="space-y-3">
-                          {recentLeaveRequests.map((leave, index) => (
-                            <div key={index} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <div className={`w-2 h-2 rounded-full ${
-                                  leave.status === 'approved' ? 'bg-green-400' :
-                                  leave.status === 'pending' ? 'bg-orange-400' : 'bg-red-400'
-                                }`}></div>
-                                <div>
-                                  <Typography variant="subtitle2" className="font-medium text-foreground">
-                                    {leave.leave_setting?.type || 'Leave'}
-                                  </Typography>
-                                  <Typography variant="caption" className="text-default-500">
-                                    {new Date(leave.from_date).toLocaleDateString()} - {new Date(leave.to_date).toLocaleDateString()}
-                                  </Typography>
+                            {/* Sidebar Column */}
+                            {hasSidebar && (
+                                <div className="space-y-4">
+                                    {sidebarWidgets.map((widget) => (
+                                        <DynamicWidgetRenderer 
+                                            key={widget.key} 
+                                            widgets={[widget]} 
+                                        />
+                                    ))}
                                 </div>
-                              </div>
-                              <Chip 
-                                size="sm" 
-                                variant="flat" 
-                                color={
-                                  leave.status === 'approved' ? 'success' :
-                                  leave.status === 'pending' ? 'warning' : 'danger'
-                                }
-                              >
-                                {leave.status}
-                              </Chip>
-                            </div>
-                          ))}
+                            )}
                         </div>
-                      ) : (
-                        <div className="text-center py-4">
-                          <DocumentTextIcon className="w-8 h-8 mx-auto text-default-300 mb-2" />
-                          <Typography variant="body2" color="textSecondary">
-                            No recent requests
-                          </Typography>
-                        </div>
-                      )}
-                    </CardBody>
-                  </HeroCard>
-                </div>
+                    )}
 
-                {/* Management Links (for HR users) */}
-                <div className="mt-6">
-                  <HeroCard className="bg-white/5 backdrop-blur-md border-white/10">
-                    <CardHeader>
-                      <Typography variant="h6" className="font-semibold text-foreground">
-                        Time Off Management
-                      </Typography>
-                    </CardHeader>
-                    <Divider />
-                    <CardBody className="pt-4">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <Button
-                          variant="flat"
-                          color="primary"
-                          startContent={<UserGroupIcon className="w-4 h-4" />}
-                          onPress={() => safeNavigate('leaves')}
-                          className="h-16 flex-col"
-                        >
-                          <span className="font-medium">Leave Requests</span>
-                          <span className="text-xs opacity-70">Manage team requests</span>
-                        </Button>
-                        
-                        <Button
-                          variant="flat"
-                          color="secondary"
-                          startContent={<ChartBarIcon className="w-4 h-4" />}
-                          onPress={() => safeNavigate('leave-summary')}
-                          className="h-16 flex-col"
-                        >
-                          <span className="font-medium">Leave Summary</span>
-                          <span className="text-xs opacity-70">View all balances</span>
-                        </Button>
-                        
-                        <Button
-                          variant="flat"
-                          color="success"
-                          startContent={<GlobeAltIcon className="w-4 h-4" />}
-                          onPress={() => safeNavigate('holidays')}
-                          className="h-16 flex-col"
-                        >
-                          <span className="font-medium">Holidays</span>
-                          <span className="text-xs opacity-70">Manage company holidays</span>
-                        </Button>
-                        
-                        <Button
-                          variant="flat"
-                          color="warning"
-                          startContent={<CogIcon className="w-4 h-4" />}
-                          onPress={() => safeNavigate('settings.leave')}
-                          className="h-16 flex-col"
-                        >
-                          <span className="font-medium">Settings</span>
-                          <span className="text-xs opacity-70">Leave policies</span>
-                        </Button>
-                      </div>
-                    </CardBody>
-                  </HeroCard>
-                </div>
-              </div>
-            </PageHeader>
-          </Card>
-        </div>
-      </div>
-    </>
-  );
+                    {/* Full Width Widgets */}
+                    {hasFullWidth && (
+                        <div className="space-y-4">
+                            {widgetsByPosition.full_width.map((widget) => (
+                                <DynamicWidgetRenderer 
+                                    key={widget.key} 
+                                    widgets={[widget]} 
+                                />
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Empty state - only show if NO widgets at all */}
+                    {!hasAnyWidgets && (
+                        <Card className="border border-divider border-dashed bg-default-50/50">
+                            <CardBody className="p-12 text-center">
+                                <SparklesIcon className="w-16 h-16 text-default-300 mx-auto mb-4" />
+                                <h3 className="text-lg font-semibold text-default-600 mb-2">
+                                    HRM Dashboard
+                                </h3>
+                                <p className="text-sm text-default-500 max-w-md mx-auto">
+                                    HR widgets will appear here based on your permissions and enabled modules.
+                                    Configure HRM modules to see employee, leave, and attendance widgets.
+                                </p>
+                            </CardBody>
+                        </Card>
+                    )}
+                </motion.div>
+            </div>
+        </>
+    );
 };
 
-TimeOffDashboard.layout = (page) => <App>{page}</App>;
-export default TimeOffDashboard;
+// Use App layout wrapper
+HRMDashboard.layout = (page) => <App>{page}</App>;
+
+export default HRMDashboard;
