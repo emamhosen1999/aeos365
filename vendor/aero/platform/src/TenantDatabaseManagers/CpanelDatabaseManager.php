@@ -2,6 +2,7 @@
 
 namespace Aero\Platform\TenantDatabaseManagers;
 
+use Aero\Platform\Models\PlatformSetting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Stancl\Tenancy\Contracts\TenantDatabaseManager;
@@ -26,6 +27,44 @@ use Stancl\Tenancy\Contracts\TenantWithDatabase;
 class CpanelDatabaseManager implements TenantDatabaseManager
 {
     /**
+     * Resolved hosting settings (lazy-loaded from PlatformSetting DB record).
+     *
+     * @var array<string, mixed>|null
+     */
+    private ?array $hostingSettings = null;
+
+    /**
+     * Get the cPanel credentials from platform settings (DB) with env/config fallback.
+     *
+     * Precedence: platform_settings DB table → config/env vars.
+     *
+     * @return array{host: string|null, username: string|null, token: string|null, port: int, db_user: string|null}
+     */
+    protected function getCpanelCredentials(): array
+    {
+        if ($this->hostingSettings === null) {
+            try {
+                $this->hostingSettings = PlatformSetting::current()->getHostingSettingsDecrypted();
+            } catch (\Exception $e) {
+                Log::warning('⚠️ cPanel: Failed to load platform hosting settings, falling back to config', [
+                    'error' => $e->getMessage(),
+                ]);
+                $this->hostingSettings = [];
+            }
+        }
+
+        $s = $this->hostingSettings;
+
+        return [
+            'host'     => $s['cpanel_host']      ?? config('tenancy.cpanel.host'),
+            'username' => $s['cpanel_username']  ?? config('tenancy.cpanel.username'),
+            'token'    => $s['cpanel_api_token'] ?? config('tenancy.cpanel.api_token'),
+            'port'     => (int) ($s['cpanel_port'] ?? config('tenancy.cpanel.port', 2083)),
+            'db_user'  => $s['cpanel_db_user']   ?? config('tenancy.cpanel.db_user'),
+        ];
+    }
+
+    /**
      * Create a database for a tenant.
      */
     public function createDatabase(TenantWithDatabase $tenant): bool
@@ -42,21 +81,31 @@ class CpanelDatabaseManager implements TenantDatabaseManager
         try {
             // Step 1: Create the database
             $response = $this->callCpanelApi('Mysql', 'create_database', [
-                'name' => $dbName,
+                'name' => $fullDbName,
             ]);
 
             if (! $response['success']) {
-                throw new \RuntimeException('Failed to create database: '.($response['error'] ?? 'Unknown error'));
-            }
+                $error = $response['error'] ?? 'Unknown error';
 
-            Log::info('✅ cPanel: Database created successfully', ['db_name' => $fullDbName]);
+                // Handle case where database already exists from a previous failed/rolled-back attempt
+                if (str_contains(strtolower($error), 'already exists') || str_contains(strtolower($error), 'exists already')) {
+                    Log::info('ℹ️ cPanel: Database already exists, proceeding to set privileges', [
+                        'db_name' => $fullDbName,
+                        'error' => $error,
+                    ]);
+                } else {
+                    throw new \RuntimeException('Failed to create database: '.$error);
+                }
+            } else {
+                Log::info('✅ cPanel: Database created successfully', ['db_name' => $fullDbName]);
+            }
 
             // Step 2: Grant privileges to the database user
             $dbUser = $this->getDatabaseUser();
 
             $response = $this->callCpanelApi('Mysql', 'set_privileges_on_database', [
-                'user' => $dbUser,
-                'database' => $dbName,
+                'user'       => $dbUser,
+                'database'   => $fullDbName,
                 'privileges' => 'ALL PRIVILEGES',
             ]);
 
@@ -67,8 +116,8 @@ class CpanelDatabaseManager implements TenantDatabaseManager
 
                 // Alternative: Try adding user to database with all privileges
                 $response = $this->callCpanelApi('Mysql', 'add_user_to_database', [
-                    'user' => $dbUser,
-                    'database' => $dbName,
+                    'user'       => $dbUser,
+                    'database'   => $fullDbName,
                     'privileges' => [
                         'ALTER', 'ALTER ROUTINE', 'CREATE', 'CREATE ROUTINE',
                         'CREATE TEMPORARY TABLES', 'CREATE VIEW', 'DELETE',
@@ -113,7 +162,7 @@ class CpanelDatabaseManager implements TenantDatabaseManager
 
         try {
             $response = $this->callCpanelApi('Mysql', 'delete_database', [
-                'name' => $dbName,
+                'name' => $fullDbName,
             ]);
 
             if (! $response['success']) {
@@ -215,13 +264,14 @@ class CpanelDatabaseManager implements TenantDatabaseManager
      */
     protected function callCpanelApi(string $module, string $function, array $params = []): array
     {
-        $host = config('tenancy.cpanel.host');
-        $username = config('tenancy.cpanel.username');
-        $token = config('tenancy.cpanel.api_token');
-        $port = config('tenancy.cpanel.port', 2083);
+        $creds = $this->getCpanelCredentials();
+        $host     = $creds['host'];
+        $username = $creds['username'];
+        $token    = $creds['token'];
+        $port     = $creds['port'];
 
         if (! $host || ! $username || ! $token) {
-            throw new \RuntimeException('cPanel API credentials not configured. Set CPANEL_HOST, CPANEL_USERNAME, and CPANEL_API_TOKEN in .env');
+            throw new \RuntimeException('cPanel API credentials not configured. Set them via Admin → Infrastructure → Hosting Settings.');
         }
 
         $url = "https://{$host}:{$port}/execute/{$module}/{$function}";
@@ -298,22 +348,33 @@ class CpanelDatabaseManager implements TenantDatabaseManager
      */
     protected function getFullDatabaseName(TenantWithDatabase $tenant): string
     {
-        $username = config('tenancy.cpanel.username');
+        $username  = $this->getCpanelCredentials()['username'];
         $shortName = $this->getShortDatabaseName($tenant);
 
         return "{$username}_{$shortName}";
     }
 
     /**
-     * Get the database user (typically same as cPanel username with prefix).
+     * Get the database user for cPanel UAPI calls.
+     *
+     * This cPanel server requires the FULL MySQL username including the account prefix
+     * (e.g., "aeos365_emamhosen"). cPanel UAPI does NOT auto-prepend the prefix on this
+     * server — the full name must be passed explicitly.
      */
     protected function getDatabaseUser(): string
     {
-        $username = config('tenancy.cpanel.username');
-        $dbUser = config('tenancy.cpanel.db_user', $username);
+        $creds    = $this->getCpanelCredentials();
+        $username = $creds['username'] ?? '';
+        $dbUser   = $creds['db_user'] ?? '';
 
-        // If db_user doesn't have prefix, add it
-        if (! str_starts_with($dbUser, $username.'_')) {
+        // If no db_user is configured, fall back to DB_USERNAME env var (e.g. "aeos365_emamhosen")
+        if (! $dbUser) {
+            $dbUser = env('DB_USERNAME', $username);
+        }
+
+        // If the stored value already contains the prefix (e.g. "aeos365_emamhosen"), return as-is.
+        // If only the short name is stored (e.g. "emamhosen"), prepend the cPanel account prefix.
+        if ($username && ! str_starts_with($dbUser, $username.'_')) {
             return "{$username}_{$dbUser}";
         }
 
