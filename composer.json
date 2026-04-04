@@ -20,6 +20,7 @@
     "require": {
         "php": "^8.2",
         "aero/core": "@dev",
+        "aero/cms": "@dev",
         "aero/hrm": "@dev",
         "aero/hrmac": "@dev",
         "aero/platform": "@dev",
@@ -34,7 +35,6 @@
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
-        "laravel/boost": "^1.8",
         "laravel/pail": "^1.2.2",
         "laravel/pint": "^1.24",
         "laravel/sail": "^1.41",

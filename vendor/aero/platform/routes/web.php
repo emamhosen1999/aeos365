@@ -40,14 +40,51 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('platform.domain')->group(function () {
     // =========================================================================
-    // LANDING PAGE - MANAGED BY CMS
+    // STATIC LANDING PAGES
     // =========================================================================
-    // NOTE: The landing page (/) is now managed by the CMS package.
-    // Create a page with slug "" or mark it as homepage in CMS admin.
-    // The CMS catch-all route (/{slug?}) handles rendering the homepage.
-    //
-    // If no CMS homepage exists, the CMS controller will return a 404.
-    // Make sure to create a Landing page in CMS after installation!
+    // Using static Inertia pages instead of CMS management
+    
+    Route::get('/', function () {
+        return \Inertia\Inertia::render('Platform/Public/Landing', [
+            'title' => 'Aero Enterprise Suite',
+        ]);
+    })->name('platform.home');
+    
+    Route::get('/pricing', function () {
+        return \Inertia\Inertia::render('Platform/Public/Pricing', [
+            'title' => 'Pricing',
+        ]);
+    })->name('platform.pricing');
+    
+    Route::get('/features', function () {
+        return \Inertia\Inertia::render('Platform/Public/Features', [
+            'title' => 'Features',
+        ]);
+    })->name('platform.features');
+    
+    Route::get('/about', function () {
+        return \Inertia\Inertia::render('Platform/Public/About', [
+            'title' => 'About',
+        ]);
+    })->name('platform.about');
+    
+    Route::get('/support', function () {
+        return \Inertia\Inertia::render('Platform/Public/Support', [
+            'title' => 'Support',
+        ]);
+    })->name('platform.support');
+    
+    Route::get('/resources', function () {
+        return \Inertia\Inertia::render('Platform/Public/Resources', [
+            'title' => 'Resources',
+        ]);
+    })->name('platform.resources');
+    
+    Route::get('/status', function () {
+        return \Inertia\Inertia::render('Platform/Public/Status', [
+            'title' => 'Status',
+        ]);
+    })->name('platform.status');
 
     // Redirect /login to /register (no login on platform domain - login is on tenant/admin domains)
     Route::redirect('login', '/register', 302);

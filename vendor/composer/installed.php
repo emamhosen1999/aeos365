@@ -3,13 +3,22 @@
         'name' => 'laravel/laravel',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '41b072a319bf6f74c29eaac58c11e540940dbe5e',
+        'reference' => '013470e477354388564c9ef7b3427e7c4f810a05',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
         'dev' => true,
     ),
     'versions' => array(
+        'aero/cms' => array(
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => '4bfd7ffbf396539cfd8d18dec169ba447040afbf',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../aero/cms',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
         'aero/compliance' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
@@ -22,7 +31,7 @@
         'aero/core' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '3b9da53da60430b6d1b5ec0594cb1864262807a3',
+            'reference' => '0fece6a38dfbbb8bc31d40201a9f977242360685',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aero/core',
             'aliases' => array(),
@@ -31,7 +40,7 @@
         'aero/hrm' => array(
             'pretty_version' => '1.0.0',
             'version' => '1.0.0.0',
-            'reference' => '703e43bf6e37ffdfe3944250f670b8baa2a2d4e3',
+            'reference' => 'ea10ebf4eed5f1810eee2c2d34fd2d1fc68caa85',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aero/hrm',
             'aliases' => array(),
@@ -625,7 +634,7 @@
         'laravel/laravel' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '41b072a319bf6f74c29eaac58c11e540940dbe5e',
+            'reference' => '013470e477354388564c9ef7b3427e7c4f810a05',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

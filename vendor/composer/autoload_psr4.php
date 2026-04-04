@@ -142,6 +142,8 @@ return array(
     'Aero\\Platform\\Database\\Seeders\\' => array($vendorDir . '/aero/platform/database/seeders'),
     'Aero\\Platform\\Database\\Factories\\' => array($vendorDir . '/aero/platform/database/factories'),
     'Aero\\Platform\\' => array($vendorDir . '/aero/platform/src'),
+    'Aero\\HRM\\Database\\Seeders\\' => array($vendorDir . '/aero/hrm/database/seeders'),
+    'Aero\\HRM\\Database\\Factories\\' => array($vendorDir . '/aero/hrm/database/factories'),
     'Aero\\HRM\\' => array($vendorDir . '/aero/hrm/src'),
     'Aero\\HRMAC\\' => array($vendorDir . '/aero/hrmac/src'),
     'Aero\\Core\\Database\\Seeders\\' => array($vendorDir . '/aero/core/database/seeders'),
@@ -149,4 +151,7 @@ return array(
     'Aero\\Core\\' => array($vendorDir . '/aero/core/src'),
     'Aero\\Compliance\\Database\\Seeders\\' => array($vendorDir . '/aero/compliance/database/seeders'),
     'Aero\\Compliance\\' => array($vendorDir . '/aero/compliance/src'),
+    'Aero\\Cms\\Database\\Seeders\\' => array($vendorDir . '/aero/cms/database/seeders'),
+    'Aero\\Cms\\Database\\Factories\\' => array($vendorDir . '/aero/cms/database/factories'),
+    'Aero\\Cms\\' => array($vendorDir . '/aero/cms/src'),
 );

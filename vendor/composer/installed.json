@@ -1,6 +1,82 @@
 {
     "packages": [
         {
+            "name": "aero/cms",
+            "version": "dev-main",
+            "version_normalized": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "D:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-cms",
+                "reference": "4bfd7ffbf396539cfd8d18dec169ba447040afbf"
+            },
+            "require": {
+                "aero/core": "*",
+                "aero/hrmac": "*",
+                "inertiajs/inertia-laravel": "^2.0",
+                "laravel/framework": "^11.0|^12.0",
+                "php": "^8.2",
+                "spatie/laravel-medialibrary": "^11.0"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^9.0",
+                "phpunit/phpunit": "^11.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Aero\\Cms\\CmsServiceProvider"
+                    ],
+                    "aliases": {
+                        "AeroCms": "Aero\\Cms\\Facades\\Cms"
+                    }
+                },
+                "aero": {
+                    "package": "cms",
+                    "version": "1.0.0",
+                    "category": "platform",
+                    "description": "Block-based CMS for building public pages with HeroUI components",
+                    "has-assets": true
+                }
+            },
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Aero\\Cms\\": "src/",
+                    "Aero\\Cms\\Database\\Factories\\": "database/factories/",
+                    "Aero\\Cms\\Database\\Seeders\\": "database/seeders/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Aero\\Cms\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "authors": [
+                {
+                    "name": "Aero Team",
+                    "email": "support@aerosuite.com"
+                }
+            ],
+            "description": "Aero CMS - Block-based Page Builder with HeroUI Components",
+            "keywords": [
+                "aero",
+                "cms",
+                "heroui",
+                "inertia",
+                "laravel",
+                "page-builder"
+            ],
+            "transport-options": {
+                "symlink": true,
+                "relative": false
+            },
+            "install-path": "../aero/cms"
+        },
+        {
             "name": "aero/compliance",
             "version": "dev-main",
             "version_normalized": "dev-main",
@@ -52,10 +128,9 @@
             "dist": {
                 "type": "path",
                 "url": "D:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-core",
-                "reference": "3b9da53da60430b6d1b5ec0594cb1864262807a3"
+                "reference": "0fece6a38dfbbb8bc31d40201a9f977242360685"
             },
             "require": {
-                "aero/hrmac": "*",
                 "inertiajs/inertia-laravel": "^2.0",
                 "jenssegers/agent": "^2.6|^3.0",
                 "laravel/framework": "^11.0|^12.0",
@@ -141,7 +216,7 @@
             "dist": {
                 "type": "path",
                 "url": "D:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-hrm",
-                "reference": "703e43bf6e37ffdfe3944250f670b8baa2a2d4e3"
+                "reference": "ea10ebf4eed5f1810eee2c2d34fd2d1fc68caa85"
             },
             "require": {
                 "aero/core": "*",
@@ -175,7 +250,9 @@
             "installation-source": "dist",
             "autoload": {
                 "psr-4": {
-                    "Aero\\HRM\\": "src/"
+                    "Aero\\HRM\\": "src/",
+                    "Aero\\HRM\\Database\\Factories\\": "database/factories/",
+                    "Aero\\HRM\\Database\\Seeders\\": "database/seeders/"
                 }
             },
             "autoload-dev": {
