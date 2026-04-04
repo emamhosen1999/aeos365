@@ -42,11 +42,11 @@ Route::middleware('platform.domain')->group(function () {
     // =========================================================================
     // STATIC LANDING PAGES
     // =========================================================================
-    // Using static Inertia pages instead of CMS management
+    // All pages are static Inertia pages - no CMS or dynamic content management
     
     Route::get('/', function () {
         return \Inertia\Inertia::render('Platform/Public/Landing', [
-            'title' => 'Aero Enterprise Suite',
+            'title' => 'Home',
         ]);
     })->name('platform.home');
     
@@ -153,36 +153,60 @@ Route::middleware('platform.domain')->group(function () {
     });
 
     // =========================================================================
-    // PUBLIC CONTENT PAGES - MANAGED BY CMS
-    // =========================================================================
-    // NOTE: All public content pages (landing, pricing, about, features, blog,
-    // legal, etc.) are now managed dynamically through the CMS package.
-    //
-    // Admins can create and edit these pages at: admin.domain.com/cms
-    //
-    // The CMS catch-all route (/{slug?}) handles rendering published pages.
-    // This provides:
-    // - Full content control without code changes
-    // - SEO-friendly meta tag management
-    // - Visual page builder with block components
-    // - Version history and publishing workflow
-    //
-    // Default pages to create in CMS:
-    // - / (homepage/landing) - set as homepage
-    // - /pricing - use Pricing block component
-    // - /features - use Features block component
-    // - /about, /contact, /blog, /docs, /careers
-    // - /legal, /legal/privacy, /legal/terms, /legal/cookies
-    //
-    // =========================================================================
-
-    // =========================================================================
     // INSTALLATION WIZARD
     // =========================================================================
     // NOTE: Installation routes are now defined in routes/installation.php
     // and use the unified UnifiedInstallationController from aero-core.
     // This provides a consistent UI between SaaS and Standalone modes.
     // See: packages/aero-platform/routes/installation.php
+
+    // =========================================================================
+    // STATIC LEGAL PAGES
+    // =========================================================================
+    Route::get('/legal/privacy', function () {
+        return \Inertia\Inertia::render('Platform/Public/Legal/Privacy', [
+            'title' => 'Privacy Policy',
+        ]);
+    })->name('platform.legal.privacy');
+
+    Route::get('/legal/terms', function () {
+        return \Inertia\Inertia::render('Platform/Public/Legal/Terms', [
+            'title' => 'Terms of Service',
+        ]);
+    })->name('platform.legal.terms');
+
+    Route::get('/legal/cookies', function () {
+        return \Inertia\Inertia::render('Platform/Public/Legal/Cookies', [
+            'title' => 'Cookie Policy',
+        ]);
+    })->name('platform.legal.cookies');
+
+    // =========================================================================
+    // STATIC CONTENT PAGES
+    // =========================================================================
+    Route::get('/contact', function () {
+        return \Inertia\Inertia::render('Platform/Public/Contact', [
+            'title' => 'Contact Us',
+        ]);
+    })->name('platform.contact');
+
+    Route::get('/blog', function () {
+        return \Inertia\Inertia::render('Platform/Public/Blog', [
+            'title' => 'Blog',
+        ]);
+    })->name('platform.blog');
+
+    Route::get('/docs', function () {
+        return \Inertia\Inertia::render('Platform/Public/Docs', [
+            'title' => 'Documentation',
+        ]);
+    })->name('platform.docs');
+
+    Route::get('/careers', function () {
+        return \Inertia\Inertia::render('Platform/Public/Careers', [
+            'title' => 'Careers',
+        ]);
+    })->name('platform.careers');
 
     // =========================================================================
     // PAYMENT WEBHOOKS (outside CSRF protection - handled by service provider)

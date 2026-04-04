@@ -1,0 +1,23 @@
+{
+  "name": "{{name}}",
+  "description": "A Twill CMS package",
+  "homepage": "{{homepage}}",
+  "license": "{{licence}}",
+  "require": {
+    "area17/twill": "^3.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "{{namespace}}\\": "src"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "{{namespace}}\\{{providerName}}ServiceProvider"
+      ]
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}

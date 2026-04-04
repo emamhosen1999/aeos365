@@ -1,1 +1,0 @@
-import{r as s,I as a,j as r}from"./app-Dovuaa-Y.js";import"./app-Bx3fk8uP.js";const u=()=>{const[e,t]=s.useState(!1),{data:o,setData:p,post:m,processing:i,errors:n}=a({email:"",password:"",remember:!1});return r.jsx("div",{className:"auth-page-wrapper pt-5"})};export{u as default};

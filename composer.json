@@ -19,16 +19,17 @@
     ],
     "require": {
         "php": "^8.2",
-        "aero/core": "@dev",
         "aero/cms": "@dev",
+        "aero/compliance": "@dev",
+        "aero/core": "@dev",
         "aero/hrm": "@dev",
         "aero/hrmac": "@dev",
         "aero/platform": "@dev",
         "aero/project": "@dev",
-        "aero/ui": "@dev",
-        "aero/rfi": "@dev",
-        "aero/compliance": "@dev",
         "aero/quality": "@dev",
+        "aero/rfi": "@dev",
+        "aero/ui": "@dev",
+        "area17/twill": "^3.5",
         "jenssegers/agent": "^2.6",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1"
@@ -102,7 +103,10 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
-        }
+        },
+        "disable-tls": false,
+        "secure-http": true,
+        "cafile": "D:/laragon/etc/ssl/cacert.pem"
     },
     "minimum-stability": "dev",
     "prefer-stable": true

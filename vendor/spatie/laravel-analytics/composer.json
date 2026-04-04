@@ -1,0 +1,65 @@
+{
+    "name": "spatie/laravel-analytics",
+    "description": "A Laravel package to retrieve Google Analytics data.",
+    "keywords": [
+        "spatie",
+        "google",
+        "analytics",
+        "retrieve",
+        "reports",
+        "laravel"
+    ],
+    "homepage": "https://github.com/spatie/laravel-analytics",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Freek Van der Herten",
+            "email": "freek@spatie.be",
+            "homepage": "https://spatie.be",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "google/analytics-data": "^0.22.3",
+        "laravel/framework": "^12.40.1|^13.0",
+        "nesbot/carbon": "^2.66|^3.10.3|^3.8.4",
+        "spatie/laravel-package-tools": "^1.92.7",
+        "symfony/cache": "^7.3.6|^8.0"
+    },
+    "require-dev": {
+        "league/flysystem": "^3.30.2",
+        "mockery/mockery": "^1.6.12",
+        "orchestra/testbench": "^10.0|^11.0",
+        "pestphp/pest": "^4.1.5",
+        "spatie/ray": "^1.44.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Spatie\\Analytics\\": "src"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Spatie\\Analytics\\AnalyticsServiceProvider"
+            ],
+            "aliases": {
+                "Analytics": "Spatie\\Analytics\\Facades\\Analytics"
+            }
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Spatie\\Analytics\\Tests\\": "tests"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

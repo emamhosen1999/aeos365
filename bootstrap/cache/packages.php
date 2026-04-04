@@ -3,7 +3,7 @@
   array (
     'providers' => 
     array (
-      0 => 'Aero\\Cms\\CmsServiceProvider',
+      0 => 'Aero\\Cms\\Providers\\CmsServiceProvider',
     ),
     'aliases' => 
     array (
@@ -85,6 +85,30 @@
       0 => 'Aero\\UI\\AeroUIServiceProvider',
     ),
   ),
+  'area17/twill' => 
+  array (
+    'aliases' => 
+    array (
+      'TwillUtil' => 'A17\\Twill\\Facades\\TwillUtil',
+      'TwillBlocks' => 'A17\\Twill\\Facades\\TwillBlocks',
+      'TwillRoutes' => 'A17\\Twill\\Facades\\TwillRoutes',
+      'TwillCapsules' => 'A17\\Twill\\Facades\\TwillCapsules',
+      'TwillNavigation' => 'A17\\Twill\\Facades\\TwillNavigation',
+      'TwillAppSettings' => 'A17\\Twill\\Facades\\TwillAppSettings',
+      'TwillPermissions' => 'A17\\Twill\\Facades\\TwillPermissions',
+    ),
+    'providers' => 
+    array (
+      0 => 'A17\\Twill\\TwillServiceProvider',
+    ),
+  ),
+  'astrotomic/laravel-translatable' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Astrotomic\\Translatable\\TranslatableServiceProvider',
+    ),
+  ),
   'barryvdh/laravel-dompdf' => 
   array (
     'aliases' => 
@@ -97,11 +121,29 @@
       0 => 'Barryvdh\\DomPDF\\ServiceProvider',
     ),
   ),
+  'cartalyst/tags' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Cartalyst\\Tags\\TagsServiceProvider',
+    ),
+  ),
   'inertiajs/inertia-laravel' => 
   array (
     'providers' => 
     array (
       0 => 'Inertia\\ServiceProvider',
+    ),
+  ),
+  'intervention/image' => 
+  array (
+    'aliases' => 
+    array (
+      'Image' => 'Intervention\\Image\\Facades\\Image',
+    ),
+    'providers' => 
+    array (
+      0 => 'Intervention\\Image\\ImageServiceProvider',
     ),
   ),
   'jenssegers/agent' => 
@@ -115,11 +157,11 @@
       0 => 'Jenssegers\\Agent\\AgentServiceProvider',
     ),
   ),
-  'laravel/boost' => 
+  'kalnoy/nestedset' => 
   array (
     'providers' => 
     array (
-      0 => 'Laravel\\Boost\\BoostServiceProvider',
+      0 => 'Kalnoy\\Nestedset\\NestedSetServiceProvider',
     ),
   ),
   'laravel/cashier' => 
@@ -136,29 +178,11 @@
       0 => 'Laravel\\Fortify\\FortifyServiceProvider',
     ),
   ),
-  'laravel/mcp' => 
-  array (
-    'aliases' => 
-    array (
-      'Mcp' => 'Laravel\\Mcp\\Server\\Facades\\Mcp',
-    ),
-    'providers' => 
-    array (
-      0 => 'Laravel\\Mcp\\Server\\McpServiceProvider',
-    ),
-  ),
   'laravel/pail' => 
   array (
     'providers' => 
     array (
       0 => 'Laravel\\Pail\\PailServiceProvider',
-    ),
-  ),
-  'laravel/roster' => 
-  array (
-    'providers' => 
-    array (
-      0 => 'Laravel\\Roster\\RosterServiceProvider',
     ),
   ),
   'laravel/sail' => 
@@ -175,11 +199,29 @@
       0 => 'Laravel\\Sanctum\\SanctumServiceProvider',
     ),
   ),
+  'laravel/socialite' => 
+  array (
+    'aliases' => 
+    array (
+      'Socialite' => 'Laravel\\Socialite\\Facades\\Socialite',
+    ),
+    'providers' => 
+    array (
+      0 => 'Laravel\\Socialite\\SocialiteServiceProvider',
+    ),
+  ),
   'laravel/tinker' => 
   array (
     'providers' => 
     array (
       0 => 'Laravel\\Tinker\\TinkerServiceProvider',
+    ),
+  ),
+  'laravel/ui' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Laravel\\Ui\\UiServiceProvider',
     ),
   ),
   'maatwebsite/excel' => 
@@ -191,6 +233,13 @@
     'providers' => 
     array (
       0 => 'Maatwebsite\\Excel\\ExcelServiceProvider',
+    ),
+  ),
+  'matthewbdaly/laravel-azure-storage' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Matthewbdaly\\LaravelAzureStorage\\AzureStorageServiceProvider',
     ),
   ),
   'nesbot/carbon' => 
@@ -219,6 +268,17 @@
     'providers' => 
     array (
       0 => 'Spatie\\Activitylog\\ActivitylogServiceProvider',
+    ),
+  ),
+  'spatie/laravel-analytics' => 
+  array (
+    'aliases' => 
+    array (
+      'Analytics' => 'Spatie\\Analytics\\Facades\\Analytics',
+    ),
+    'providers' => 
+    array (
+      0 => 'Spatie\\Analytics\\AnalyticsServiceProvider',
     ),
   ),
   'spatie/laravel-medialibrary' => 

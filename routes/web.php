@@ -13,4 +13,9 @@
 | - packages/aero-platform/routes/admin.php (admin panel)
 | - packages/aero-core/routes/tenant.php (tenant routes)
 |
+| MONOREPO ROUTING:
+| - Root "/" is handled by .htaccess rewrite to /cms/ (WordPress)
+| - /register, /login, /admin, /api, /tenant/* are Laravel routes
+| - /cms/* paths are served directly by Apache (don't go through Laravel)
+|
 */

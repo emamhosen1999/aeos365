@@ -1,0 +1,170 @@
+<?php
+
+namespace A17\Twill\Http\Controllers\Admin;
+
+use A17\Twill\Facades\TwillRoutes;
+use Carbon\Carbon;
+use Illuminate\Config\Repository as Config;
+use Illuminate\Foundation\Auth\ResetsPasswords;
+use Illuminate\Http\Request;
+use Illuminate\Routing\Redirector;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\View\Factory as ViewFactory;
+
+class ResetPasswordController extends Controller
+{
+    /*
+    |--------------------------------------------------------------------------
+    | Password Reset Controller
+    |--------------------------------------------------------------------------
+    |
+    | This controller is responsible for handling password reset requests
+    | and uses a simple trait to include this behavior. You're free to
+    | explore this trait and override any methods you wish to tweak.
+    |
+     */
+    use ResetsPasswords {
+        sendResetResponse as traitSendResetResponse;
+    }
+
+    /**
+     * @var Redirector
+     */
+    protected $redirector;
+
+    /**
+     * @var Config
+     */
+    protected $config;
+
+    /**
+     * The path the user should be redirected to.
+     *
+     * @var string
+     */
+    protected $redirectTo;
+
+    /**
+     * @var ViewFactory
+     */
+    protected $viewFactory;
+
+    public function __construct(Config $config, Redirector $redirector, ViewFactory $viewFactory)
+    {
+        parent::__construct();
+
+        $this->redirector = $redirector;
+        $this->viewFactory = $viewFactory;
+        $this->config = $config;
+
+        $this->redirectTo = TwillRoutes::getAuthRedirectPath();
+        $this->middleware('twill_guest');
+    }
+
+    /**
+     * @return \Illuminate\Contracts\Auth\Guard
+     */
+    protected function guard()
+    {
+        return Auth::guard('twill_users');
+    }
+
+    /**
+     * @return \Illuminate\Contracts\Auth\PasswordBroker
+     */
+    public function broker()
+    {
+        return Password::broker('twill_users');
+    }
+
+    protected function sendResetResponse(Request $request, $response)
+    {
+        $user = twillModel('user')::where('email', $request->input('email'))->first();
+        if (! $user->isActivated()) {
+            $user->registered_at = Carbon::now();
+            $user->save();
+        }
+
+        if ($user->require_new_password) {
+            $user->require_new_password = false;
+            $user->save();
+        }
+
+        return $this->traitSendResetResponse($request, $response);
+    }
+
+    /**
+     * @param Request $request
+     * @param string|null $token
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\View\View
+     */
+    public function showResetForm(Request $request, $token = null)
+    {
+        $user = $this->getUserFromToken($token);
+
+        // call exists on the Password repository to check for token expiration (default 1 hour)
+        // otherwise redirect to the ask reset link form with error message
+        if ($user && Password::broker('twill_users')->getRepository()->exists($user, $token)) {
+            return $this->viewFactory->make('twill::auth.passwords.reset')->with([
+                'token' => $token,
+                'email' => $user->email,
+            ]);
+        }
+
+        return $this->redirector->to(route(config('twill.admin_route_name_prefix') . 'password.reset.link'))->withErrors([
+            'token' => 'Your password reset token has expired or could not be found, please retry.',
+        ]);
+    }
+
+    /**
+     * @param Request $request
+     * @param string|null $token
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\View\View
+     */
+    public function showWelcomeForm(Request $request, $token = null)
+    {
+        $user = $this->getUserFromToken($token);
+
+        // we don't call exists on the Password repository here because we don't want to expire the token for welcome emails
+        if ($user) {
+            return $this->viewFactory->make('twill::auth.passwords.reset')->with([
+                'token' => $token,
+                'email' => $user->email,
+                'welcome' => true,
+            ]);
+        }
+
+        return $this->redirector->to(route(config('twill.admin_route_name_prefix') . 'password.reset.link'))->withErrors([
+            'token' => 'Your password reset token has expired or could not be found, please retry.',
+        ]);
+    }
+
+    /**
+     * Attempts to find a user with the given token.
+     *
+     * Since Laravel 5.4, reset tokens are encrypted, but we support both cases here
+     * https://github.com/laravel/framework/pull/16850
+     *
+     * @param string $token
+     * @return \A17\Twill\Models\User|null
+     */
+    private function getUserFromToken($token)
+    {
+        $clearToken = DB::table($this->config->get('auth.passwords.twill_users.table', 'twill_password_resets'))->where('token', $token)->first();
+
+        if ($clearToken) {
+            return twillModel('user')::where('email', $clearToken->email)->first();
+        }
+
+        foreach (DB::table($this->config->get('auth.passwords.twill_users.table', 'twill_password_resets'))->get() as $passwordReset) {
+            if (Hash::check($token, $passwordReset->token)) {
+                return twillModel('user')::where('email', $passwordReset->email)->first();
+            }
+        }
+
+        return null;
+    }
+}

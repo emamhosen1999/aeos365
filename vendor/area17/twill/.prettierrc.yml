@@ -1,0 +1,9 @@
+trailingComma: none
+printWidth: 80
+tabWidth: 2
+useTabs: false
+singleQuote: true
+requirePragma: false
+insertPragma: false
+semi: false
+vueIndentScriptAndStyle: true
