@@ -1,0 +1,1 @@
+import{J as r,j as s,c as d}from"./app-DFpAs6xa.js";const n=()=>r(),c=({children:a,className:t="",...e})=>s.jsx(d,{className:`aero-card transition-all duration-200 ${t}`,...e,children:a});export{c as T,n as g};
