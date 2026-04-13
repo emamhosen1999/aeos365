@@ -6,7 +6,7 @@
             "version_normalized": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "D:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-compliance",
+                "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-compliance",
                 "reference": "7c059370efdac39b34c2d0f5771f00e8f01f5b36"
             },
             "require": {
@@ -51,7 +51,7 @@
             "version_normalized": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "D:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-core",
+                "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-core",
                 "reference": "0fece6a38dfbbb8bc31d40201a9f977242360685"
             },
             "require": {
@@ -139,7 +139,7 @@
             "version_normalized": "1.0.0.0",
             "dist": {
                 "type": "path",
-                "url": "D:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-hrm",
+                "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-hrm",
                 "reference": "ea10ebf4eed5f1810eee2c2d34fd2d1fc68caa85"
             },
             "require": {
@@ -213,7 +213,7 @@
             "version_normalized": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "D:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-hrmac",
+                "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-hrmac",
                 "reference": "25cd791ede6a1494909851e4c0c166db9cf65254"
             },
             "require": {
@@ -261,7 +261,7 @@
             "version_normalized": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "D:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-platform",
+                "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-platform",
                 "reference": "5a99370403d8824d0f0aca9b4fe50e3bc8eff7b7"
             },
             "require": {
@@ -350,7 +350,7 @@
             "version_normalized": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "D:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-project",
+                "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-project",
                 "reference": "5f04d618620e54b5292e33441995cc243a7a1a0e"
             },
             "require": {
@@ -394,7 +394,7 @@
             "version_normalized": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "D:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-quality",
+                "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-quality",
                 "reference": "ea6f6f959b88b5e8e5ab85fba2fbd102acacb020"
             },
             "require": {
@@ -436,7 +436,7 @@
             "version_normalized": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "D:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-rfi",
+                "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-rfi",
                 "reference": "3da140374599c3c70fe48bb343aa6afe55666f2b"
             },
             "require": {
@@ -506,7 +506,7 @@
             "version_normalized": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "D:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-ui",
+                "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-ui",
                 "reference": "f3421d81ea558cb609c3e1ebd9784568497849c1"
             },
             "require": {

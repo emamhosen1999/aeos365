@@ -11,7 +11,7 @@
     "repositories": [
         {
             "type": "path",
-            "url": "D:\\laragon\\www\\Aero-Enterprise-Suite-Saas\\packages/*",
+            "url": "C:\\laragon\\www\\Aero-Enterprise-Suite-Saas\\packages/*",
             "options": {
                 "symlink": true
             }
@@ -102,9 +102,9 @@
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
         },
-        "disable-tls": false,
-        "secure-http": true,
-        "cafile": "D:/laragon/etc/ssl/cacert.pem"
+        "disable-tls": true,
+        "secure-http": false,
+        "cafile": "C:/laragon/etc/ssl/cacert.pem"
     },
     "minimum-stability": "dev",
     "prefer-stable": true
