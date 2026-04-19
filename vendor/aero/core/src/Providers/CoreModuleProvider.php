@@ -2,6 +2,8 @@
 
 namespace Aero\Core\Providers;
 
+use Illuminate\Support\Facades\Route;
+
 /**
  * Core Module Provider
  *
@@ -160,10 +162,7 @@ class CoreModuleProvider extends AbstractModuleProvider
     public function getRoutes(): array
     {
         return [
-            'admin' => $this->getModulePath('routes/admin.php'),
-            'tenant' => $this->getModulePath('routes/tenant.php'),
             'web' => $this->getModulePath('routes/web.php'),
-            'api' => $this->getModulePath('routes/api.php'),
         ];
     }
 
@@ -209,6 +208,9 @@ class CoreModuleProvider extends AbstractModuleProvider
     {
         // Register middleware
         $this->registerMiddleware();
+
+        // Register model observers
+        \Aero\Core\Models\User::observe(\Aero\Core\Observers\UserQuotaObserver::class);
 
         // Register policies
         $this->registerPolicies();

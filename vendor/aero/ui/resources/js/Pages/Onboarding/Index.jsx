@@ -41,21 +41,10 @@ import { showToast, toastStyles } from '@/utils/toastUtils';
 import { useTheme } from '@/Context/ThemeContext.jsx';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useThemeRadius } from '@/Hooks/useThemeRadius';
 
 // Helper function to convert theme borderRadius to HeroUI radius values
-const getThemeRadius = () => {
-    if (typeof window === 'undefined') return 'lg';
-    
-    const rootStyles = getComputedStyle(document.documentElement);
-    const borderRadius = rootStyles.getPropertyValue('--borderRadius')?.trim() || '12px';
-    
-    const radiusValue = parseInt(borderRadius);
-    if (radiusValue === 0) return 'none';
-    if (radiusValue <= 4) return 'sm';
-    if (radiusValue <= 8) return 'md';
-    if (radiusValue <= 16) return 'lg';
-    return 'full';
-};
+const themeRadius = useThemeRadius();
 
 /**
  * Tenant Onboarding Wizard
@@ -80,7 +69,6 @@ export default function OnboardingWizard({
 }) {
     const [activeStep, setActiveStep] = useState(currentStep || 'welcome');
     const [teamInvites, setTeamInvites] = useState([{ email: '', role: roles[0]?.name || 'employee' }]);
-    const [themeRadius, setThemeRadius] = useState('lg');
     
     // Theme context for dark mode toggle
     const { themeSettings, toggleMode } = useTheme();
@@ -89,7 +77,7 @@ export default function OnboardingWizard({
     // Set theme radius on mount (client-side only)
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            setThemeRadius(getThemeRadius());
+            setThemeRadius(themeRadius);
         }
     }, []);
 
@@ -1350,5 +1338,4 @@ export default function OnboardingWizard({
         </>
     );
 }
-
 

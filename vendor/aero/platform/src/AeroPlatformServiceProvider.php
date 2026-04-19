@@ -246,6 +246,8 @@ class AeroPlatformServiceProvider extends ServiceProvider
                 \Aero\Platform\Console\Commands\SetupApplication::class,
                 \Aero\Platform\Console\Commands\CleanupFailedInstallation::class,
                 \Aero\Platform\Console\Commands\ProcessPendingSubscriptionChanges::class,
+                \Aero\Platform\Console\Commands\ProcessSubscriptionRenewals::class,
+                \Aero\Platform\Console\Commands\ExpireGracePeriods::class,
             ]);
         }
 
@@ -448,6 +450,7 @@ class AeroPlatformServiceProvider extends ServiceProvider
         // Role-based module access middleware (checks role_module_access table)
         $router->aliasMiddleware('role.access', \Aero\Platform\Http\Middleware\CheckRoleModuleAccess::class);
         $router->aliasMiddleware('smart.landing', \Aero\Platform\Http\Middleware\SmartLandingRedirect::class);
+        $router->aliasMiddleware('quota', \Aero\Platform\Http\Middleware\EnforceTenantQuotas::class);
 
         // Optionally push CheckModuleSubscription to 'tenant' middleware group
         // This provides automatic route-based module gating for all tenant routes
@@ -704,6 +707,15 @@ class AeroPlatformServiceProvider extends ServiceProvider
             $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
         });
 
+        // Platform API routes (public, no CSRF)
+        Route::group([
+            'middleware' => ['api'],
+            'prefix' => 'api',
+            'domain' => $platformDomain,
+        ], function () {
+            $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
+        });
+
         // Admin routes (for admin.domain.com - landlord guard)
         // Uses explicit domain constraint for proper route matching
         // This ensures admin.domain.com/login is distinct from domain.com/login
@@ -714,14 +726,6 @@ class AeroPlatformServiceProvider extends ServiceProvider
             $this->loadRoutesFrom(__DIR__.'/../routes/admin.php');
         });
 
-        // Platform API routes (for domain.com/api/* - public product catalog)
-        // These endpoints expose available products/features for tenant applications
-        Route::group([
-            'middleware' => ['api'],
-            'prefix' => 'api',
-        ], function () {
-            $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
-        });
     }
 
     /**

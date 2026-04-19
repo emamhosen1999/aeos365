@@ -36,18 +36,10 @@ import {
 } from '@heroicons/react/24/outline';
 import { showToast } from '@/utils/toastUtils';
 import axios from 'axios';
+import { useThemeRadius } from '@/Hooks/useThemeRadius';
 
 // Theme utilities
-const getThemeRadius = () => {
-    const rootStyles = getComputedStyle(document.documentElement);
-    const borderRadius = rootStyles.getPropertyValue('--borderRadius')?.trim() || '12px';
-    const radiusValue = parseInt(borderRadius);
-    if (radiusValue === 0) return 'none';
-    if (radiusValue <= 4) return 'sm';
-    if (radiusValue <= 8) return 'md';
-    if (radiusValue <= 12) return 'lg';
-    return 'xl';
-};
+const themeRadius = useThemeRadius();
 
 const getCardStyle = () => ({
     background: `linear-gradient(135deg, 
@@ -62,7 +54,6 @@ const getCardStyle = () => ({
 
 const AdvancedAnalytics = () => {
     const [loading, setLoading] = useState(true);
-    const [themeRadius, setThemeRadius] = useState('lg');
     const [autoRefresh, setAutoRefresh] = useState(false);
     const [lastUpdated, setLastUpdated] = useState(new Date());
 
@@ -119,8 +110,8 @@ const AdvancedAnalytics = () => {
 
     // Initialize theme
     useEffect(() => {
-        setThemeRadius(getThemeRadius());
-        const handleResize = () => setThemeRadius(getThemeRadius());
+        setThemeRadius(themeRadius);
+        const handleResize = () => setThemeRadius(themeRadius);
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);

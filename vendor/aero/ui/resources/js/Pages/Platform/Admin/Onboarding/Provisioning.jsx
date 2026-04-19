@@ -38,8 +38,10 @@ import App from "@/Layouts/App.jsx";
 import StatsCards from "@/Components/StatsCards.jsx";
 import { showToast } from '@/utils/toastUtils';
 import axios from 'axios';
+import { useThemeRadius } from '@/Hooks/useThemeRadius';
+import { useHRMAC } from '@/Hooks/useHRMAC';
 
-const Provisioning = ({ queue: initialQueue, stats: initialStats, stepProgress: initialStepProgress, filters: initialFilters, auth }) => {
+const Provisioning = ({ queue: initialQueue, stats: initialStats, stepProgress: initialStepProgress, filters: initialFilters }) => {
     const [isMobile, setIsMobile] = useState(false);
     const [loading, setLoading] = useState(false);
     const [queue, setQueue] = useState(initialQueue?.data || []);
@@ -63,21 +65,9 @@ const Provisioning = ({ queue: initialQueue, stats: initialStats, stepProgress: 
         return () => window.removeEventListener('resize', checkScreenSize);
     }, []);
 
-    const getThemeRadius = () => {
-        if (typeof window === 'undefined') return 'lg';
-        const rootStyles = getComputedStyle(document.documentElement);
-        const borderRadius = rootStyles.getPropertyValue('--borderRadius')?.trim() || '12px';
-        const radiusValue = parseInt(borderRadius);
-        if (radiusValue === 0) return 'none';
-        if (radiusValue <= 4) return 'sm';
-        if (radiusValue <= 8) return 'md';
-        if (radiusValue <= 12) return 'lg';
-        return 'xl';
-    };
-
-    const hasPermission = (permission) => {
-        return auth?.permissions?.includes(permission) || auth?.permissions?.includes('*');
-    };
+    const themeRadius = useThemeRadius();
+    const { hasAccess } = useHRMAC();
+    const canRetry = hasAccess('platform', 'onboarding_management', 'provisioning', 'retry');
 
     const statsData = useMemo(() => [
         {
@@ -247,7 +237,7 @@ const Provisioning = ({ queue: initialQueue, stats: initialStats, stepProgress: 
             case 'actions':
                 return (
                     <div className="flex items-center gap-2">
-                        {item.status === 'failed' && hasPermission('platform-onboarding.provisioning.retry') && (
+                        {item.status === 'failed' && canRetry && (
                             <Button
                                 size="sm"
                                 color="primary"
@@ -376,7 +366,7 @@ const Provisioning = ({ queue: initialQueue, stats: initialStats, stepProgress: 
                                         selectedKeys={filters.status !== 'all' ? [filters.status] : []}
                                         onSelectionChange={(keys) => setFilters(prev => ({ ...prev, status: Array.from(keys)[0] || 'all' }))}
                                         className="w-full sm:w-48"
-                                        radius={getThemeRadius()}
+                                        radius={themeRadius}
                                     >
                                         <SelectItem key="all">All Status</SelectItem>
                                         <SelectItem key="provisioning">Processing</SelectItem>
@@ -425,7 +415,7 @@ const Provisioning = ({ queue: initialQueue, stats: initialStats, stepProgress: 
                                             page={pagination.currentPage}
                                             onChange={(page) => fetchQueue(page)}
                                             showControls
-                                            radius={getThemeRadius()}
+                                            radius={themeRadius}
                                         />
                                     </div>
                                 )}
@@ -441,5 +431,4 @@ const Provisioning = ({ queue: initialQueue, stats: initialStats, stepProgress: 
 Provisioning.layout = (page) => <App children={page} />;
 
 export default Provisioning;
-
 
