@@ -1,0 +1,1 @@
+import{r as t}from"./app-btwDXMEY.js";const n=()=>t.useMemo(()=>{if(typeof window>"u")return"lg";const r=getComputedStyle(document.documentElement).getPropertyValue("--borderRadius")?.trim()||"12px",e=parseInt(r,10);return Number.isNaN(e)?"lg":e===0?"none":e<=4?"sm":e<=8?"md":e<=16?"lg":"full"},[]);export{n as u};

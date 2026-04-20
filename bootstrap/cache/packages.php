@@ -35,6 +35,13 @@
       'HRMAC' => 'Aero\\HRMAC\\Facades\\HRMAC',
     ),
   ),
+  'aero/i18n' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Aero\\I18n\\AeroI18nServiceProvider',
+    ),
+  ),
   'aero/platform' => 
   array (
     'providers' => 

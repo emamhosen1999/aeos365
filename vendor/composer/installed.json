@@ -52,9 +52,10 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-core",
-                "reference": "0fece6a38dfbbb8bc31d40201a9f977242360685"
+                "reference": "031e2c92124b2e3ea0fe9573b16a709a493df661"
             },
             "require": {
+                "aero/i18n": "@dev",
                 "inertiajs/inertia-laravel": "^2.0",
                 "jenssegers/agent": "^2.6|^3.0",
                 "laravel/framework": "^11.0|^12.0",
@@ -254,6 +255,72 @@
                 "relative": false
             },
             "install-path": "../aero/hrmac"
+        },
+        {
+            "name": "aero/i18n",
+            "version": "dev-main",
+            "version_normalized": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-i18n",
+                "reference": "f774ef7ff08a49a585554135035f49a08a7ca7bd"
+            },
+            "require": {
+                "laravel/framework": "^11.0|^12.0",
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^9.0|^10.0",
+                "phpunit/phpunit": "^11.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Aero\\I18n\\AeroI18nServiceProvider"
+                    ]
+                },
+                "aero": {
+                    "package": "i18n",
+                    "version": "1.0.0",
+                    "category": "foundation",
+                    "description": "Internationalisation: locale config, middleware, dictionaries, locale switching"
+                }
+            },
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Aero\\I18n\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Aero\\I18n\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Aero Team",
+                    "email": "support@aerosuite.com"
+                }
+            ],
+            "description": "Aero I18n Package - Internationalisation infrastructure: locale config, middleware, translation dictionaries, and locale switching API",
+            "keywords": [
+                "aero",
+                "i18n",
+                "internationalisation",
+                "laravel",
+                "locale",
+                "translation"
+            ],
+            "transport-options": {
+                "symlink": true,
+                "relative": false
+            },
+            "install-path": "../aero/i18n"
         },
         {
             "name": "aero/platform",

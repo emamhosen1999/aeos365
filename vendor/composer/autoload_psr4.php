@@ -138,6 +138,7 @@ return array(
     'Aero\\Platform\\Database\\Seeders\\' => array($vendorDir . '/aero/platform/database/seeders'),
     'Aero\\Platform\\Database\\Factories\\' => array($vendorDir . '/aero/platform/database/factories'),
     'Aero\\Platform\\' => array($vendorDir . '/aero/platform/src'),
+    'Aero\\I18n\\' => array($vendorDir . '/aero/i18n/src'),
     'Aero\\HRM\\Database\\Seeders\\' => array($vendorDir . '/aero/hrm/database/seeders'),
     'Aero\\HRM\\Database\\Factories\\' => array($vendorDir . '/aero/hrm/database/factories'),
     'Aero\\HRM\\' => array($vendorDir . '/aero/hrm/src'),

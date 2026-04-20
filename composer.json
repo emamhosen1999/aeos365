@@ -23,6 +23,7 @@
         "aero/core": "@dev",
         "aero/hrm": "@dev",
         "aero/hrmac": "@dev",
+        "aero/i18n": "@dev",
         "aero/platform": "@dev",
         "aero/project": "@dev",
         "aero/quality": "@dev",
