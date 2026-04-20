@@ -947,10 +947,11 @@ class AeroPlatformServiceProvider extends ServiceProvider
                     return route('admin.login');
                 }
 
-                // Platform domain (no subdomain) → redirect to registration page
+                // Platform domain (no subdomain) → redirect to landing page
                 // Platform domain does NOT have a login route - it's for public pages and registration
+                // Redirecting to home prevents the root "/" from bouncing to /signup
                 if ($trait->isPlatform($host)) {
-                    return route('platform.register.index');
+                    return route('platform.home');
                 }
 
                 // Tenant subdomain → login
