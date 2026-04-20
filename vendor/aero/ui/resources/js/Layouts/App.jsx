@@ -28,11 +28,14 @@ import CommandPalette from '@/Components/Navigation/CommandPalette.jsx';
 import MaintenanceModeBanner from '@/Components/Platform/MaintenanceModeBanner.jsx';
 import { useVersionManager } from '@/Hooks/useVersionManager.js';
 import { useMediaQuery } from '@/Hooks/useMediaQuery.js';
+import { useKeyboardNavigation } from '@/Hooks/useKeyboardNavigation.js';
+import { useAINavigation } from '@/Hooks/useAINavigation.js';
 import { TranslationProvider } from '@/Context/TranslationContext';
 import { GlobalAutoTranslator } from '@/Context/GlobalAutoTranslator';
 import { AppStateProvider } from '@/Context/AppStateContext';
+import { useTheme } from '@/Context/ThemeContext';
 import { useBranding } from '@/Hooks/useBranding';
-import { useLegacyPages } from '@/Configs/navigationUtils.jsx';
+import { resolveEffectiveMode } from '@/theme/index';
 
 import '@/utils/serviceWorkerManager.js';
 
@@ -71,7 +74,6 @@ PageContent.displayName = 'PageContent';
 const MainContentArea = React.memo(({ 
   children, 
   url, 
-  pages,
   onToggleThemeDrawer,
   auth 
 }) => {
@@ -111,7 +113,7 @@ const MainContentArea = React.memo(({
       <header className="sticky top-0 z-[30] w-full overflow-hidden print:hidden">
         <ImpersonationBanner />
         <SubscriptionAlertBanner />
-        <Header pages={pages} showNav={!sidebarOpen} />
+        <Header showNav={!sidebarOpen} />
       </header>
       
       {/* Breadcrumb */}
@@ -163,9 +165,12 @@ const App = React.memo(({ children }) => {
   
   // Get domain-aware branding
   const { favicon, siteName } = useBranding();
+  const { themeSettings } = useTheme();
 
-  // Get navigation pages (from config-driven navigation system)
-  const pages = useLegacyPages();
+  const effectiveMode = resolveEffectiveMode(themeSettings?.mode || 'system');
+  const isDarkAppearance = effectiveMode !== null;
+  const activeBackgroundType = themeSettings?.background?.type || 'color';
+  const usesDocumentBackground = ['pattern', 'image', 'texture'].includes(activeBackgroundType);
 
   // Version manager for update notifications
   const {
@@ -175,6 +180,9 @@ const App = React.memo(({ children }) => {
     forceUpdate,
     dismissUpdate
   } = useVersionManager();
+
+  // Auto-track page visits for AI navigation personalization
+  useAINavigation();
 
   // Responsive breakpoints
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -250,26 +258,11 @@ const App = React.memo(({ children }) => {
     return () => { mounted = false; };
   }, [authData?.user?.id]);
 
-  // Initialize theme background from theme system
-  useEffect(() => {
-    // The ThemeProvider will handle background initialization
-    // This effect is just to ensure CSS variable fallback is available
-    if (typeof window !== 'undefined' && !document.documentElement.style.getPropertyValue('--theme-background')) {
-      document.documentElement.style.setProperty('--theme-background', '#F4F4F5');
-    }
-  }, []);
+  // Theme background is initialized by ThemeProvider via applyThemeToDocument()
+  // No manual fallback needed — ThemeContext handles all CSS variable setup
 
   // Command Palette keyboard shortcut (⌘K / Ctrl+K)
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        staticToggleCommandPalette();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [staticToggleCommandPalette]);
+  useKeyboardNavigation({ onCommandPalette: staticToggleCommandPalette });
 
   // Inertia loading state
   useEffect(() => {
@@ -315,9 +308,8 @@ const App = React.memo(({ children }) => {
     <CommandPalette
       isOpen={commandPaletteOpen}
       onClose={staticCloseCommandPalette}
-      pages={pages}
     />
-  ), [commandPaletteOpen, staticCloseCommandPalette, pages]);
+  ), [commandPaletteOpen, staticCloseCommandPalette]);
 
   // ===== RENDER =====
   return (
@@ -356,7 +348,7 @@ const App = React.memo(({ children }) => {
                   pauseOnFocusLoss
                   draggable
                   pauseOnHover
-                  theme="colored"
+                  theme={isDarkAppearance ? 'dark' : 'light'}
                 />
 
                 {/* Floating Theme Settings Button - Desktop Only */}
@@ -392,18 +384,21 @@ const App = React.memo(({ children }) => {
                 <div 
                   className="flex h-full overflow-hidden"
                   style={{
-                    background: `var(--theme-background, var(--background, #F4F4F5))`,
+                    background: usesDocumentBackground
+                      ? 'transparent'
+                      : `var(--theme-background, var(--background, #F4F4F5))`,
+                    color: 'var(--theme-foreground, #11181C)',
+                    fontFamily: 'var(--fontFamily, "Inter")',
                   }}
                 >
                   {/* Sidebar - Desktop visible, Mobile drawer */}
                   <div className="print:hidden">
-                    <Sidebar pages={pages} />
+                    <Sidebar />
                   </div>
 
                   {/* Main Content Area */}
                   <MainContentArea
                     url={url}
-                    pages={pages}
                     onToggleThemeDrawer={staticToggleThemeDrawer}
                     auth={authData}
                   >
