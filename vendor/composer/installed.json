@@ -5605,7 +5605,7 @@
                     ]
                 }
             },
-            "installation-source": "source",
+            "installation-source": "dist",
             "autoload": {
                 "psr-4": {
                     "Orchestra\\Canvas\\Core\\": "src/"
