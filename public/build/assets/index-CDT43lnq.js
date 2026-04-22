@@ -1,0 +1,1 @@
+import{f as c}from"./SelectionManager-D8XNlS94.js";import{as as i}from"./app-DZFR-G-w.js";const n=new WeakMap;function d(e){let f=n.get(e);if(f!=null)return f;let t=0,r=s=>{for(let a of s)a.type==="section"?r(c(a,e)):a.type==="item"&&t++};return r(e),n.set(e,t),t}var o=700;function p(){return i()||typeof window>"u"?!1:window.screen.width<=o}export{d as $,p as u};
