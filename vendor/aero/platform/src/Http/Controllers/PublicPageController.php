@@ -13,7 +13,7 @@ class PublicPageController extends Controller
     public function home(Request $request): Response
     {
         return Inertia::render('Platform/Public/Home', [
-            'title' => 'Modern ERP Platform',
+            'title' => 'Home',
         ]);
     }
 
