@@ -20,35 +20,35 @@ class PublicPageController extends Controller
     public function pricing(Request $request): Response
     {
         return Inertia::render('Platform/Public/Pricing', [
-            'title' => 'Pricing — aeos365',
+            'title' => 'Pricing',
         ]);
     }
 
     public function features(Request $request): Response
     {
         return Inertia::render('Platform/Public/Features', [
-            'title' => 'Features — aeos365',
+            'title' => 'Features',
         ]);
     }
 
     public function enterprise(Request $request): Response
     {
         return Inertia::render('Platform/Public/Enterprise', [
-            'title' => 'Enterprise — aeos365',
+            'title' => 'Enterprise',
         ]);
     }
 
     public function about(Request $request): Response
     {
         return Inertia::render('Platform/Public/About', [
-            'title' => 'About — aeos365',
+            'title' => 'About',
         ]);
     }
 
     public function docs(Request $request): Response
     {
         return Inertia::render('Platform/Public/Docs', [
-            'title' => 'Documentation — aeos365',
+            'title' => 'Documentation',
         ]);
     }
 }

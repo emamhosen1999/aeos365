@@ -9,7 +9,7 @@ import DocsCommunity from './Components/DocsCommunity';
 import DocsCTA from './Components/DocsCTA';
 import './styles/public.css';
 
-export default function Docs({ title = 'Documentation' }) {
+export default function Docs({ title }) {
     return (
         <>
             <Head title={title} />
