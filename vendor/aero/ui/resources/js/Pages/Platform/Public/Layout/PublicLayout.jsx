@@ -158,7 +158,7 @@ function Header() {
   const isActive = (href) => href === "/" ? currentPath === "/" : currentPath === href || currentPath.startsWith(href + "/");
 
   const translatedNavLinks = [
-    { label: t("nav_home"),   href: "/home"   },
+    { label: t("nav_home"),   href: "/"   },
     { label: t("nav_features"),   href: "/features"   },
     { label: t("nav_pricing"),    href: "/pricing"     },
     { label: t("nav_enterprise"), href: "/enterprise"  },
