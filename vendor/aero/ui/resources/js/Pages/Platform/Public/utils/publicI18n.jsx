@@ -17,6 +17,7 @@ export const PUBLIC_LANGUAGES = [
 // Covers all UI chrome strings: nav, buttons, footer labels, CTAs
 const DICT = {
   en: {
+    nav_home:            "Home",
     nav_platform:        "Platform",
     nav_modules:         "Modules",
     nav_enterprise:      "Enterprise",
@@ -45,6 +46,7 @@ const DICT = {
     theme_light:         "Light",
   },
   ar: {
+    nav_home:            "الصفحة الرئيسية", 
     nav_platform:        "المنصة",
     nav_modules:         "الوحدات",
     nav_enterprise:      "المؤسسات",
@@ -73,6 +75,7 @@ const DICT = {
     theme_light:         "فاتح",
   },
   de: {
+    nav_home:            "Startseite",
     nav_platform:        "Plattform",
     nav_modules:         "Module",
     nav_enterprise:      "Enterprise",
@@ -101,6 +104,7 @@ const DICT = {
     theme_light:         "Hell",
   },
   es: {
+    nav_home:            "Inicio",
     nav_platform:        "Plataforma",
     nav_modules:         "Módulos",
     nav_enterprise:      "Empresas",
@@ -129,6 +133,7 @@ const DICT = {
     theme_light:         "Claro",
   },
   fr: {
+    nav_home:            "Accueil",
     nav_platform:        "Plateforme",
     nav_modules:         "Modules",
     nav_enterprise:      "Entreprise",
@@ -157,6 +162,7 @@ const DICT = {
     theme_light:         "Clair",
   },
   bn: {
+    nav_home:            "হোম",
     nav_platform:        "প্ল্যাটফর্ম",
     nav_modules:         "মডিউল",
     nav_enterprise:      "এন্টারপ্রাইজ",
@@ -185,6 +191,7 @@ const DICT = {
     theme_light:         "আলো",
   },
   hi: {
+    nav_home:            "होम",
     nav_platform:        "प्लेटफ़ॉर्म",
     nav_modules:         "मॉड्यूल",
     nav_enterprise:      "एंटरप्राइज़",
@@ -213,6 +220,7 @@ const DICT = {
     theme_light:         "लाइट",
   },
   "zh-CN": {
+    nav_home:            "首页",
     nav_platform:        "平台",
     nav_modules:         "模块",
     nav_enterprise:      "企业版",
@@ -238,9 +246,10 @@ const DICT = {
     cookie_policy:       "Cookie 政策",
     language:            "语言",
     theme_dark:          "深色",
-    theme_light:         "浅色",
+    theme_light:         "淺色",
   },
   "zh-TW": {
+    nav_home:            "首頁",
     nav_platform:        "平台",
     nav_modules:         "模組",
     nav_enterprise:      "企業版",
