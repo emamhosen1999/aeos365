@@ -2,8 +2,7 @@
     "agents": [
         "copilot"
     ],
-    "editors": [
-        "vscode"
-    ],
-    "guidelines": []
+    "mcp": true,
+    "nightwatch_mcp": false,
+    "sail": false
 }

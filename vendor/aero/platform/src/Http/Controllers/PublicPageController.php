@@ -51,4 +51,53 @@ class PublicPageController extends Controller
             'title' => 'Documentation',
         ]);
     }
+
+    public function contact(Request $request): Response
+    {
+        return Inertia::render('Platform/Public/Contact', [
+            'title' => 'Contact Us — aeos365',
+        ]);
+    }
+
+    public function blog(Request $request): Response
+    {
+        return Inertia::render('Platform/Public/Blog', [
+            'title' => 'Blog',
+        ]);
+    }
+
+    public function privacy(Request $request): Response
+    {
+        return Inertia::render('Platform/Public/LegalPrivacy', [
+            'title' => 'Privacy Policy',
+        ]);
+    }
+
+    public function terms(Request $request): Response
+    {
+        return Inertia::render('Platform/Public/LegalTerms', [
+            'title' => 'Terms of Service',
+        ]);
+    }
+
+    public function cookies(Request $request): Response
+    {
+        return Inertia::render('Platform/Public/LegalCookies', [
+            'title' => 'Cookie Policy',
+        ]);
+    }
+
+    public function security(Request $request): Response
+    {
+        return Inertia::render('Platform/Public/LegalSecurity', [
+            'title' => 'Security Policy',
+        ]);
+    }
+
+    public function docsApi(Request $request): Response
+    {
+        return Inertia::render('Platform/Public/DocsApi', [
+            'title' => 'API Documentation',
+        ]);
+    }
 }

@@ -4,33 +4,18 @@ import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 
-/**
- * Aero Enterprise Suite - Vite Configuration
- * 
- * AUTO-INSTALLED by aero/ui package.
- * 
- * UNIFIED ENTRY POINT:
- * - All frontend code lives in vendor/aero/ui
- * - Single app.jsx handles all page resolution
- * - Works for both SaaS and Standalone modes
- */
-
-// UI package path - symlinked via Composer
 const uiPath = 'vendor/aero/ui';
 
 export default defineConfig({
     plugins: [
         laravel({
             input: [
-                // Unified UI package - single entry point for all frontend
                 `${uiPath}/resources/css/app.css`,
                 `${uiPath}/resources/js/app.jsx`,
             ],
             refresh: [
-                // Watch UI package resources for HMR
                 `${uiPath}/resources/js/**/*.{js,jsx,ts,tsx}`,
                 `${uiPath}/resources/css/**/*.css`,
-                // Watch local resources if any customizations exist
                 'resources/**/*.{blade.php,js,jsx}',
             ],
         }),
@@ -43,26 +28,47 @@ export default defineConfig({
     },
 
     resolve: {
-        // Preserve symlink paths so manifest keys match Blade references
         preserveSymlinks: true,
-        
         alias: {
-            // Primary alias - all imports use @/ prefix
             '@': resolve(__dirname, `${uiPath}/resources/js`),
         },
-        
-       
     },
 
-   
+    // PERFORMANCE TWEAK #1: Force pre-bundling of heavy dependencies
+    optimizeDeps: {
+        // Because your UI is in vendor/, Vite might miss these. 
+        // Explicitly list heavy third-party packages used in your React app.
+        include: [
+            'react',
+            'react-dom',
+            'react/jsx-runtime',
+            '@inertiajs/react',
+            'axios',
+            // Add other heavy hitters here (e.g., 'framer-motion', 'chart.js')
+        ],
+        // Exclude your local package so it's not cached as a static dependency
+        exclude: ['aero-ui'], 
+    },
+
     server: {
-        host: 'localhost',
+        host: '0.0.0.0', // Keeps listening on all interfaces
         port: 5173,
         strictPort: false,
+        allowedHosts: ['.aeos365.test', 'aeos365.test'],
+        
+        // ADD THIS BACK: Tells Laravel to use the correct domain for script tags
         hmr: {
-            host: 'localhost',
+            host: 'aeos365.test',
         },
+        
         cors: true,
-       
+        watch: {
+            ignored: [
+                '**/node_modules/**',
+                '**/storage/**',
+                '**/.git/**',
+                '**/vendor/!(aero)/**', 
+            ],
+        },
     },
 });
