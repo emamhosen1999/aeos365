@@ -1,4 +1,11 @@
 <?php return array (
+  'aero/auth' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Aero\\Auth\\AeroAuthServiceProvider',
+    ),
+  ),
   'aero/compliance' => 
   array (
     'providers' => 
@@ -40,6 +47,13 @@
     'providers' => 
     array (
       0 => 'Aero\\I18n\\AeroI18nServiceProvider',
+    ),
+  ),
+  'aero/installation' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Aero\\Installation\\Providers\\AeroInstallationServiceProvider',
     ),
   ),
   'aero/platform' => 
@@ -111,13 +125,6 @@
       0 => 'Jenssegers\\Agent\\AgentServiceProvider',
     ),
   ),
-  'laravel/boost' => 
-  array (
-    'providers' => 
-    array (
-      0 => 'Laravel\\Boost\\BoostServiceProvider',
-    ),
-  ),
   'laravel/cashier' => 
   array (
     'providers' => 
@@ -132,17 +139,6 @@
       0 => 'Laravel\\Fortify\\FortifyServiceProvider',
     ),
   ),
-  'laravel/mcp' => 
-  array (
-    'aliases' => 
-    array (
-      'Mcp' => 'Laravel\\Mcp\\Server\\Facades\\Mcp',
-    ),
-    'providers' => 
-    array (
-      0 => 'Laravel\\Mcp\\Server\\McpServiceProvider',
-    ),
-  ),
   'laravel/pail' => 
   array (
     'providers' => 
@@ -150,11 +146,11 @@
       0 => 'Laravel\\Pail\\PailServiceProvider',
     ),
   ),
-  'laravel/roster' => 
+  'laravel/passkeys' => 
   array (
     'providers' => 
     array (
-      0 => 'Laravel\\Roster\\RosterServiceProvider',
+      0 => 'Laravel\\Passkeys\\PasskeysServiceProvider',
     ),
   ),
   'laravel/sail' => 
@@ -208,20 +204,6 @@
     'providers' => 
     array (
       0 => 'Termwind\\Laravel\\TermwindServiceProvider',
-    ),
-  ),
-  'orchestra/canvas' => 
-  array (
-    'providers' => 
-    array (
-      0 => 'Orchestra\\Canvas\\LaravelServiceProvider',
-    ),
-  ),
-  'orchestra/canvas-core' => 
-  array (
-    'providers' => 
-    array (
-      0 => 'Orchestra\\Canvas\\Core\\LaravelServiceProvider',
     ),
   ),
   'spatie/laravel-activitylog' => 

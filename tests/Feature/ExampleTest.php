@@ -14,10 +14,6 @@ class ExampleTest extends TestCase
     {
         $response = $this->get('/');
 
-        // The homepage may redirect (302) or return 200 depending on configuration
-        $this->assertTrue(
-            in_array($response->status(), [200, 302]),
-            "Expected status 200 or 302, got {$response->status()}"
-        );
+        $response->assertStatus(200);
     }
 }

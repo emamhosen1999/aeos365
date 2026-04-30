@@ -20,11 +20,15 @@
         "@dnd-kit/core": "^6.3.1",
         "@dnd-kit/sortable": "^10.0.0",
         "@dnd-kit/utilities": "^3.2.2",
+       
         "@fontsource/roboto": "^5.2.6",
+       
         "@heroicons/react": "^2.2.0",
         "@heroui/react": "^2.8.5",
+  
         "@inertiajs/react": "^2.0.0",
         "@internationalized/date": "^3.5.6",
+        
         "chart.js": "^4.4.9",
         "clsx": "^2.1.1",
         "date-fns": "^4.1.0",
@@ -39,11 +43,10 @@
         "leaflet-routing-machine": "^3.2.12",
         "lodash": "^4.17.21",
         "lucide-react": "^0.469.0",
+        
         "prop-types": "^15.8.1",
         "react": "^18.3.1",
         "react-chartjs-2": "^5.3.0",
-        "react-dnd": "^16.0.1",
-        "react-dnd-html5-backend": "^16.0.1",
         "react-dom": "^18.3.1",
         "react-dropzone": "^14.3.8",
         "react-hook-form": "^7.62.0",

@@ -1,6 +1,7 @@
 <?php
 
+use App\Providers\AppServiceProvider;
+
 return [
-    Illuminate\View\ViewServiceProvider::class,
-    App\Providers\AppServiceProvider::class,
+    AppServiceProvider::class,
 ];

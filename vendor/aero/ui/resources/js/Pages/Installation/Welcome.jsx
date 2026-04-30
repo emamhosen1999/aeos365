@@ -1,295 +1,78 @@
-﻿import React, { useEffect, useState } from 'react';
-import { Head, router, usePage } from '@inertiajs/react';
-import UnifiedInstallationLayout from '@/Layouts/UnifiedInstallationLayout';
-import { Card, CardHeader, CardBody, CardFooter, Button, Chip } from '@heroui/react';
-import { useThemeRadius } from '@/Hooks/theme/useThemeRadius';
-import { 
-    RocketLaunchIcon, 
-    ServerIcon, 
-    CpuChipIcon, 
-    ShieldCheckIcon,
-    CheckCircleIcon,
-    ArrowRightIcon 
-} from '@heroicons/react/24/outline';
+import { router } from '@inertiajs/react';
+import InstallLayout from './InstallLayout.jsx';
+import { IR } from './installRoutes.js';
+import { Box, HStack, VStack, Stat, Badge, Button, Eyebrow, Text } from '@aero/ui';
 
-/**
- * Unified Welcome Page
- * 
- * First step of installation wizard. Shows product info and features.
- * Adapts display based on mode (SaaS vs Standalone).
- */
-export default function Welcome() {
-    const { 
-        app, 
-        mode = 'standalone',
-        product,
-        platformSettings,
-        systemSettings,
-        phpVersion,
-        laravelVersion,
-        installedModules = []
-    } = usePage().props;
+export default function Welcome({ mode, version, phpVersion, laravelVersion, steps, installedModules = [] }) {
+  const features = [
+    { icon: 'users',    title: 'Multi-tenant', description: 'Full tenant isolation with per-tenant databases' },
+    { icon: 'settings', title: 'Modular',       description: '27+ enterprise modules, enable only what you need' },
+    { icon: 'sparkles', title: 'AEOS Design',   description: 'Stunning UI with 12 themes and full customizer' },
+    { icon: 'chartBar', title: 'Analytics',     description: 'Built-in KPIs, dashboards, and audit logs' },
+  ];
 
-    const appName = mode === 'saas'
-        ? (platformSettings?.site_name || app?.name || 'Aero Enterprise Suite')
-        : (product?.name || systemSettings?.company_name || app?.name || 'Aero Enterprise Suite');
-    
-    const appVersion = app?.version || product?.version || '1.0.0';
-    
-    const logo = mode === 'saas'
-        ? (platformSettings?.branding?.logo || platformSettings?.branding?.logo_light)
-        : (systemSettings?.branding?.logo_light);
+  const next = mode === 'saas' ? IR.requirements : IR.license;
 
-    const firstLetter = appName ? appName.charAt(0).toUpperCase() : 'A';
+  return (
+    <VStack gap={6}>
+      <Eyebrow tone="primary">
+        {mode === 'saas' ? 'SaaS Platform Setup' : 'Standalone Installation'}
+      </Eyebrow>
 
+      <div>
+        <h1 className="il-title">Welcome to AEOS Enterprise Suite</h1>
+        <p className="il-desc">
+          This wizard will guide you through setting up your{' '}
+          {mode === 'saas' ? 'multi-tenant SaaS platform' : 'enterprise installation'}.
+          The process takes about 5 minutes.
+        </p>
+      </div>
 
-    useEffect(() => {
-        const themeRadius = useThemeRadius();
-        setThemeRadius(themeRadius);
-    }, []);
+      <HStack gap={2} wrap="wrap">
+        <Badge intent="cyan">v{version}</Badge>
+        <Badge intent="neutral">PHP {phpVersion}</Badge>
+        <Badge intent="neutral">Laravel {laravelVersion}</Badge>
+        {mode === 'saas' && <Badge intent="indigo">SaaS Mode</Badge>}
+      </HStack>
 
-    const handleStart = () => {
-        window.disableInstallationWarning?.();
-        // Navigate to next step based on mode
-        if (mode === 'saas') {
-            router.visit('/install/requirements');
-        } else {
-            router.visit('/install/license');
-        }
-    };
+      {/* Feature highlights */}
+      <Box grid cols={{ sm: 1, md: 2 }} gap={3} style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+        {features.map(f => (
+          <Stat key={f.title} icon={f.icon} iconTone="cyan" title={f.title} description={f.description} />
+        ))}
+      </Box>
 
-    // Features differ by mode
-    const features = mode === 'saas' ? [
-        {
-            icon: ServerIcon,
-            title: 'Multi-Tenancy',
-            description: 'Isolated tenant databases with subdomain routing'
-        },
-        {
-            icon: CpuChipIcon,
-            title: 'Modular Architecture',
-            description: '20+ integrated business modules (HRM, CRM, Finance, etc.)'
-        },
-        {
-            icon: ShieldCheckIcon,
-            title: 'Enterprise Security',
-            description: 'Role-based access control with module-level permissions'
-        },
-        {
-            icon: RocketLaunchIcon,
-            title: 'Scalable Platform',
-            description: 'Built for growth with flexible subscription plans'
-        }
-    ] : [
-        {
-            icon: CpuChipIcon,
-            title: 'All-in-One ERP',
-            description: 'Complete business management suite'
-        },
-        {
-            icon: ShieldCheckIcon,
-            title: 'Role-Based Access',
-            description: 'Granular permissions for every module and action'
-        },
-        {
-            icon: ServerIcon,
-            title: 'Self-Hosted',
-            description: 'Full control of your data and infrastructure'
-        },
-        {
-            icon: RocketLaunchIcon,
-            title: 'Easy Setup',
-            description: 'Step-by-step guided installation process'
-        }
-    ];
+      {/* Steps overview */}
+      <Box style={{ background: 'rgba(0,0,0,.03)', border: '1px solid var(--aeos-divider)', borderRadius: 'var(--aeos-r-lg)', padding: '1rem 1.25rem' }}>
+        <Text as="p" size="xs" tone="tertiary" style={{ textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 8 }}>
+          Installation steps
+        </Text>
+        <HStack gap={2} wrap="wrap">
+          {steps.map((s, i) => (
+            <HStack key={i} gap={1} style={{ fontSize: '.82rem', color: 'var(--aeos-text-secondary)' }}>
+              <span style={{
+                width: 18, height: 18, borderRadius: '50%',
+                background: 'rgba(0,163,184,.1)', border: '1px solid rgba(0,163,184,.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '.6rem', color: 'var(--aeos-primary)', fontFamily: 'var(--aeos-font-mono)',
+              }}>{i + 1}</span>
+              {s.charAt(0).toUpperCase() + s.slice(1)}
+            </HStack>
+          ))}
+        </HStack>
+      </Box>
 
-    // Steps preview differs by mode
-    const stepsPreview = mode === 'saas' ? [
-        'System requirements check',
-        'Database configuration',
-        'Platform settings',
-        'Admin account creation',
-        'Final review & install'
-    ] : [
-        'License validation',
-        'System requirements check',
-        'Database configuration',
-        'System settings',
-        'Admin account creation',
-        'Final review & install'
-    ];
-
-    return (
-        <UnifiedInstallationLayout currentStep={1} mode={mode}>
-            <Head title="Installation - Welcome" />
-            
-            <Card 
-                className="transition-all duration-200"
-                style={{
-                    border: `var(--borderWidth, 2px) solid transparent`,
-                    borderRadius: `var(--borderRadius, 12px)`,
-                    fontFamily: `var(--fontFamily, "Inter")`,
-                    background: `linear-gradient(135deg, 
-                        var(--theme-content1, #FAFAFA) 20%, 
-                        var(--theme-content2, #F4F4F5) 10%, 
-                        var(--theme-content3, #F1F3F4) 20%)`,
-                }}
-            >
-                <CardHeader className="flex flex-col items-center gap-4 pt-8 pb-6">
-                    {/* Logo */}
-                    {logo ? (
-                        <div className="w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center bg-content2 shadow-lg">
-                            <img 
-                                src={logo} 
-                                alt={appName}
-                                className="w-full h-full object-contain"
-                                onError={(e) => {
-                                    const parent = e.target.parentElement;
-                                    if (parent) {
-                                        e.target.style.display = 'none';
-                                        parent.classList.add('bg-primary');
-                                        parent.innerHTML = `<span class="text-white font-bold text-4xl">${firstLetter}</span>`;
-                                    }
-                                }}
-                            />
-                        </div>
-                    ) : (
-                        <div className="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center shadow-lg">
-                            <span className="text-white font-bold text-4xl">{firstLetter}</span>
-                        </div>
-                    )}
-                    
-                    <div className="text-center">
-                        <h1 className="text-3xl font-bold text-foreground mb-2">
-                            Welcome to {appName}
-                        </h1>
-                        <p className="text-default-600">
-                            {mode === 'saas' 
-                                ? 'Multi-tenant SaaS ERP Platform'
-                                : 'Enterprise Resource Planning Suite'
-                            } - Version {appVersion}
-                        </p>
-                    </div>
-                </CardHeader>
-
-                <CardBody className="px-8 pb-6">
-                    <div className="space-y-6">
-                        {/* Welcome Message */}
-                        <div className="bg-primary-50 dark:bg-primary-900/20 rounded-lg p-6 border border-primary-200 dark:border-primary-800">
-                            <p className="text-foreground leading-relaxed">
-                                Thank you for choosing {appName}! This wizard will guide you through 
-                                the installation process, which should take approximately 5-10 minutes to complete.
-                            </p>
-                        </div>
-
-                        {/* Features Grid */}
-                        <div className="grid md:grid-cols-2 gap-4">
-                            {features.map((feature, index) => (
-                                <div 
-                                    key={index}
-                                    className="flex gap-3 p-4 bg-content2 rounded-lg"
-                                >
-                                    <div className="shrink-0">
-                                        <feature.icon className="w-6 h-6 text-primary" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-semibold text-foreground mb-1">{feature.title}</h3>
-                                        <p className="text-sm text-default-600">{feature.description}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Included Products (Standalone mode) */}
-                        {mode === 'standalone' && installedModules.length > 0 && (
-                            <div>
-                                <h3 className="text-lg font-semibold mb-4">Included Products</h3>
-                                <div className="space-y-3">
-                                    {installedModules
-                                        .filter(module => {
-                                            const code = typeof module === 'object' ? module.code : module;
-                                            return code !== 'core';
-                                        })
-                                        .map((module) => {
-                                            const code = typeof module === 'object' ? module.code : module;
-                                            const name = typeof module === 'object' ? module.name : module.toUpperCase();
-                                            const description = typeof module === 'object' ? module.description : null;
-                                            
-                                            return (
-                                                <div 
-                                                    key={code}
-                                                    className="p-3 rounded-lg border border-divider bg-content2"
-                                                >
-                                                    <div className="flex items-start gap-3">
-                                                        <div className="shrink-0 mt-0.5">
-                                                            <CheckCircleIcon className="w-5 h-5 text-success" />
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <h4 className="font-semibold text-foreground">
-                                                                {code === 'all' ? 'All Modules' : name}
-                                                            </h4>
-                                                            {description && (
-                                                                <p className="text-sm text-default-600 mt-1">
-                                                                    {description}
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* System Info */}
-                        {(phpVersion || laravelVersion) && (
-                            <div className="grid grid-cols-2 gap-4">
-                                {phpVersion && (
-                                    <div className="p-4 bg-default-100 rounded-lg">
-                                        <p className="text-sm text-default-600">PHP Version</p>
-                                        <p className="font-semibold">{phpVersion}</p>
-                                    </div>
-                                )}
-                                {laravelVersion && (
-                                    <div className="p-4 bg-default-100 rounded-lg">
-                                        <p className="text-sm text-default-600">Laravel Version</p>
-                                        <p className="font-semibold">{laravelVersion}</p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Installation Steps Preview */}
-                        <div>
-                            <h3 className="text-lg font-semibold mb-3">Installation Steps</h3>
-                            <div className="space-y-2">
-                                {stepsPreview.map((step, index) => (
-                                    <div key={index} className="flex items-center gap-3">
-                                        <div className="w-6 h-6 rounded-full bg-default-200 flex items-center justify-center text-xs font-medium text-default-600">
-                                            {index + 1}
-                                        </div>
-                                        <span className="text-default-700">{step}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </CardBody>
-
-                <CardFooter className="px-8 pb-8 pt-4 border-t border-divider">
-                    <div className="w-full flex justify-end">
-                        <Button
-                            color="primary"
-                            size="lg"
-                            endContent={<ArrowRightIcon className="w-5 h-5" />}
-                            onPress={handleStart}
-                        >
-                            Get Started
-                        </Button>
-                    </div>
-                </CardFooter>
-            </Card>
-        </UnifiedInstallationLayout>
-    );
+      <div className="il-nav" style={{ borderTop: 'none', paddingTop: 0, marginTop: 0, justifyContent: 'flex-end' }}>
+        <Button intent="primary" size="lg" rightIcon="arrowRight" onClick={() => router.get(next)}>
+          Begin Setup
+        </Button>
+      </div>
+    </VStack>
+  );
 }
+
+Welcome.layout = page => (
+  <InstallLayout title="Welcome" step={1} steps={[]} mode={page.props.mode}>
+    {page}
+  </InstallLayout>
+);

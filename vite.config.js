@@ -4,6 +4,10 @@ import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 
+/**
+ * Aero Enterprise Suite - Vite Configuration
+ */
+
 const uiPath = 'vendor/aero/ui';
 
 export default defineConfig({
@@ -34,41 +38,22 @@ export default defineConfig({
         },
     },
 
-    // PERFORMANCE TWEAK #1: Force pre-bundling of heavy dependencies
-    optimizeDeps: {
-        // Because your UI is in vendor/, Vite might miss these. 
-        // Explicitly list heavy third-party packages used in your React app.
-        include: [
-            'react',
-            'react-dom',
-            'react/jsx-runtime',
-            '@inertiajs/react',
-            'axios',
-            // Add other heavy hitters here (e.g., 'framer-motion', 'chart.js')
-        ],
-        // Exclude your local package so it's not cached as a static dependency
-        exclude: ['aero-ui'], 
-    },
-
     server: {
-        host: '0.0.0.0', // Keeps listening on all interfaces
+        // Allow the server to be accessible via the custom domain
+        host: '0.0.0.0', 
         port: 5173,
-        strictPort: false,
-        allowedHosts: ['.aeos365.test', 'aeos365.test'],
-        
-        // ADD THIS BACK: Tells Laravel to use the correct domain for script tags
+        strictPort: true, 
         hmr: {
+            // This ensures HMR connects to the main domain 
+            // even when browsing a subdomain
             host: 'aeos365.test',
         },
-        
+        // Required for cross-subdomain/domain requests
         cors: true,
-        watch: {
-            ignored: [
-                '**/node_modules/**',
-                '**/storage/**',
-                '**/.git/**',
-                '**/vendor/!(aero)/**', 
-            ],
-        },
+        // Explicitly allow the .test domains to prevent "Blocklisted Host" errors
+        allowedHosts: [
+            'aeos365.test',
+            '.aeos365.test'
+        ],
     },
 });

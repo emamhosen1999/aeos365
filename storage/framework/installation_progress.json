@@ -1,6 +1,6 @@
 {
     "percentage": 100,
-    "currentStep": "complete",
+    "currentStep": "finalize",
     "status": "completed",
     "error": null,
     "steps": [
@@ -37,5 +37,5 @@
             "label": "Finalizing installation..."
         }
     ],
-    "updated_at": "2026-04-04 14:34:07"
+    "updated_at": "2026-04-30 05:03:38"
 }
