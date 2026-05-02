@@ -1,6 +1,6 @@
 {
   "vendor/aero/ui/resources/css/app.css": {
-    "file": "assets/app-CtXGVX_v.css",
+    "file": "assets/app-CxXcYoof.css",
     "src": "vendor/aero/ui/resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -9,12 +9,12 @@
     ]
   },
   "vendor/aero/ui/resources/js/app.jsx": {
-    "file": "assets/app-CtSr3Z94.js",
+    "file": "assets/app-DN9tu6FB.js",
     "name": "app",
     "src": "vendor/aero/ui/resources/js/app.jsx",
     "isEntry": true,
     "css": [
-      "assets/app-CtXGVX_v.css"
+      "assets/app-CxXcYoof.css"
     ]
   }
 }
