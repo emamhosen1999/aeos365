@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Option A — Plan & Products (Tabs)</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+:root{
+  --aeos-bg-page:#03040A;--aeos-bg-card:#0D1120;--aeos-bg-elevated:#131829;
+  --aeos-primary:#00E5FF;--aeos-primary-deep:#00A3B8;--aeos-tertiary:#6366F1;--aeos-secondary:#FFB347;
+  --aeos-success:#22C55E;--aeos-text-primary:#E8EDF5;--aeos-text-secondary:#8892A4;--aeos-text-tertiary:#4A5468;
+  --aeos-divider:rgba(255,255,255,.06);--aeos-r-md:8px;--aeos-r-xl:16px;--aeos-r-2xl:24px;
+  --font-display:'Syne',system-ui,sans-serif;--font-body:'DM Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+body{background:var(--aeos-bg-page);color:var(--aeos-text-primary);font-family:var(--font-body);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:3rem 1rem}
+.container{width:100%;max-width:1100px}
+h1{font-family:var(--font-display);font-size:2rem;font-weight:800;letter-spacing:-.02em;margin-bottom:.5rem}
+.sub{color:var(--aeos-text-secondary);margin-bottom:2rem}
+
+/* Tabs */
+.tabs{display:flex;gap:.5rem;margin-bottom:2rem}
+.tab-btn{padding:.6rem 1.4rem;border-radius:var(--aeos-r-md);border:1px solid var(--aeos-divider);background:transparent;color:var(--aeos-text-secondary);font-weight:600;cursor:pointer;transition:.15s}
+.tab-btn.active{background:var(--aeos-primary);color:#03040A;border-color:var(--aeos-primary)}
+.tab-panel{display:none;animation:fade .25s ease}
+.tab-panel.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* Billing toggle */
+.billing{display:flex;gap:.5rem;align-items:center;margin-bottom:1.5rem}
+.bill-btn{padding:.45rem 1rem;border-radius:var(--aeos-r-md);border:1px solid var(--aeos-divider);background:transparent;color:var(--aeos-text-secondary);font-weight:600;cursor:pointer;transition:.15s;font-size:.85rem}
+.bill-btn.active{background:rgba(0,229,255,.12);color:var(--aeos-primary);border-color:rgba(0,229,255,.3)}
+.discount{font-size:.8rem;color:var(--aeos-success);margin-left:.5rem}
+
+/* Plan cards */
+.plan-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+@media(max-width:1023px){.plan-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:639px){.plan-grid{grid-template-columns:1fr}}
+.plan-card{background:rgba(255,255,255,.02);border:1px solid var(--aeos-divider);border-radius:var(--aeos-r-xl);padding:1.75rem;display:flex;flex-direction:column;gap:.75rem;cursor:pointer;transition:border-color .2s,box-shadow .2s;position:relative}
+.plan-card:hover{border-color:rgba(0,229,255,.15);box-shadow:0 0 32px rgba(0,229,255,.06)}
+.plan-card.selected{border-color:var(--aeos-primary);background:rgba(0,229,255,.04);box-shadow:0 0 40px rgba(0,229,255,.08)}
+.badge{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--aeos-primary);color:#03040A;font-size:.65rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.2rem .7rem;border-radius:999px}
+.plan-name{font-family:var(--font-display);font-size:1.15rem;font-weight:700}
+.plan-tagline{font-size:.85rem;color:var(--aeos-text-secondary)}
+.plan-price{display:flex;align-items:baseline;gap:2px;margin:.4rem 0}
+.plan-price .amt{font-family:var(--font-display);font-size:2.4rem;font-weight:800;letter-spacing:-.03em}
+.plan-price .per{font-size:.85rem;color:var(--aeos-text-secondary)}
+.perks{list-style:none;padding:0;display:flex;flex-direction:column;gap:.5rem;margin-top:auto;padding-top:1rem;border-top:1px solid var(--aeos-divider)}
+.perk{display:flex;align-items:flex-start;gap:8px;font-size:.875rem;color:var(--aeos-text-secondary)}
+.perk svg{color:var(--aeos-success);flex-shrink:0;margin-top:1px;width:14px;height:14px}
+
+/* Product cards */
+.prod-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:1rem}
+@media(max-width:1023px){.prod-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:639px){.prod-grid{grid-template-columns:1fr}}
+.prod-card{background:rgba(255,255,255,.02);border:1px solid var(--aeos-divider);border-radius:var(--aeos-r-xl);padding:1.25rem;display:flex;align-items:center;gap:1rem;cursor:pointer;transition:.15s}
+.prod-card:hover{border-color:rgba(0,229,255,.15)}
+.prod-card.selected{border-color:var(--aeos-primary);background:rgba(0,229,255,.04)}
+.checkbox{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--aeos-text-tertiary);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s}
+.prod-card.selected .checkbox{background:var(--aeos-primary);border-color:var(--aeos-primary)}
+.prod-card.selected .checkbox::after{content:'';width:5px;height:9px;border:solid #03040A;border-width:0 2px 2px 0;transform:rotate(45deg);margin-bottom:2px}
+.prod-info{flex:1}
+.prod-name{font-weight:600;font-size:.95rem}
+.prod-desc{font-size:.82rem;color:var(--aeos-text-secondary)}
+.prod-price{font-size:.85rem;color:var(--aeos-primary);font-weight:600;white-space:nowrap}
+
+/* Summary bar */
+.summary{position:sticky;bottom:1.5rem;margin-top:2rem;background:var(--aeos-bg-elevated);border:1px solid rgba(0,229,255,.15);border-radius:var(--aeos-r-xl);padding:1.25rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;backdrop-filter:blur(12px);box-shadow:0 16px 48px rgba(0,0,0,.55)}
+.summary-left{display:flex;flex-direction:column;gap:.2rem}
+.summary-label{font-size:.75rem;color:var(--aeos-text-secondary);text-transform:uppercase;letter-spacing:.08em}
+.summary-total{font-family:var(--font-display);font-size:1.6rem;font-weight:800}
+.summary-detail{font-size:.82rem;color:var(--aeos-text-secondary)}
+.continue-btn{padding:.75rem 2rem;border-radius:var(--aeos-r-md);background:var(--aeos-primary);color:#03040A;font-weight:700;border:none;cursor:pointer;transition:.15s;box-shadow:0 0 20px rgba(0,229,255,.25);font-size:.9rem}
+.continue-btn:hover{opacity:.9;box-shadow:0 0 30px rgba(0,229,255,.4)}
+.continue-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* Eyebrow */
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--aeos-primary);margin-bottom:.6rem}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Choose Your Setup</h1>
+  <p class="sub">Select a plan, then add the products you need.</p>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('plans')">1. Choose Plan</button>
+    <button class="tab-btn" onclick="switchTab('products')">2. Choose Products</button>
+  </div>
+
+  <div class="billing">
+    <button class="bill-btn active" onclick="setBilling('monthly')">Monthly</button>
+    <button class="bill-btn" onclick="setBilling('yearly')">Yearly</button>
+    <span class="discount" id="discountLabel">Switch to yearly and save 2 months</span>
+  </div>
+
+  <div id="panel-plans" class="tab-panel active">
+    <div class="eyebrow">Subscription Plans</div>
+    <div class="plan-grid">
+      <div class="plan-card" onclick="selectPlan(this,'starter')">
+        <div class="plan-name">Starter</div>
+        <div class="plan-tagline">Up to 10 users</div>
+        <div class="plan-price"><span class="amt" data-monthly="29" data-yearly="290">$29</span><span class="per">/mo</span></div>
+        <ul class="perks">
+          <li class="perk"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>10GB storage</li>
+          <li class="perk"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Email support</li>
+        </ul>
+      </div>
+      <div class="plan-card selected" onclick="selectPlan(this,'professional')">
+        <div class="badge">Popular</div>
+        <div class="plan-name">Professional</div>
+        <div class="plan-tagline">Up to 50 users</div>
+        <div class="plan-price"><span class="amt" data-monthly="79" data-yearly="790">$79</span><span class="per">/mo</span></div>
+        <ul class="perks">
+          <li class="perk"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>100GB storage</li>
+          <li class="perk"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Priority support</li>
+          <li class="perk"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>SSO</li>
+        </ul>
+      </div>
+      <div class="plan-card" onclick="selectPlan(this,'business')">
+        <div class="plan-name">Business</div>
+        <div class="plan-tagline">Up to 100 users</div>
+        <div class="plan-price"><span class="amt" data-monthly="149" data-yearly="1490">$149</span><span class="per">/mo</span></div>
+        <ul class="perks">
+          <li class="perk"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>250GB storage</li>
+          <li class="perk"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>API access</li>
+        </ul>
+      </div>
+      <div class="plan-card" onclick="selectPlan(this,'enterprise')">
+        <div class="plan-name">Enterprise</div>
+        <div class="plan-tagline">Unlimited users</div>
+        <div class="plan-price"><span class="amt" data-monthly="299" data-yearly="2990">$299</span><span class="per">/mo</span></div>
+        <ul class="perks">
+          <li class="perk"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Unlimited storage</li>
+          <li class="perk"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>24/7 support</li>
+          <li class="perk"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>White label</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-products" class="tab-panel">
+    <div class="eyebrow">Add-on Products</div>
+    <div class="prod-grid">
+      <div class="prod-card selected" onclick="toggleProd(this,'hrm')">
+        <div class="checkbox"></div>
+        <div class="prod-info">
+          <div class="prod-name">HRM</div>
+          <div class="prod-desc">Human Resources Management</div>
+        </div>
+        <div class="prod-price" data-monthly="20" data-yearly="200">+$20/mo</div>
+      </div>
+      <div class="prod-card" onclick="toggleProd(this,'crm')">
+        <div class="checkbox"></div>
+        <div class="prod-info">
+          <div class="prod-name">CRM</div>
+          <div class="prod-desc">Customer Relationship Management</div>
+        </div>
+        <div class="prod-price" data-monthly="20" data-yearly="200">+$20/mo</div>
+      </div>
+      <div class="prod-card" onclick="toggleProd(this,'project')">
+        <div class="checkbox"></div>
+        <div class="prod-info">
+          <div class="prod-name">Project Management</div>
+          <div class="prod-desc">Task & project tracking</div>
+        </div>
+        <div class="prod-price" data-monthly="20" data-yearly="200">+$20/mo</div>
+      </div>
+      <div class="prod-card" onclick="toggleProd(this,'inventory')">
+        <div class="checkbox"></div>
+        <div class="prod-info">
+          <div class="prod-name">Inventory</div>
+          <div class="prod-desc">Stock & warehouse management</div>
+        </div>
+        <div class="prod-price" data-monthly="20" data-yearly="200">+$20/mo</div>
+      </div>
+      <div class="prod-card" onclick="toggleProd(this,'accounting')">
+        <div class="checkbox"></div>
+        <div class="prod-info">
+          <div class="prod-name">Accounting</div>
+          <div class="prod-desc">Books & financial reports</div>
+        </div>
+        <div class="prod-price" data-monthly="20" data-yearly="200">+$20/mo</div>
+      </div>
+      <div class="prod-card" onclick="toggleProd(this,'analytics')">
+        <div class="checkbox"></div>
+        <div class="prod-info">
+          <div class="prod-name">Analytics</div>
+          <div class="prod-desc">BI dashboards & insights</div>
+        </div>
+        <div class="prod-price" data-monthly="20" data-yearly="200">+$20/mo</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="summary">
+    <div class="summary-left">
+      <div class="summary-label">Estimated Total</div>
+      <div class="summary-total" id="totalPrice">$99/mo</div>
+      <div class="summary-detail" id="totalDetail">Professional + 1 product</div>
+    </div>
+    <button class="continue-btn" id="continueBtn" onclick="alert('Continue to Payment')">Continue to Payment</button>
+  </div>
+</div>
+
+<script>
+let billing='monthly', selectedPlan='professional', selectedProds=['hrm'];
+function switchTab(id){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase().includes(id)));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id==='panel-'+id));
+}
+function setBilling(v){
+  billing=v;
+  document.querySelectorAll('.bill-btn').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase().includes(v)));
+  document.getElementById('discountLabel').textContent=v==='yearly'?'2 months free applied':'Switch to yearly and save 2 months';
+  updatePrices();
+}
+function selectPlan(el,id){document.querySelectorAll('.plan-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');selectedPlan=id;updatePrices();}
+function toggleProd(el,id){el.classList.toggle('selected');selectedProds=document.querySelectorAll('.prod-card.selected').length>0?Array.from(document.querySelectorAll('.prod-card.selected')).map(c=>c.getAttribute('onclick').match(/'([^']+)'/)[1]):[];updatePrices();}
+function updatePrices(){
+  const suffix=billing==='yearly'?'/yr':'/mo';
+  document.querySelectorAll('.plan-price .amt').forEach(el=>{el.textContent='$'+el.dataset[billing];});
+  document.querySelectorAll('.prod-price').forEach(el=>{el.textContent='+$'+el.dataset[billing]+suffix;});
+  let planPrice={starter:29,professional:79,business:149,enterprise:299}[selectedPlan];
+  let prodPrice=selectedProds.length*20;
+  if(billing==='yearly'){planPrice*=10;prodPrice*=10;}
+  document.getElementById('totalPrice').textContent='$'+(planPrice+prodPrice)+suffix;
+  const planName={starter:'Starter',professional:'Professional',business:'Business',enterprise:'Enterprise'}[selectedPlan];
+  document.getElementById('totalDetail').textContent=planName+' + '+selectedProds.length+' product'+(selectedProds.length!==1?'s':'');
+}
+updatePrices();
+</script>
+</body>
+</html>

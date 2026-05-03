@@ -125,10 +125,11 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-core",
-                "reference": "031e2c92124b2e3ea0fe9573b16a709a493df661"
+                "reference": "3601a874d1be6c854cdbc327ab623369b4e3e3ca"
             },
             "require": {
                 "aero/i18n": "@dev",
+                "aero/notifications": "@dev",
                 "inertiajs/inertia-laravel": "^2.0",
                 "jenssegers/agent": "^2.6|^3.0",
                 "laravel/framework": "^11.0|^12.0",
@@ -464,17 +465,101 @@
             "install-path": "../aero/installation"
         },
         {
+            "name": "aero/notifications",
+            "version": "dev-main",
+            "version_normalized": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-notifications",
+                "reference": "b17e27a5eff46f3bae618251fb0a216e48133e17"
+            },
+            "require": {
+                "illuminate/mail": "^11.0|^12.0",
+                "illuminate/notifications": "^11.0|^12.0",
+                "laravel/framework": "^11.0|^12.0",
+                "php": "^8.2",
+                "symfony/mailer": "^7.0",
+                "symfony/mime": "^7.0"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^9.0|^10.0",
+                "phpunit/phpunit": "^11.0"
+            },
+            "suggest": {
+                "aws/aws-sdk-php": "Required for AWS SNS SMS support (^3.0)",
+                "kreait/firebase-php": "Required for FCM push notifications (^7.0)",
+                "laravel/reverb": "Required for Reverb websocket broadcast support (^1.0)",
+                "pusher/pusher-php-server": "Required for Pusher broadcast support (^7.0)",
+                "twilio/sdk": "Required for Twilio SMS support (^8.0)"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Aero\\Notifications\\AeroNotificationsServiceProvider"
+                    ]
+                },
+                "aero": {
+                    "package": "notifications",
+                    "version": "1.0.0",
+                    "category": "foundation",
+                    "description": "Unified notification engine supporting mail, SMS, push, broadcast, and database channels"
+                }
+            },
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Aero\\Notifications\\": "src/",
+                    "Aero\\Notifications\\Database\\Factories\\": "database/factories/",
+                    "Aero\\Notifications\\Database\\Seeders\\": "database/seeders/"
+                },
+                "files": [
+                    "src/helpers.php"
+                ]
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Aero\\Notifications\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Aero Team",
+                    "email": "support@aerosuite.com"
+                }
+            ],
+            "description": "Aero Notifications Engine - Unified mail, SMS, push, web/broadcast, and database notification pipeline",
+            "keywords": [
+                "aero",
+                "broadcast",
+                "laravel",
+                "mail",
+                "notifications",
+                "push",
+                "sms"
+            ],
+            "transport-options": {
+                "symlink": true,
+                "relative": false
+            },
+            "install-path": "../aero/notifications"
+        },
+        {
             "name": "aero/platform",
             "version": "dev-main",
             "version_normalized": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-platform",
-                "reference": "2de6d7925e849f1b7bf8c9a582e85f456abfddc2"
+                "reference": "801f2279580551f9d9a68e764745c325a62794eb"
             },
             "require": {
                 "aero/auth": "*",
                 "aero/core": "*",
+                "aero/notifications": "@dev",
                 "inertiajs/inertia-laravel": "^2.0",
                 "laravel/cashier": "^15.0",
                 "laravel/framework": "^11.0|^12.0",
@@ -9859,17 +9944,17 @@
         },
         {
             "name": "symfony/console",
-            "version": "v7.4.8",
-            "version_normalized": "7.4.8.0",
+            "version": "v7.4.9",
+            "version_normalized": "7.4.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/console.git",
-                "reference": "1e92e39c51f95b88e3d66fa2d9f06d1fb45dd707"
+                "reference": "d7d2b64a45a89d607865927b176fa51c33ddbb58"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/console/zipball/1e92e39c51f95b88e3d66fa2d9f06d1fb45dd707",
-                "reference": "1e92e39c51f95b88e3d66fa2d9f06d1fb45dd707",
+                "url": "https://api.github.com/repos/symfony/console/zipball/d7d2b64a45a89d607865927b176fa51c33ddbb58",
+                "reference": "d7d2b64a45a89d607865927b176fa51c33ddbb58",
                 "shasum": ""
             },
             "require": {
@@ -9902,7 +9987,7 @@
                 "symfony/stopwatch": "^6.4|^7.0|^8.0",
                 "symfony/var-dumper": "^6.4|^7.0|^8.0"
             },
-            "time": "2026-03-30T13:54:39+00:00",
+            "time": "2026-04-22T15:21:55+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -9936,7 +10021,7 @@
                 "terminal"
             ],
             "support": {
-                "source": "https://github.com/symfony/console/tree/v7.4.8"
+                "source": "https://github.com/symfony/console/tree/v7.4.9"
             },
             "funding": [
                 {
@@ -9960,23 +10045,23 @@
         },
         {
             "name": "symfony/css-selector",
-            "version": "v7.4.8",
-            "version_normalized": "7.4.8.0",
+            "version": "v7.4.9",
+            "version_normalized": "7.4.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/css-selector.git",
-                "reference": "b055f228a4178a1d6774909903905e3475f3eac8"
+                "reference": "b75663ed96cf4756e28e3105476f220f92886cc4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/css-selector/zipball/b055f228a4178a1d6774909903905e3475f3eac8",
-                "reference": "b055f228a4178a1d6774909903905e3475f3eac8",
+                "url": "https://api.github.com/repos/symfony/css-selector/zipball/b75663ed96cf4756e28e3105476f220f92886cc4",
+                "reference": "b75663ed96cf4756e28e3105476f220f92886cc4",
                 "shasum": ""
             },
             "require": {
                 "php": ">=8.2"
             },
-            "time": "2026-03-24T13:12:05+00:00",
+            "time": "2026-04-18T13:18:21+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -10008,7 +10093,7 @@
             "description": "Converts CSS selectors to XPath expressions",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/css-selector/tree/v7.4.8"
+                "source": "https://github.com/symfony/css-selector/tree/v7.4.9"
             },
             "funding": [
                 {
@@ -10187,17 +10272,17 @@
         },
         {
             "name": "symfony/event-dispatcher",
-            "version": "v7.4.8",
-            "version_normalized": "7.4.8.0",
+            "version": "v7.4.9",
+            "version_normalized": "7.4.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/event-dispatcher.git",
-                "reference": "f57b899fa736fd71121168ef268f23c206083f0a"
+                "reference": "e4a2e29753c7801f7a8340e066cfa788f3bc8101"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/event-dispatcher/zipball/f57b899fa736fd71121168ef268f23c206083f0a",
-                "reference": "f57b899fa736fd71121168ef268f23c206083f0a",
+                "url": "https://api.github.com/repos/symfony/event-dispatcher/zipball/e4a2e29753c7801f7a8340e066cfa788f3bc8101",
+                "reference": "e4a2e29753c7801f7a8340e066cfa788f3bc8101",
                 "shasum": ""
             },
             "require": {
@@ -10223,7 +10308,7 @@
                 "symfony/service-contracts": "^2.5|^3",
                 "symfony/stopwatch": "^6.4|^7.0|^8.0"
             },
-            "time": "2026-03-30T13:54:39+00:00",
+            "time": "2026-04-18T13:18:21+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -10251,7 +10336,7 @@
             "description": "Provides tools that allow your application components to communicate with each other by dispatching events and listening to them",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/event-dispatcher/tree/v7.4.8"
+                "source": "https://github.com/symfony/event-dispatcher/tree/v7.4.9"
             },
             "funding": [
                 {
@@ -10719,17 +10804,17 @@
         },
         {
             "name": "symfony/mime",
-            "version": "v7.4.8",
-            "version_normalized": "7.4.8.0",
+            "version": "v7.4.9",
+            "version_normalized": "7.4.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/mime.git",
-                "reference": "6df02f99998081032da3407a8d6c4e1dcb5d4379"
+                "reference": "2d550c4758ba4c47519a6667c36553d535705b0c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/mime/zipball/6df02f99998081032da3407a8d6c4e1dcb5d4379",
-                "reference": "6df02f99998081032da3407a8d6c4e1dcb5d4379",
+                "url": "https://api.github.com/repos/symfony/mime/zipball/2d550c4758ba4c47519a6667c36553d535705b0c",
+                "reference": "2d550c4758ba4c47519a6667c36553d535705b0c",
                 "shasum": ""
             },
             "require": {
@@ -10755,7 +10840,7 @@
                 "symfony/property-info": "^6.4|^7.0|^8.0",
                 "symfony/serializer": "^6.4.3|^7.0.3|^8.0"
             },
-            "time": "2026-03-30T14:11:46+00:00",
+            "time": "2026-04-29T13:21:53+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -10787,7 +10872,7 @@
                 "mime-type"
             ],
             "support": {
-                "source": "https://github.com/symfony/mime/tree/v7.4.8"
+                "source": "https://github.com/symfony/mime/tree/v7.4.9"
             },
             "funding": [
                 {
@@ -12006,17 +12091,17 @@
         },
         {
             "name": "symfony/routing",
-            "version": "v7.4.8",
-            "version_normalized": "7.4.8.0",
+            "version": "v7.4.9",
+            "version_normalized": "7.4.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/routing.git",
-                "reference": "9608de9873ec86e754fb6c0a0fa7e5f1a960eb6b"
+                "reference": "287771d8bc86eacb30678dd10eda6c64a859951f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/routing/zipball/9608de9873ec86e754fb6c0a0fa7e5f1a960eb6b",
-                "reference": "9608de9873ec86e754fb6c0a0fa7e5f1a960eb6b",
+                "url": "https://api.github.com/repos/symfony/routing/zipball/287771d8bc86eacb30678dd10eda6c64a859951f",
+                "reference": "287771d8bc86eacb30678dd10eda6c64a859951f",
                 "shasum": ""
             },
             "require": {
@@ -12036,7 +12121,7 @@
                 "symfony/http-foundation": "^6.4|^7.0|^8.0",
                 "symfony/yaml": "^6.4|^7.0|^8.0"
             },
-            "time": "2026-03-24T13:12:05+00:00",
+            "time": "2026-04-22T15:21:55+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -12070,7 +12155,7 @@
                 "url"
             ],
             "support": {
-                "source": "https://github.com/symfony/routing/tree/v7.4.8"
+                "source": "https://github.com/symfony/routing/tree/v7.4.9"
             },
             "funding": [
                 {
@@ -12573,17 +12658,17 @@
         },
         {
             "name": "symfony/type-info",
-            "version": "v7.4.8",
-            "version_normalized": "7.4.8.0",
+            "version": "v7.4.9",
+            "version_normalized": "7.4.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/type-info.git",
-                "reference": "6bf34da885ff5143a3dfd8f1b863bb8ab95f50bd"
+                "reference": "cafeedbf157b890e94ac5b83eaed85595106d5d6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/type-info/zipball/6bf34da885ff5143a3dfd8f1b863bb8ab95f50bd",
-                "reference": "6bf34da885ff5143a3dfd8f1b863bb8ab95f50bd",
+                "url": "https://api.github.com/repos/symfony/type-info/zipball/cafeedbf157b890e94ac5b83eaed85595106d5d6",
+                "reference": "cafeedbf157b890e94ac5b83eaed85595106d5d6",
                 "shasum": ""
             },
             "require": {
@@ -12597,7 +12682,7 @@
             "require-dev": {
                 "phpstan/phpdoc-parser": "^1.30|^2.0"
             },
-            "time": "2026-03-24T13:12:05+00:00",
+            "time": "2026-04-22T15:21:55+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -12635,7 +12720,7 @@
                 "type"
             ],
             "support": {
-                "source": "https://github.com/symfony/type-info/tree/v7.4.8"
+                "source": "https://github.com/symfony/type-info/tree/v7.4.9"
             },
             "funding": [
                 {
@@ -12659,17 +12744,17 @@
         },
         {
             "name": "symfony/uid",
-            "version": "v7.4.8",
-            "version_normalized": "7.4.8.0",
+            "version": "v7.4.9",
+            "version_normalized": "7.4.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/uid.git",
-                "reference": "6883ebdf7bf6a12b37519dbc0df62b0222401b56"
+                "reference": "2676b524340abcfe4d6151ec698463cebafee439"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/uid/zipball/6883ebdf7bf6a12b37519dbc0df62b0222401b56",
-                "reference": "6883ebdf7bf6a12b37519dbc0df62b0222401b56",
+                "url": "https://api.github.com/repos/symfony/uid/zipball/2676b524340abcfe4d6151ec698463cebafee439",
+                "reference": "2676b524340abcfe4d6151ec698463cebafee439",
                 "shasum": ""
             },
             "require": {
@@ -12679,7 +12764,7 @@
             "require-dev": {
                 "symfony/console": "^6.4|^7.0|^8.0"
             },
-            "time": "2026-03-24T13:12:05+00:00",
+            "time": "2026-04-30T15:19:22+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -12716,7 +12801,7 @@
                 "uuid"
             ],
             "support": {
-                "source": "https://github.com/symfony/uid/tree/v7.4.8"
+                "source": "https://github.com/symfony/uid/tree/v7.4.9"
             },
             "funding": [
                 {

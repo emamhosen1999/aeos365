@@ -37,6 +37,7 @@ return array(
     '58571171fd5812e6e447dce228f52f4d' => $vendorDir . '/laravel/framework/src/Illuminate/Support/helpers.php',
     '98caa11a197f6516a8e48aa4abb5ccc6' => $vendorDir . '/inertiajs/inertia-laravel/helpers.php',
     '377b22b161c09ed6e5152de788ca020a' => $vendorDir . '/spatie/laravel-permission/src/helpers.php',
+    '64ad294239b7177b7a6b9cdd55d5ec75' => $vendorDir . '/aero/notifications/src/helpers.php',
     'b4e3fd5b33df129632d61597dc4f2bd3' => $vendorDir . '/aero/core/src/helpers.php',
     '72243e5536b63e298acb6476f01f1aff' => $vendorDir . '/thecodingmachine/safe/lib/special_cases.php',
     '3f648889e687f31c52f949ba8a9d0873' => $vendorDir . '/thecodingmachine/safe/generated/apache.php',
