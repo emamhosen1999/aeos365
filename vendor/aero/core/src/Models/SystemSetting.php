@@ -36,6 +36,10 @@ class SystemSetting extends Model implements HasMedia
         'website_url',
         'timezone',
         'currency',
+        'locale',
+        'date_format',
+        'time_format',
+        'first_day_of_week',
         'default_dark_mode',
         'address_line1',
         'address_line2',
@@ -51,6 +55,14 @@ class SystemSetting extends Model implements HasMedia
         'integrations',
         'advanced',
         'organization',
+        'tax_id',
+        'vat_number',
+        'registration_number',
+        'industry',
+        'mobile_number',
+        'fax',
+        'fiscal_year_start',
+        'fiscal_year_end',
     ];
 
     protected $casts = [
@@ -62,6 +74,8 @@ class SystemSetting extends Model implements HasMedia
         'integrations' => 'array',
         'advanced' => 'array',
         'organization' => 'array',
+        'fiscal_year_start' => 'date',
+        'fiscal_year_end' => 'date',
     ];
 
     protected $attributes = [
@@ -134,6 +148,18 @@ class SystemSetting extends Model implements HasMedia
         }
     }
 
+    public function getLocalizationPayload(): array
+    {
+        return [
+            'timezone' => $this->timezone,
+            'currency' => $this->currency,
+            'locale' => $this->locale,
+            'date_format' => $this->date_format,
+            'time_format' => $this->time_format,
+            'first_day_of_week' => $this->first_day_of_week,
+        ];
+    }
+
     public function getOrganizationSummary(): array
     {
         return [
@@ -153,6 +179,14 @@ class SystemSetting extends Model implements HasMedia
             'state' => $this->state,
             'postal_code' => $this->postal_code,
             'country' => $this->country,
+            'tax_id' => $this->tax_id,
+            'vat_number' => $this->vat_number,
+            'registration_number' => $this->registration_number,
+            'industry' => $this->industry,
+            'mobile_number' => $this->mobile_number,
+            'fax' => $this->fax,
+            'fiscal_year_start' => $this->fiscal_year_start?->toDateString(),
+            'fiscal_year_end' => $this->fiscal_year_end?->toDateString(),
         ];
     }
 
