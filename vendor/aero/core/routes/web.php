@@ -5,8 +5,10 @@ use Aero\Core\Http\Controllers\Admin\CoreUserController;
 use Aero\Core\Http\Controllers\Admin\ExtensionsController;
 use Aero\Core\Http\Controllers\Admin\ModuleController;
 use Aero\Core\Http\Controllers\Admin\RoleController;
+use Aero\Core\Http\Controllers\Admin\TagController;
 use Aero\Core\Http\Controllers\DashboardController;
 use Aero\Core\Http\Controllers\Navigation\UserNavigationController;
+use Aero\Core\Http\Controllers\Search\GlobalSearchController;
 use Aero\Core\Http\Controllers\Notification\NotificationController;
 use Aero\Core\Http\Controllers\Profile\NotificationPreferenceController;
 use Aero\Core\Http\Controllers\Profile\UserProfileImageController;
@@ -231,6 +233,15 @@ if (class_exists('Aero\Platform\Http\Controllers\Tenant\TenantSubscriptionContro
 // are registered by AeroAuthServiceProvider (packages/aero-auth/routes/tenant.php).
 Route::middleware('auth:web')->group(function () {
 
+    // ====================================================================
+    // GLOBAL SEARCH
+    // ====================================================================
+    Route::prefix('search')->name('core.search.')->middleware('hrmac:core.global_search.search_ui.use')->group(function () {
+        Route::get('/', [GlobalSearchController::class, 'index'])->name('index');
+        Route::get('/api', [GlobalSearchController::class, 'search'])->name('api');
+        Route::get('/suggestions', [GlobalSearchController::class, 'suggestions'])->name('suggestions');
+    });
+
     // Dashboard Routes
     // All dashboard routes use 'core.dashboard.*' prefix for consistency
     // This allows proper route grouping and makes route('core.dashboard') work consistently
@@ -374,6 +385,46 @@ Route::middleware('auth:web')->group(function () {
     });
 
     // ========================================================================
+    // TAGS & LABELS
+    // ========================================================================
+    Route::prefix('tags')->name('core.tags.')
+        ->middleware('hrmac:core.tags_labels.tag_management.view')
+        ->group(function () {
+            Route::get('/', [TagController::class, 'index'])->name('index');
+            Route::post('/', [TagController::class, 'store'])
+                ->name('store')
+                ->middleware('hrmac:core.tags_labels.tag_management.create');
+            Route::put('/{tag}', [TagController::class, 'update'])
+                ->name('update')
+                ->middleware('hrmac:core.tags_labels.tag_management.update');
+            Route::delete('/{tag}', [TagController::class, 'destroy'])
+                ->name('destroy')
+                ->middleware('hrmac:core.tags_labels.tag_management.delete');
+            Route::get('/trashed', [TagController::class, 'trashed'])
+                ->name('trashed')
+                ->middleware('hrmac:core.tags_labels.tag_management.view');
+            Route::post('/{id}/restore', [TagController::class, 'restore'])
+                ->name('restore')
+                ->middleware('hrmac:core.tags_labels.tag_management.update');
+            Route::delete('/{id}/force', [TagController::class, 'forceDelete'])
+                ->name('force-delete')
+                ->middleware('hrmac:core.tags_labels.tag_management.delete');
+            Route::post('/merge', [TagController::class, 'merge'])
+                ->name('merge')
+                ->middleware('hrmac:core.tags_labels.tag_management.update');
+            Route::post('/bulk', [TagController::class, 'bulk'])
+                ->name('bulk')
+                ->middleware('hrmac:core.tags_labels.tag_management.update');
+            Route::get('/export', [TagController::class, 'export'])
+                ->name('export')
+                ->middleware('hrmac:core.tags_labels.tag_management.view');
+            Route::post('/import', [TagController::class, 'import'])
+                ->name('import')
+                ->middleware('hrmac:core.tags_labels.tag_management.create');
+            Route::get('/counts', [TagController::class, 'taggableCounts'])->name('counts');
+        });
+
+    // ========================================================================
     // NOTIFICATIONS MANAGEMENT
     // ========================================================================
     Route::prefix('notifications')->name('core.notifications.')->group(function () {
@@ -413,13 +464,13 @@ Route::middleware('auth:web')->group(function () {
             Route::put('/', [LocalizationSettingsController::class, 'update'])->name('update')->middleware('hrmac:core.settings.localization.edit');
         });
         // Email (SMTP) Settings
-        Route::prefix('mail')->name('mail.')->middleware('hrmac:core.settings.mail.view')->group(function () {
+        Route::prefix('mail')->name('mail.')->middleware('hrmac:core.settings.mail_settings.view')->group(function () {
             Route::get('/', [MailSettingsController::class, 'index'])->name('index');
-            Route::post('/', [MailSettingsController::class, 'update'])->name('update')->middleware('hrmac:core.settings.mail.update');
-            Route::post('/test', [MailSettingsController::class, 'sendTest'])->name('test')->middleware('hrmac:core.settings.mail.test');
+            Route::post('/', [MailSettingsController::class, 'update'])->name('update')->middleware('hrmac:core.settings.mail_settings.update');
+            Route::post('/test', [MailSettingsController::class, 'sendTest'])->name('test')->middleware('hrmac:core.settings.mail_settings.test');
         });
         Route::get('/integrations', [SystemSettingController::class, 'index'])->name('integrations.index'); // API & integrations
-        Route::put('/system', [SystemSettingController::class, 'update'])->name('system.update');
+        Route::put('/system', [SystemSettingController::class, 'update'])->name('system.update')->middleware('hrmac:core.settings.general.edit');
         Route::post('/system/test-email', [SystemSettingController::class, 'sendTestEmail'])->name('system.test-email');
         Route::post('/system/test-sms', [SystemSettingController::class, 'sendTestSms'])->name('system.test-sms');
 
