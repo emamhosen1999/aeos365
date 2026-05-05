@@ -49,7 +49,7 @@ return [
         'comments_mentions'          => true,
         'activity_feed'              => true,
         'help_support'               => true,
-        'data_privacy'               => true,
+        // 'data_privacy' => true, // DEPRECATED: Use aero-compliance package for GDPR/CCPA/HIPAA features
         'data_export_import'         => true,
         'trash_recycle_bin'          => true,
         'email_engine'               => true,
@@ -156,24 +156,7 @@ return [
                         ['code' => 'delete', 'name' => 'Delete Announcement'],
                     ],
                 ],
-                [
-                    'code' => 'hrm-dashboard',
-                    'name' => 'HRM Dashboard',
-                    'type' => 'page',
-                    'route' => '/hrm/dashboard',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View HRM Dashboard'],
-                    ],
-                ],
-                [
-                    'code' => 'employee-dashboard',
-                    'name' => 'Employee Dashboard',
-                    'type' => 'page',
-                    'route' => '/hrm/employee/dashboard',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Employee Dashboard'],
-                    ],
-                ],
+               
             ],
         ],
 
@@ -651,6 +634,20 @@ return [
                         ['code' => 'geo_block', 'name' => 'Manage Geo Blocking'],
                     ],
                 ],
+                [
+                    'code' => 'email_templates',
+                    'name' => 'Email Templates',
+                    'type' => 'page',
+                    'route' => '/settings/email-templates',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Email Templates'],
+                        ['code' => 'create', 'name' => 'Create Email Template'],
+                        ['code' => 'edit', 'name' => 'Edit Email Template'],
+                        ['code' => 'delete', 'name' => 'Delete Email Template'],
+                        ['code' => 'preview', 'name' => 'Preview Email Template'],
+                        ['code' => 'test_send', 'name' => 'Test Send Email'],
+                    ],
+                ],
             ],
         ],
 
@@ -710,7 +707,48 @@ return [
 
         /*
         |--------------------------------------------------------------------------
-        | 2.1 SSO & Identity Federation
+        | 2.1 Translations / i18n (Delegated to aero-i18n)
+        |--------------------------------------------------------------------------
+        */
+        [
+            'code' => 'translations_i18n',
+            'name' => 'Translations / i18n',
+            'description' => 'Language management and translation editor (delegated to aero-i18n package)',
+            'icon' => 'LanguageIcon',
+            'route' => '/i18n/translations',
+            'priority' => 10,
+            'delegated_to' => 'aero-i18n',
+            'components' => [
+                [
+                    'code' => 'languages',
+                    'name' => 'Languages',
+                    'type' => 'page',
+                    'route' => '/i18n/languages',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Languages'],
+                        ['code' => 'enable', 'name' => 'Enable Language'],
+                        ['code' => 'disable', 'name' => 'Disable Language'],
+                    ],
+                ],
+                [
+                    'code' => 'translation_editor',
+                    'name' => 'Translation Editor',
+                    'type' => 'page',
+                    'route' => '/i18n/translations',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Translations'],
+                        ['code' => 'update', 'name' => 'Update Translation'],
+                        ['code' => 'auto_translate', 'name' => 'Auto-Translate (AI)'],
+                        ['code' => 'import', 'name' => 'Import Translations'],
+                        ['code' => 'export', 'name' => 'Export Translations'],
+                    ],
+                ],
+            ],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2.2 SSO & Identity Federation
         |--------------------------------------------------------------------------
         */
         [
@@ -719,7 +757,7 @@ return [
             'description' => 'SAML, OIDC, OAuth, SCIM provisioning, social login, passkeys, magic links',
             'icon' => 'KeyIcon',
             'route' => '/identity',
-            'priority' => 9,
+            'priority' => 11,
             'components' => [
                 [
                     'code' => 'sso_saml', 'name' => 'SAML 2.0', 'type' => 'page', 'route' => '/identity/saml',
@@ -880,19 +918,20 @@ return [
 
         /*
         |--------------------------------------------------------------------------
-        | 2.3 Workflow Engine, Custom Fields, Tags, Saved Views
+        | 2.3 Workflow Engine (Delegated to aero-workflow)
         |--------------------------------------------------------------------------
         */
         [
             'code' => 'workflow_engine',
             'name' => 'Workflows & Automations',
-            'description' => 'Approval workflows, automation rules, triggers, conditions',
+            'description' => 'Approval workflows, automation rules, triggers, conditions (delegated to aero-workflow package)',
             'icon' => 'ArrowPathRoundedSquareIcon',
             'route' => '/workflows',
             'priority' => 11,
+            'delegated_to' => 'aero-workflow',
             'components' => [
                 [
-                    'code' => 'approval_workflows', 'name' => 'Approval Workflows', 'type' => 'page', 'route' => '/workflows/approvals',
+                    'code' => 'definitions', 'name' => 'Workflow Definitions', 'type' => 'page', 'route' => '/workflows',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Workflows'],
                         ['code' => 'create', 'name' => 'Create Workflow'],
@@ -903,19 +942,28 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'automations', 'name' => 'Automation Rules', 'type' => 'page', 'route' => '/workflows/automations',
+                    'code' => 'templates', 'name' => 'Workflow Templates', 'type' => 'page', 'route' => '/workflow-templates',
                     'actions' => [
-                        ['code' => 'view', 'name' => 'View Automations'],
-                        ['code' => 'create', 'name' => 'Create Automation'],
-                        ['code' => 'update', 'name' => 'Update Automation'],
-                        ['code' => 'delete', 'name' => 'Delete Automation'],
+                        ['code' => 'view', 'name' => 'View Templates'],
+                        ['code' => 'create', 'name' => 'Create Template'],
+                        ['code' => 'update', 'name' => 'Update Template'],
+                        ['code' => 'delete', 'name' => 'Delete Template'],
                     ],
                 ],
                 [
-                    'code' => 'workflow_runs', 'name' => 'Workflow Run History', 'type' => 'page', 'route' => '/workflows/runs',
+                    'code' => 'instances', 'name' => 'Workflow Instances', 'type' => 'page', 'route' => '/workflow-instances',
                     'actions' => [
-                        ['code' => 'view', 'name' => 'View Runs'],
-                        ['code' => 'retry', 'name' => 'Retry Run'],
+                        ['code' => 'view', 'name' => 'View Instances'],
+                        ['code' => 'retry', 'name' => 'Retry Instance'],
+                    ],
+                ],
+                [
+                    'code' => 'approvals', 'name' => 'My Approvals', 'type' => 'page', 'route' => '/workflow-instances/approvals',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Approvals'],
+                        ['code' => 'approve', 'name' => 'Approve'],
+                        ['code' => 'reject', 'name' => 'Reject'],
+                        ['code' => 'escalate', 'name' => 'Escalate'],
                     ],
                 ],
             ],
@@ -923,10 +971,11 @@ return [
         [
             'code' => 'custom_fields',
             'name' => 'Custom Fields',
-            'description' => 'Per-entity custom fields, field types, validation',
+            'description' => 'Per-entity custom fields, field types, validation (delegated to aero-custom-fields package)',
             'icon' => 'AdjustmentsHorizontalIcon',
             'route' => '/custom-fields',
             'priority' => 12,
+            'delegated_to' => 'aero-custom-fields',
             'components' => [
                 [
                     'code' => 'field_definitions', 'name' => 'Field Definitions', 'type' => 'page', 'route' => '/custom-fields',
@@ -968,13 +1017,14 @@ return [
             'priority' => 14,
             'components' => [
                 [
-                    'code' => 'views', 'name' => 'Saved Views', 'type' => 'page', 'route' => '/saved-views',
+                    'code' => 'saved_views', 'name' => 'Saved Views', 'type' => 'page', 'route' => '/saved-views',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View'],
                         ['code' => 'create', 'name' => 'Create View'],
                         ['code' => 'update', 'name' => 'Update View'],
                         ['code' => 'delete', 'name' => 'Delete View'],
                         ['code' => 'share', 'name' => 'Share View'],
+                        ['code' => 'set_default', 'name' => 'Set as Default'],
                     ],
                 ],
             ],
@@ -982,16 +1032,84 @@ return [
 
         /*
         |--------------------------------------------------------------------------
-        | 2.4 Form Builder
+        | 2.4 System Health
+        |--------------------------------------------------------------------------
+        */
+        [
+            'code' => 'system_health',
+            'name' => 'System Health',
+            'description' => 'System monitoring, performance metrics, and diagnostic tools',
+            'icon' => 'HeartIcon',
+            'route' => '/system-health',
+            'priority' => 15,
+            'components' => [
+                [
+                    'code' => 'overview', 'name' => 'System Overview', 'type' => 'page', 'route' => '/system-health',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Overview'],
+                    ],
+                ],
+                [
+                    'code' => 'database', 'name' => 'Database Health', 'type' => 'feature', 'route' => '/system-health',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Database Health'],
+                    ],
+                ],
+                [
+                    'code' => 'queue', 'name' => 'Queue Health', 'type' => 'feature', 'route' => '/system-health',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Queue Health'],
+                    ],
+                ],
+                [
+                    'code' => 'cache', 'name' => 'Cache Health', 'type' => 'feature', 'route' => '/system-health',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Cache Health'],
+                    ],
+                ],
+                [
+                    'code' => 'services', 'name' => 'External Services', 'type' => 'feature', 'route' => '/system-health',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Services Status'],
+                    ],
+                ],
+                [
+                    'code' => 'metrics', 'name' => 'Performance Metrics', 'type' => 'feature', 'route' => '/system-health',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Metrics'],
+                    ],
+                ],
+                [
+                    'code' => 'logs', 'name' => 'Health Logs', 'type' => 'page', 'route' => '/system-health/logs',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Logs'],
+                        ['code' => 'export', 'name' => 'Export Logs'],
+                        ['code' => 'delete', 'name' => 'Delete Logs'],
+                    ],
+                ],
+                [
+                    'code' => 'alerts', 'name' => 'Health Alerts', 'type' => 'feature', 'route' => '/system-health/alerts',
+                    'actions' => [
+                        ['code' => 'configure', 'name' => 'Configure Alerts'],
+                        ['code' => 'test', 'name' => 'Test Alert'],
+                    ],
+                ],
+            ],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2.5 Form Builder
         |--------------------------------------------------------------------------
         */
         [
             'code' => 'form_builder',
             'name' => 'Form Builder',
-            'description' => 'Drag-drop form builder with conditional logic, validation, and submissions',
+            'description' => 'Drag-drop form builder with conditional logic, validation, and submissions (delegated to aero-forms package)',
             'icon' => 'ClipboardDocumentListIcon',
             'route' => '/forms',
             'priority' => 15,
+            'delegated_to' => 'aero-forms',
             'components' => [
                 [
                     'code' => 'forms', 'name' => 'Forms', 'type' => 'page', 'route' => '/forms',
@@ -1080,7 +1198,91 @@ return [
 
         /*
         |--------------------------------------------------------------------------
-        | 2.7 User Preferences
+        | 2.8 Data Export/Import
+        |--------------------------------------------------------------------------
+        */
+        [
+            'code' => 'data_export_import',
+            'name' => 'Data Export/Import',
+            'description' => 'Export and import data across entities with support for multiple formats, export history, and scheduling',
+            'icon' => 'ArrowPathIcon',
+            'route' => '/export-import',
+            'priority' => 19,
+            'components' => [
+                [
+                    'code' => 'exports', 'name' => 'Exports', 'type' => 'page', 'route' => '/export-import/exports',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Exports'],
+                        ['code' => 'create', 'name' => 'Create Export'],
+                        ['code' => 'download', 'name' => 'Download Export'],
+                        ['code' => 'delete', 'name' => 'Delete Export'],
+                    ],
+                ],
+                [
+                    'code' => 'imports', 'name' => 'Imports', 'type' => 'page', 'route' => '/export-import/imports',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Imports'],
+                        ['code' => 'create', 'name' => 'Import Data'],
+                        ['code' => 'download_template', 'name' => 'Download Template'],
+                    ],
+                ],
+            ],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2.10 Retention Policies
+        |--------------------------------------------------------------------------
+        */
+        [
+            'code' => 'retention_policies',
+            'name' => 'Retention Policies',
+            'description' => 'Automated data retention and cleanup policies for audit logs, activities, and exports',
+            'icon' => 'TrashIcon',
+            'route' => '/retention-policies',
+            'priority' => 20,
+            'components' => [
+                [
+                    'code' => 'policies', 'name' => 'Policies', 'type' => 'page', 'route' => '/retention-policies',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Policies'],
+                        ['code' => 'create', 'name' => 'Create Policy'],
+                        ['code' => 'update', 'name' => 'Update Policy'],
+                        ['code' => 'delete', 'name' => 'Delete Policy'],
+                        ['code' => 'execute', 'name' => 'Execute Policy'],
+                    ],
+                ],
+            ],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2.12 Trash & Recycle Bin
+        |--------------------------------------------------------------------------
+        */
+        [
+            'code' => 'trash',
+            'name' => 'Trash & Recycle Bin',
+            'description' => 'System-wide trash bin with restore and permanent delete functionality',
+            'icon' => 'TrashIcon',
+            'route' => '/trash',
+            'priority' => 19,
+            'components' => [
+                [
+                    'code' => 'view', 'name' => 'View Trash', 'type' => 'page', 'route' => '/trash',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Trashed Items'],
+                        ['code' => 'restore', 'name' => 'Restore Items'],
+                        ['code' => 'force_delete', 'name' => 'Permanently Delete'],
+                        ['code' => 'empty', 'name' => 'Empty Trash'],
+                    ],
+                ],
+            ],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2.13 Comments & Mentions
         |--------------------------------------------------------------------------
         */
         [
@@ -1161,6 +1363,7 @@ return [
                     'code' => 'activity_feed', 'name' => 'Activity Feed', 'type' => 'page', 'route' => '/activity',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Activity Feed'],
+                        ['code' => 'export', 'name' => 'Export Activities'],
                     ],
                 ],
             ],
@@ -1233,80 +1436,17 @@ return [
 
         /*
         |--------------------------------------------------------------------------
-        | 2.10 Data & Privacy (GDPR / CCPA)
+        | 2.10 Data & Privacy (DEPRECATED - Moved to aero-compliance)
         |--------------------------------------------------------------------------
+        |
+        | GDPR/CCPA/HIPAA compliance features have been moved to aero-compliance package.
+        | This submodule is removed to prevent duplication and ensure compliance features
+        | are centralized in the appropriate domain package.
+        |
+        | For data export, DSAR, consent management, retention policies, and compliance
+        * mode, use the aero-compliance package which is the single source of truth for
+        * all regulatory compliance features.
         */
-        [
-            'code' => 'data_privacy',
-            'name' => 'Data & Privacy',
-            'description' => 'Data export, import, retention, DSAR, consent, trash/recycle bin',
-            'icon' => 'ShieldCheckIcon',
-            'route' => '/data-privacy',
-            'priority' => 21,
-            'components' => [
-                [
-                    'code' => 'data_export', 'name' => 'Data Export', 'type' => 'page', 'route' => '/data-privacy/export',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Exports'],
-                        ['code' => 'request', 'name' => 'Request Export'],
-                        ['code' => 'download', 'name' => 'Download Export'],
-                    ],
-                ],
-                [
-                    'code' => 'data_import', 'name' => 'Data Import', 'type' => 'page', 'route' => '/data-privacy/import',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Imports'],
-                        ['code' => 'upload', 'name' => 'Upload Import File'],
-                        ['code' => 'process', 'name' => 'Process Import'],
-                    ],
-                ],
-                [
-                    'code' => 'retention_policies', 'name' => 'Retention Policies', 'type' => 'page', 'route' => '/data-privacy/retention',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Policies'],
-                        ['code' => 'manage', 'name' => 'Manage Retention'],
-                    ],
-                ],
-                [
-                    'code' => 'dsar', 'name' => 'Data Subject Requests (DSAR)', 'type' => 'page', 'route' => '/data-privacy/dsar',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View DSARs'],
-                        ['code' => 'create', 'name' => 'Log DSAR'],
-                        ['code' => 'fulfill', 'name' => 'Fulfill Request'],
-                        ['code' => 'erase', 'name' => 'Right-to-Erasure Workflow'],
-                    ],
-                ],
-                [
-                    'code' => 'consent_management', 'name' => 'Consent Management', 'type' => 'page', 'route' => '/data-privacy/consent',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Consents'],
-                        ['code' => 'manage', 'name' => 'Manage Consents'],
-                    ],
-                ],
-                [
-                    'code' => 'cookie_consent', 'name' => 'Cookie Consent', 'type' => 'page', 'route' => '/data-privacy/cookies',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Cookie Settings'],
-                        ['code' => 'configure', 'name' => 'Configure Cookies Banner'],
-                    ],
-                ],
-                [
-                    'code' => 'trash', 'name' => 'Trash / Recycle Bin', 'type' => 'page', 'route' => '/data-privacy/trash',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Trash'],
-                        ['code' => 'restore', 'name' => 'Restore Item'],
-                        ['code' => 'purge', 'name' => 'Permanently Delete'],
-                    ],
-                ],
-                [
-                    'code' => 'compliance_mode', 'name' => 'Compliance Mode', 'type' => 'page', 'route' => '/data-privacy/compliance-mode',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Compliance Mode'],
-                        ['code' => 'enable', 'name' => 'Enable HIPAA / GDPR / SOX Mode'],
-                    ],
-                ],
-            ],
-        ],
 
         /*
         |--------------------------------------------------------------------------

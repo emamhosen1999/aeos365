@@ -142,6 +142,7 @@ return array(
     'Barryvdh\\DomPDF\\' => array($vendorDir . '/barryvdh/laravel-dompdf/src'),
     'BaconQrCode\\' => array($vendorDir . '/bacon/bacon-qr-code/src'),
     'App\\' => array($baseDir . '/app', $vendorDir . '/laravel/pint/app'),
+    'Aero\\Workflow\\' => array($vendorDir . '/aero/workflow/src'),
     'Aero\\UI\\' => array($vendorDir . '/aero/ui/src'),
     'Aero\\Rfi\\Database\\Seeders\\' => array($vendorDir . '/aero/rfi/database/seeders'),
     'Aero\\Rfi\\Database\\Factories\\' => array($vendorDir . '/aero/rfi/database/factories'),

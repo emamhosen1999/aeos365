@@ -102,6 +102,13 @@
       0 => 'Aero\\UI\\AeroUIServiceProvider',
     ),
   ),
+  'aero/workflow' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Aero\\Workflow\\Providers\\WorkflowServiceProvider',
+    ),
+  ),
   'barryvdh/laravel-dompdf' => 
   array (
     'aliases' => 

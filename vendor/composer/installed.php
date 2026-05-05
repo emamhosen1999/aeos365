@@ -3,7 +3,7 @@
         'name' => 'laravel/laravel',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'e5f7352830e1176dd335605ed10b30a1990d54ee',
+        'reference' => '40755c00b2f28f3a6aeab9a368af6008feb59956',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -22,7 +22,7 @@
         'aero/compliance' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '7c059370efdac39b34c2d0f5771f00e8f01f5b36',
+            'reference' => '63bf671cce5eea7ad85bfbcc96dd34fa7e5a4efb',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aero/compliance',
             'aliases' => array(),
@@ -40,7 +40,7 @@
         'aero/hrm' => array(
             'pretty_version' => '1.0.0',
             'version' => '1.0.0.0',
-            'reference' => 'ea10ebf4eed5f1810eee2c2d34fd2d1fc68caa85',
+            'reference' => '559430583a8b3113b00b4504a14c1206dd53c8f5',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aero/hrm',
             'aliases' => array(),
@@ -49,7 +49,7 @@
         'aero/hrmac' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '25cd791ede6a1494909851e4c0c166db9cf65254',
+            'reference' => '98ee935b55f4be4d5c0132bf87f57aaee9a7bd27',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aero/hrmac',
             'aliases' => array(),
@@ -85,7 +85,7 @@
         'aero/platform' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '801f2279580551f9d9a68e764745c325a62794eb',
+            'reference' => '8f506394afc1e02f27a9367cc7202e1f2d9841b8',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aero/platform',
             'aliases' => array(),
@@ -94,7 +94,7 @@
         'aero/project' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '5f04d618620e54b5292e33441995cc243a7a1a0e',
+            'reference' => '95a08dd190e6da57a3a36feebd2646b6273808d8',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aero/project',
             'aliases' => array(),
@@ -103,7 +103,7 @@
         'aero/quality' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'ea6f6f959b88b5e8e5ab85fba2fbd102acacb020',
+            'reference' => '6f91951fc18bd0f3167c9a02fb1f5ece14d05c8e',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aero/quality',
             'aliases' => array(),
@@ -112,7 +112,7 @@
         'aero/rfi' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '3da140374599c3c70fe48bb343aa6afe55666f2b',
+            'reference' => 'd33f135e484cc5b80d99a5584bf0233be46e02ec',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aero/rfi',
             'aliases' => array(),
@@ -124,6 +124,15 @@
             'reference' => 'f3421d81ea558cb609c3e1ebd9784568497849c1',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aero/ui',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'aero/workflow' => array(
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => 'b2bc5d2b1a92bac4c447aa9353e5993553cbfde1',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../aero/workflow',
             'aliases' => array(),
             'dev_requirement' => false,
         ),
@@ -661,7 +670,7 @@
         'laravel/laravel' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'e5f7352830e1176dd335605ed10b30a1990d54ee',
+            'reference' => '40755c00b2f28f3a6aeab9a368af6008feb59956',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ff180edf04a5d87bd01186e4813cfcd6",
+    "content-hash": "8908228c5598cf5e5a7ca349b3cb401a",
     "packages": [
         {
             "name": "aero/auth",
@@ -82,7 +82,7 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-compliance",
-                "reference": "7c059370efdac39b34c2d0f5771f00e8f01f5b36"
+                "reference": "63bf671cce5eea7ad85bfbcc96dd34fa7e5a4efb"
             },
             "require": {
                 "aero/core": "*",
@@ -99,7 +99,7 @@
                 "aero": {
                     "package": "compliance",
                     "version": "1.0.0",
-                    "category": "business",
+                    "category": "product",
                     "description": "Compliance management system with regulatory tracking, audit trails, and compliance reporting"
                 }
             },
@@ -211,7 +211,7 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-hrm",
-                "reference": "ea10ebf4eed5f1810eee2c2d34fd2d1fc68caa85"
+                "reference": "559430583a8b3113b00b4504a14c1206dd53c8f5"
             },
             "require": {
                 "aero/core": "*",
@@ -238,7 +238,7 @@
                 "aero": {
                     "package": "hrm",
                     "version": "1.0.0",
-                    "category": "business",
+                    "category": "product",
                     "description": "Complete HR management system with employee records, attendance, leave, payroll, performance reviews, and recruitment"
                 }
             },
@@ -263,7 +263,7 @@
                     "email": "dev@aeos365.com"
                 }
             ],
-            "description": "Human Resource Management Module for Aero Enterprise Suite",
+            "description": "Human Resource Management Module for aeos365",
             "keywords": [
                 "attendance",
                 "hrm",
@@ -282,7 +282,7 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-hrmac",
-                "reference": "25cd791ede6a1494909851e4c0c166db9cf65254"
+                "reference": "98ee935b55f4be4d5c0132bf87f57aaee9a7bd27"
             },
             "require": {
                 "illuminate/cache": "^11.0|^12.0",
@@ -299,6 +299,12 @@
                     "aliases": {
                         "HRMAC": "Aero\\HRMAC\\Facades\\HRMAC"
                     }
+                },
+                "aero": {
+                    "package": "hrmac",
+                    "version": "1.0.0",
+                    "category": "foundation",
+                    "description": "Hierarchical Role-Module Access Control for aeos365"
                 }
             },
             "autoload": {
@@ -315,7 +321,7 @@
                     "email": "dev@aeroenterprise.com"
                 }
             ],
-            "description": "Hierarchical Role-Module Access Control for Aero Enterprise Suite",
+            "description": "Hierarchical Role-Module Access Control for aeos365",
             "transport-options": {
                 "symlink": true,
                 "relative": false
@@ -535,7 +541,7 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-platform",
-                "reference": "801f2279580551f9d9a68e764745c325a62794eb"
+                "reference": "8f506394afc1e02f27a9367cc7202e1f2d9841b8"
             },
             "require": {
                 "aero/auth": "*",
@@ -567,7 +573,7 @@
                 "aero": {
                     "package": "platform",
                     "version": "1.0.0",
-                    "category": "landlord",
+                    "category": "foundation",
                     "description": "Platform management package providing multi-tenancy orchestration, landlord authentication, and platform administration",
                     "has-assets": true,
                     "build-command": "php artisan aero:build-assets"
@@ -621,7 +627,7 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-project",
-                "reference": "5f04d618620e54b5292e33441995cc243a7a1a0e"
+                "reference": "95a08dd190e6da57a3a36feebd2646b6273808d8"
             },
             "require": {
                 "aero/core": "*",
@@ -638,7 +644,7 @@
                 "aero": {
                     "package": "project",
                     "version": "1.0.0",
-                    "category": "business",
+                    "category": "product",
                     "description": "Project management with tasks, milestones, time tracking, and Gantt charts"
                 }
             },
@@ -662,7 +668,7 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-quality",
-                "reference": "ea6f6f959b88b5e8e5ab85fba2fbd102acacb020"
+                "reference": "6f91951fc18bd0f3167c9a02fb1f5ece14d05c8e"
             },
             "require": {
                 "aero/core": "*",
@@ -676,8 +682,9 @@
                     ]
                 },
                 "aero": {
-                    "module": "quality",
-                    "name": "Quality Management",
+                    "package": "quality",
+                    "version": "1.0.0",
+                    "category": "product",
                     "description": "Quality assurance, inspections, and non-conformance tracking"
                 }
             },
@@ -701,7 +708,7 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-rfi",
-                "reference": "3da140374599c3c70fe48bb343aa6afe55666f2b"
+                "reference": "d33f135e484cc5b80d99a5584bf0233be46e02ec"
             },
             "require": {
                 "aero/core": "@dev",
@@ -725,7 +732,7 @@
                 "aero": {
                     "package": "rfi",
                     "version": "1.0.0",
-                    "category": "business",
+                    "category": "product",
                     "description": "RFI management with daily works, objections, and work locations"
                 }
             },
@@ -810,6 +817,39 @@
                 "tailwind",
                 "ui"
             ],
+            "transport-options": {
+                "symlink": true,
+                "relative": false
+            }
+        },
+        {
+            "name": "aero/workflow",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-workflow",
+                "reference": "b2bc5d2b1a92bac4c447aa9353e5993553cbfde1"
+            },
+            "require": {
+                "php": "^8.2"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Aero\\Workflow\\Providers\\WorkflowServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Aero\\Workflow\\": "src/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "description": "Workflow Engine for aeos365 - approval workflows, business rules, automation triggers",
             "transport-options": {
                 "symlink": true,
                 "relative": false
@@ -13198,7 +13238,8 @@
         "aero/project": 20,
         "aero/quality": 20,
         "aero/rfi": 20,
-        "aero/ui": 20
+        "aero/ui": 20,
+        "aero/workflow": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,
