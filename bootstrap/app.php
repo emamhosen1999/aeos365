@@ -10,9 +10,8 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias([
-            'identify.tenant' => \Aero\Platform\Http\Middleware\IdentifyTenant::class,
-        ]);
+        // Stancl InitializeTenancyByDomain is the canonical subdomain identifier
+        // and is wired in tenancy.php bootstrappers + Stancl-aware route groups.
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
