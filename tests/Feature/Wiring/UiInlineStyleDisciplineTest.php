@@ -27,7 +27,20 @@ class UiInlineStyleDisciplineTest extends TestCase
      * migrates a batch — when it hits 0 the test goes permanently green
      * and any new inline style is blocked.
      */
-    private const VIOLATION_BUDGET = 400;
+    /**
+     * Plan 06 T2 ratchet — current state, lowered as migrations land.
+     *
+     * Baseline (Phase 1 audit): 346
+     * After 2026-05-30 first migration pass (icon sizes, flex/text-align/
+     * justify-content, common spacing/maxWidth patterns, pill helper):
+     *   201 remaining
+     *
+     * Next ratchet target: bring down progressively in subsequent passes.
+     * The +10 headroom prevents flaky regression from a single new file
+     * with one inline style. New code that adds inline style MUST be
+     * accompanied by a budget drop or a justification comment.
+     */
+    private const VIOLATION_BUDGET = 211;
 
     public function test_inline_style_count_stays_under_budget(): void
     {
