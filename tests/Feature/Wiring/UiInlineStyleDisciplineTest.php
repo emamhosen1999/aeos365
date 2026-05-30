@@ -30,20 +30,29 @@ class UiInlineStyleDisciplineTest extends TestCase
     /**
      * Plan 06 T2 ratchet — current state, lowered as migrations land.
      *
-     * Baseline (Phase 1 audit): 346
-     * After 2026-05-30 pass 1 (icon sizes, flex/text-align/justify-content,
-     *   common spacing/maxWidth patterns, pill helper): 201 remaining
-     * After 2026-05-30 pass 2 (justify-{center,end}, grid col spans,
-     *   margin:0, more spacing variants): 185 remaining
+     * Baseline (Phase 1 audit): 346 (loose regex matched docblock text too)
      *
-     * Next ratchet drops will hand-edit the increasingly-unique remaining
-     * patterns: conditional inline styles `style={cond ? {...} : ...}`,
-     * prop forwarding `style={style}`, dynamic CSS-var template literals.
-     * +10 headroom prevents flaky regressions from a single new inline
-     * style; new code adding inline style MUST drop the budget or
-     * justify the exception.
+     * Migration history (this codebase, tighter regex):
+     *   Pass 1 (2026-05-30): icon sizes, flex, text-align, justify, spacing,
+     *     maxWidth, pill helper, truncate → 201 remaining (loose count)
+     *   Pass 2 (2026-05-30): justify-{center,end}, grid col span, margin:0,
+     *     more spacing variants → 185 remaining (loose count)
+     *   Test regex tightened (2026-05-30): distinguishes JSX `style={{...}}`
+     *     and conditional `style={cond ? {...} : ...}` from prop forwarding
+     *     `style={style}` and docblock mentions. Real count revealed: 170.
+     *   Pass 3 (2026-05-30): color helpers, border helpers, surface-chip,
+     *     code-block, fixed pixel widths → 155 remaining
+     *
+     * +10 headroom prevents flaky regression from a single new file with
+     * one inline style. New code adding inline style MUST drop the budget
+     * or justify the exception via eslint-disable comment.
+     *
+     * Remaining 155 are increasingly unique: dynamic template-literal widths,
+     * hex color literals inside DocsApi.jsx code-block sections, conditional
+     * styles with destructured props. Best done as small reviewable PRs
+     * rather than another bulk pass.
      */
-    private const VIOLATION_BUDGET = 195;
+    private const VIOLATION_BUDGET = 165;
 
     public function test_inline_style_count_stays_under_budget(): void
     {
@@ -102,10 +111,24 @@ class UiInlineStyleDisciplineTest extends TestCase
             $lines = file($file->getPathname(), FILE_IGNORE_NEW_LINES);
 
             foreach ($lines as $lineNumber => $line) {
-                // Match `style={` as a JSX prop. Avoids matching strings like
-                // 'style:' or 'style=' in comments — narrow enough to catch the
-                // CLAUDE.md violation pattern.
-                if (preg_match('/\bstyle=\{/', $line)) {
+                // Match the CLAUDE.md violation pattern: inline-object `style={{...}}`.
+                //
+                // Discriminates against false positives:
+                //   - Docblock text mentioning `style={}` historically (single brace,
+                //     not in JSX position): NOT a violation
+                //   - Prop forwarding `style={style}` or `style={cssVar}`: a design-
+                //     system component API contract, NOT an inline style. Caller
+                //     chooses what to pass; this component is just plumbing.
+                //   - Conditional resolving to an object literal `style={cond ? {...} : undefined}`:
+                //     still a violation (writes an inline object), matched by `style=\{\s*[a-z]+\s*\?\s*\{`.
+                //
+                // Two patterns count as violations:
+                //   1. `style={{` — the JSX inline-object literal form
+                //   2. `style={\\w+ ? {` — conditional resolving to an inline object
+                $isInlineObject = preg_match('/style=\{\{/', $line);
+                $isConditionalObject = preg_match('/style=\{\s*\w+\s*\?\s*\{/', $line);
+
+                if ($isInlineObject || $isConditionalObject) {
                     $offenders[] = $relative.':'.($lineNumber + 1);
                 }
             }
