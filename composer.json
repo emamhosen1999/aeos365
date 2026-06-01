@@ -17,7 +17,6 @@
     "require": {
         "php": "^8.2",
         "aero/auth": "@dev",
-        "aero/compliance": "@dev",
         "aero/core": "@dev",
         "aero/hrm": "@dev",
         "aero/hrmac": "@dev",
@@ -25,11 +24,7 @@
         "aero/installation": "@dev",
         "aero/notifications": "@dev",
         "aero/platform": "@dev",
-        "aero/project": "@dev",
-        "aero/quality": "@dev",
-        "aero/rfi": "@dev",
         "aero/ui": "@dev",
-        "aero/workflow": "@dev",
         "jenssegers/agent": "^2.6",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1"
@@ -41,6 +36,7 @@
         "laravel/sail": "^1.41",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
+        "orchestra/testbench": "^10.11",
         "phpunit/phpunit": "^11.5.50"
     },
     "autoload": {
