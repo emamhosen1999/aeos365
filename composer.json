@@ -3,7 +3,10 @@
     "name": "laravel/laravel",
     "type": "project",
     "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "keywords": [
+        "laravel",
+        "framework"
+    ],
     "license": "MIT",
     "repositories": [
         {
@@ -52,6 +55,15 @@
         }
     },
     "scripts": {
+        "app:reset": [
+            "@php artisan db:wipe --force",
+            "@php -r \"array_map('unlink', glob('storage/app/*.installed')); array_map('unlink', glob('storage/framework/installation_*.json')); array_map('unlink', glob('storage/app/installation_*.json'));\"",
+            "@php -r \"foreach(glob('storage/framework/cache/data/*') as $f) { if(basename($f) !== '.gitignore') { is_dir($f) ? exec('rmdir /s /q ' . escapeshellarg($f)) : unlink($f); } }\"",
+            "@php artisan config:clear",
+            "@php artisan route:clear",
+            "@php artisan view:clear",
+            "@php artisan cache:clear"
+        ],
         "setup": [
             "composer install",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
