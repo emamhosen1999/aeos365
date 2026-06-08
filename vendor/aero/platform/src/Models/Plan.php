@@ -2,11 +2,11 @@
 
 namespace Aero\Platform\Models;
 
+use Aero\Core\Models\CentralModel;
 use Aero\Platform\Database\Factories\PlanFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
@@ -26,18 +26,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $max_users Maximum allowed users (0 = unlimited)
  * @property int $max_storage_gb Storage quota in GB
  */
-class Plan extends Model
+class Plan extends CentralModel
 {
     /** @use HasFactory<PlanFactory> */
     use HasFactory, HasUuids, SoftDeletes;
-
-    /**
-     * The connection name for the model.
-     * Plans are stored in the landlord database, not tenant databases.
-     *
-     * @var string
-     */
-    protected $connection = 'mysql';
 
     /**
      * Create a new factory instance for the model.
@@ -80,6 +72,13 @@ class Plan extends Model
         'stripe_monthly_price_id',
         'stripe_yearly_price_id',
         'stripe_product_id',
+        // P-2 additions
+        'price_monthly',
+        'price_annual',
+        'status',
+        'is_public',
+        'stripe_price_id_monthly',
+        'stripe_price_id_annual',
     ];
 
     /**
@@ -94,6 +93,9 @@ class Plan extends Model
             'monthly_price' => 'decimal:2',
             'yearly_price' => 'decimal:2',
             'setup_fee' => 'decimal:2',
+            'price_monthly' => 'decimal:2',
+            'price_annual' => 'decimal:2',
+            'is_public' => 'boolean',
             'features' => 'array',
             'limits' => 'array',
             'trial_days' => 'integer',

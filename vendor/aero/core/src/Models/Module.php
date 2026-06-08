@@ -2,11 +2,9 @@
 
 namespace Aero\Core\Models;
 
-use Aero\Core\Contracts\TenantScopeInterface;
+use Aero\Contracts\TenantScopeInterface;
 use Aero\Core\Support\TenantCache;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 
@@ -16,7 +14,7 @@ use Illuminate\Support\Collection;
  * Represents a top-level application module (HRM, CRM, DMS, etc.)
  * Used for organizing the application into logical functional areas.
  */
-class Module extends Model
+class Module extends TenantModel
 {
     use HasFactory;
 
@@ -113,17 +111,6 @@ class Module extends Model
         }
 
         return $relation;
-    }
-
-    /**
-     * Get all plans that include this module.
-     */
-    public function plans(): BelongsToMany
-    {
-        return $this->belongsToMany(Plan::class, 'plan_module')
-            ->withPivot('limits', 'is_enabled')
-            ->withTimestamps()
-            ->wherePivot('is_enabled', true);
     }
 
     /**

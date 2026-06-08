@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use App\Models\Tenant\HRM\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class Event extends Model
+class Event extends TenantModel
 {
     use HasFactory, SoftDeletes;
 
@@ -49,7 +51,7 @@ class Event extends Model
 
     protected $appends = ['full_event_datetime', 'registration_status', 'participants_count'];
 
-    protected static function boot()
+    protected static function boot(): void
     {
         parent::boot();
 

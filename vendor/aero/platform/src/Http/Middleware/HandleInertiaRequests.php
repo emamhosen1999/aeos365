@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Aero\Platform\Http\Middleware;
 
+use Aero\Contracts\RoleModuleAccessInterface;
 use Aero\Core\Http\Resources\SystemSettingResource;
 use Aero\Core\Models\User;
 use Aero\Core\Services\NavigationRegistry;
 use Aero\Core\Support\TenantCache;
-use Aero\HRMAC\Contracts\RoleModuleAccessInterface;
 use Aero\HRMAC\Models\Module;
 use Aero\HRMAC\Models\SubModule;
 use Aero\I18n\Services\TranslationService;
@@ -102,7 +102,7 @@ class HandleInertiaRequests extends Middleware
             'isSuperAdmin' => $user?->isSuperAdmin() ?? false,
             'isAdmin' => $user?->isAdmin() ?? false,
             // Compliance Flags
-            'isPlatformSuperAdmin' => $user?->hasRole('Super Administrator') ?? false,
+            'isPlatformSuperAdmin' => $user?->hasAnyRole(config('hrmac.super_admin_roles', ['Super Administrator'])) ?? false,
             'isTenantSuperAdmin' => false,
         ];
 
@@ -190,7 +190,7 @@ class HandleInertiaRequests extends Middleware
             'isAuthenticated' => (bool) $user,
             'roles' => $user ? $user->roles->pluck('name')->toArray() : [],
             // Compliance Flags
-            'isPlatformSuperAdmin' => $user?->hasRole('Super Administrator') ?? false,
+            'isPlatformSuperAdmin' => $user?->hasAnyRole(config('hrmac.super_admin_roles', ['Super Administrator'])) ?? false,
             'isTenantSuperAdmin' => $isTenantSuperAdmin,
             'isSuperAdmin' => $isTenantSuperAdmin,
         ];
@@ -308,6 +308,11 @@ class HandleInertiaRequests extends Middleware
             'accessible_modules' => ! $user->isSuperAdmin() ? $this->getUserAccessibleModules($user) : null,
             'modules_lookup' => ! $user->isSuperAdmin() ? $this->getModulesLookup() : null,
             'sub_modules_lookup' => ! $user->isSuperAdmin() ? $this->getSubModulesLookup() : null,
+            // Flat HRMAC access map consumed by the frontend useHRMAC() hook (derived
+            // from role_module_access, NOT Spatie). Super admins get the '*' wildcard;
+            // others currently rely on backend HRMAC enforcement (granular platform-user
+            // map is a follow-up).
+            'hrmac_access' => $user->isSuperAdmin() ? ['*' => true] : [],
         ];
     }
 
@@ -329,6 +334,12 @@ class HandleInertiaRequests extends Middleware
             'accessible_modules' => ! $isSuperAdmin ? $this->getTenantUserAccessibleModules($user) : null,
             'modules_lookup' => ! $isSuperAdmin ? $this->getModulesLookup() : null,
             'sub_modules_lookup' => ! $isSuperAdmin ? $this->getSubModulesLookup() : null,
+            // Flat HRMAC access map consumed by the frontend useHRMAC() hook (derived
+            // from role_module_access, NOT Spatie). Super admins get the '*' wildcard;
+            // others currently rely on backend HRMAC enforcement (granular tenant map
+            // is a follow-up — mirrors mapAdminUser). Without this key useHRMAC() hides
+            // every create/edit/delete control even for the tenant super admin.
+            'hrmac_access' => $isSuperAdmin ? ['*' => true] : [],
         ]);
     }
 
@@ -522,18 +533,20 @@ class HandleInertiaRequests extends Middleware
         return TenantCache::remember('tenant_subscribed_modules:'.tenant('id'), 300, function () {
             $modules = Module::where('is_core', true)->where('is_active', true)->pluck('code')->toArray();
 
-            $subscription = tenant()->currentSubscription;
-            if ($subscription && $subscription->plan) {
-                $planModules = $subscription->plan->modules()->where('is_active', true)->pluck('modules.code')->toArray();
-                $modules = array_merge($modules, $planModules);
-            }
+            // Access gate: ProductSubscription is the canonical source of module access.
+            // Plans and products are independent — plan selection does NOT gate module access.
+            $productModules = tenant()->productSubscriptions()
+                ->where('status', 'active')
+                ->where(fn ($q) => $q->whereNull('ends_at')->orWhere('ends_at', '>', now()))
+                ->with('product:id,module_code')
+                ->get()
+                ->pluck('product.module_code')
+                ->filter()
+                ->values()
+                ->toArray();
+            $modules = array_merge($modules, $productModules);
 
-            // Legacy/Direct plan check
-            if (tenant()->plan) {
-                $directPlanModules = tenant()->plan->modules()->where('is_active', true)->pluck('modules.code')->toArray();
-                $modules = array_merge($modules, $directPlanModules);
-            }
-
+            // Admin overrides: granted outside subscription flow
             $tenantModuleCodes = tenant()->modules()->pluck('code')->toArray();
             if (! empty($tenantModuleCodes)) {
                 $modules = array_merge($modules, $tenantModuleCodes);

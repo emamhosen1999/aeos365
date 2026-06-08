@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Aero\Core\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -33,7 +35,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read User|null $processedBy
  * @property-read string $period
  */
-class Payroll extends Model
+class Payroll extends TenantModel
 {
     use HasFactory;
 

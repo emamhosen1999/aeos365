@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Aero\Platform\Tests\Feature;
 
-use Aero\Core\Contracts\TenantScopeInterface;
+use Aero\Contracts\TenantScopeInterface;
 use Aero\Platform\Services\Module\ModuleAccessService;
 use Aero\Platform\Services\PlatformWidgetRegistry;
 use Aero\Platform\Services\SaaSTenantScope;

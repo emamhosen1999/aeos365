@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Aero\Core\Models\User;
 use App\Models\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
-class TrainingAssignmentSubmission extends Model implements HasMedia
+class TrainingAssignmentSubmission extends TenantModel implements HasMedia
 {
     use HasFactory, InteractsWithMedia, SoftDeletes;
 

@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -11,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * AI-generated recommendations for internal talent movement.
  * Supports career development and retention strategies.
  */
-class TalentMobilityRecommendation extends Model
+class TalentMobilityRecommendation extends TenantModel
 {
     protected $fillable = [
         'employee_id',

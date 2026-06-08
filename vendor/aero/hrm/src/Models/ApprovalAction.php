@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -10,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * Individual approval step actions within a workflow.
  */
-class ApprovalAction extends Model
+class ApprovalAction extends TenantModel
 {
     protected $fillable = [
         'workflow_instance_id',

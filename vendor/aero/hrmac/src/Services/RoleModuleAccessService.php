@@ -4,19 +4,23 @@ declare(strict_types=1);
 
 namespace Aero\HRMAC\Services;
 
-use Aero\HRMAC\Contracts\RoleModuleAccessInterface;
+use Aero\Contracts\RoleModuleAccessInterface;
+use Aero\Core\Models\User;
 use Aero\HRMAC\Models\Action;
 use Aero\HRMAC\Models\Component;
+use Aero\HRMAC\Models\HrmacAuditLog;
 use Aero\HRMAC\Models\Module;
 use Aero\HRMAC\Models\RoleModuleAccess;
 use Aero\HRMAC\Models\SubModule;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 /**
  * Role Module Access Service
  *
  * Unified service for role-based module access control.
- * Works with both tenant and landlord databases based on context.
+ * Context-free engine: uses the default DB connection; the consuming host/package
+ * decides the execution context (connection, guard) and the data.
  *
  * This replaces permission-based access with direct role_module_access table lookups.
  * No dependency on Spatie permissions for module access checks.
@@ -34,10 +38,11 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
     public function canAccessModule(mixed $role, int $moduleId): bool
     {
         $roleId = is_object($role) ? $role->id : $role;
-        $cacheKey = $this->getCacheKey("role_access:{$roleId}:module:{$moduleId}");
+        $cacheKey = $this->versionedRoleKey($roleId, "module:{$moduleId}");
 
         return $this->cache()->remember($cacheKey, self::CACHE_TTL, function () use ($roleId, $moduleId) {
-            return RoleModuleAccess::where('role_id', $roleId)
+            return $this->accessModel()::where('role_id', $roleId)
+                ->where('status', RoleModuleAccess::STATUS_ACTIVE) // D17: suspended rows must not grant access
                 ->where('module_id', $moduleId)
                 ->whereNull('sub_module_id')
                 ->whereNull('component_id')
@@ -52,11 +57,12 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
     public function canAccessSubModule(mixed $role, int $subModuleId): bool
     {
         $roleId = is_object($role) ? $role->id : $role;
-        $cacheKey = $this->getCacheKey("role_access:{$roleId}:sub_module:{$subModuleId}");
+        $cacheKey = $this->versionedRoleKey($roleId, "sub_module:{$subModuleId}");
 
         return $this->cache()->remember($cacheKey, self::CACHE_TTL, function () use ($roleId, $subModuleId) {
-            // Check direct sub-module access
-            if (RoleModuleAccess::where('role_id', $roleId)
+            // Check direct sub-module access (D17: suspended rows excluded)
+            if ($this->accessModel()::where('role_id', $roleId)
+                ->where('status', RoleModuleAccess::STATUS_ACTIVE)
                 ->where('sub_module_id', $subModuleId)
                 ->whereNull('component_id')
                 ->whereNull('action_id')
@@ -80,11 +86,12 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
     public function canAccessComponent(mixed $role, int $componentId): bool
     {
         $roleId = is_object($role) ? $role->id : $role;
-        $cacheKey = $this->getCacheKey("role_access:{$roleId}:component:{$componentId}");
+        $cacheKey = $this->versionedRoleKey($roleId, "component:{$componentId}");
 
         return $this->cache()->remember($cacheKey, self::CACHE_TTL, function () use ($roleId, $componentId) {
-            // Check direct component access
-            if (RoleModuleAccess::where('role_id', $roleId)
+            // Check direct component access (D17: suspended rows excluded)
+            if ($this->accessModel()::where('role_id', $roleId)
+                ->where('status', RoleModuleAccess::STATUS_ACTIVE)
                 ->where('component_id', $componentId)
                 ->whereNull('action_id')
                 ->exists()) {
@@ -107,11 +114,12 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
     public function canAccessAction(mixed $role, int $actionId): bool
     {
         $roleId = is_object($role) ? $role->id : $role;
-        $cacheKey = $this->getCacheKey("role_access:{$roleId}:action:{$actionId}");
+        $cacheKey = $this->versionedRoleKey($roleId, "action:{$actionId}");
 
         return $this->cache()->remember($cacheKey, self::CACHE_TTL, function () use ($roleId, $actionId) {
-            // Check direct action access
-            if (RoleModuleAccess::where('role_id', $roleId)
+            // Check direct action access (D17: suspended rows excluded)
+            if ($this->accessModel()::where('role_id', $roleId)
+                ->where('status', RoleModuleAccess::STATUS_ACTIVE)
                 ->where('action_id', $actionId)
                 ->exists()) {
                 return true;
@@ -184,10 +192,15 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
             return false;
         }
 
-        // Check each of user's roles
+        // Nested cascade: a grant on the sub-module OR any ancestor sub-module
+        // (via parent_id) grants access to this (descendant) sub-module.
+        $subModuleIds = array_merge([$subModule->id], $subModule->ancestorIds());
+
         foreach ($user->roles as $role) {
-            if ($this->canAccessSubModule($role, $subModule->id)) {
-                return true;
+            foreach ($subModuleIds as $smId) {
+                if ($this->canAccessSubModule($role, $smId)) {
+                    return true;
+                }
             }
         }
 
@@ -309,14 +322,19 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
 
     /**
      * Get all accessible module IDs for a role.
+     *
+     * Access-check path — only 'active' rows grant navigation access (D17).
      */
     public function getAccessibleModuleIds(mixed $role): array
     {
         $roleId = is_object($role) ? $role->id : $role;
-        $cacheKey = $this->getCacheKey("role_accessible_modules:{$roleId}");
+        $cacheKey = $this->versionedRoleKey($roleId, 'accessible_modules');
 
         return $this->cache()->remember($cacheKey, self::CACHE_TTL, function () use ($roleId) {
-            $access = RoleModuleAccess::where('role_id', $roleId)->get();
+            // D17: suspended rows must not appear in navigation access
+            $access = $this->accessModel()::where('role_id', $roleId)
+                ->where('status', RoleModuleAccess::STATUS_ACTIVE)
+                ->get();
 
             $moduleIds = collect();
 
@@ -364,7 +382,10 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
             $subModuleIds = collect();
 
             foreach ($user->roles as $role) {
-                $access = RoleModuleAccess::where('role_id', $role->id)->get();
+                // D17: suspended rows must not grant navigation access
+                $access = $this->accessModel()::where('role_id', $role->id)
+                    ->where('status', RoleModuleAccess::STATUS_ACTIVE)
+                    ->get();
 
                 foreach ($access as $entry) {
                     // Direct sub-module access
@@ -408,12 +429,17 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
     {
         $roleId = is_object($role) ? $role->id : $role;
 
+        // Capture before state for audit trail
+        $beforeState = $this->accessModel()::where('role_id', $roleId)
+            ->get(['module_id', 'sub_module_id', 'component_id', 'action_id', 'access_scope'])
+            ->toArray();
+
         // Clear existing access for this role
-        RoleModuleAccess::where('role_id', $roleId)->delete();
+        $this->accessModel()::where('role_id', $roleId)->delete();
 
         // Add module-level access
         foreach ($accessData['modules'] ?? [] as $moduleId) {
-            RoleModuleAccess::create([
+            $this->accessModel()::create([
                 'role_id' => $roleId,
                 'module_id' => $moduleId,
                 'access_scope' => RoleModuleAccess::SCOPE_ALL,
@@ -422,7 +448,7 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
 
         // Add sub-module-level access
         foreach ($accessData['sub_modules'] ?? [] as $subModuleId) {
-            RoleModuleAccess::create([
+            $this->accessModel()::create([
                 'role_id' => $roleId,
                 'sub_module_id' => $subModuleId,
                 'access_scope' => RoleModuleAccess::SCOPE_ALL,
@@ -431,7 +457,7 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
 
         // Add component-level access
         foreach ($accessData['components'] ?? [] as $componentId) {
-            RoleModuleAccess::create([
+            $this->accessModel()::create([
                 'role_id' => $roleId,
                 'component_id' => $componentId,
                 'access_scope' => RoleModuleAccess::SCOPE_ALL,
@@ -441,13 +467,13 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
         // Add action-level access with scope
         foreach ($accessData['actions'] ?? [] as $actionData) {
             if (is_array($actionData)) {
-                RoleModuleAccess::create([
+                $this->accessModel()::create([
                     'role_id' => $roleId,
                     'action_id' => $actionData['id'],
                     'access_scope' => $actionData['scope'] ?? RoleModuleAccess::SCOPE_ALL,
                 ]);
             } else {
-                RoleModuleAccess::create([
+                $this->accessModel()::create([
                     'role_id' => $roleId,
                     'action_id' => $actionData,
                     'access_scope' => RoleModuleAccess::SCOPE_ALL,
@@ -457,6 +483,21 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
 
         // Clear cache
         $this->clearRoleCache($role);
+
+        // Write audit log — failure must never break the sync
+        try {
+            HrmacAuditLog::create([
+                'actor_user_id' => auth()->id(),
+                'role_id' => $roleId,
+                'action' => 'sync',
+                'before_state' => $beforeState,
+                'after_state' => $accessData,
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+        } catch (\Throwable) {
+            // Audit failure must not break the access sync
+        }
     }
 
     /**
@@ -466,11 +507,17 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
      * grants exist (no explicit module_id rows), parent module IDs are derived
      * from the sub_modules table so that `accessible_modules` is populated
      * correctly for navigation and access checks.
+     *
+     * INVENTORY method — suspended rows are intentionally included so that
+     * admin UIs (RBAC management pages) can display the suspended state and
+     * allow admins to understand what will be restored on re-subscription.
+     * Do NOT add a status filter here.
      */
     public function getRoleAccessTree(mixed $role): array
     {
         $roleId = is_object($role) ? $role->id : $role;
-        $access = RoleModuleAccess::where('role_id', $roleId)->get();
+        // D17: No status filter — inventory query, admins see ALL grants including suspended.
+        $access = $this->accessModel()::where('role_id', $roleId)->get();
 
         // Explicit module-level grants (module_id set, no sub_module_id).
         $explicitModuleIds = $access->whereNotNull('module_id')
@@ -503,7 +550,11 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
         $moduleIds = array_values(array_unique(array_merge($explicitModuleIds, $derivedModuleIds)));
 
         return [
+            // 'modules' is the merged set (explicit + derived-from-sub-grants) used by
+            // navigation/menus. The editor must use 'explicit_modules' so a no-op save
+            // doesn't convert a derived parent into an explicit full-module grant.
             'modules' => $moduleIds,
+            'explicit_modules' => array_values($explicitModuleIds),
             'sub_modules' => $subModuleIds,
             'components' => $access->whereNotNull('component_id')
                 ->whereNull('action_id')
@@ -523,10 +574,12 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
     {
         $roleId = is_object($role) ? $role->id : $role;
 
-        $this->cache()->forget($this->getCacheKey("role_accessible_modules:{$roleId}"));
-
-        // Note: Individual module/submodule/component/action caches
-        // will naturally expire. For immediate invalidation, use tagged caching.
+        // Axis C C6/C8 — bump the role's cache version. This invalidates EVERY
+        // versioned per-role access cache (module/sub-module/component/action/
+        // accessible-modules) immediately, instead of waiting out the TTL. Closes
+        // the window where a revoked/suspended grant kept authorizing for up to
+        // CACHE_TTL.
+        $this->bumpRoleCacheVersion($roleId);
     }
 
     /**
@@ -549,11 +602,21 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
             return false;
         }
 
-        $superAdminRoles = config('hrmac.super_admin_roles', [
+        $config = config('hrmac.super_admin_roles', [
             'Super Administrator',
             'super-admin',
             'tenant_super_administrator',
         ]);
+
+        // The config may be a flat list OR guard-scoped (['web' => [...],
+        // 'landlord' => [...]]). Flatten to a flat list of role names so
+        // hasRole()'s whereIn() never receives nested arrays.
+        $superAdminRoles = [];
+        array_walk_recursive($config, function ($role) use (&$superAdminRoles) {
+            if (is_string($role)) {
+                $superAdminRoles[] = $role;
+            }
+        });
 
         return $user->hasRole($superAdminRoles);
     }
@@ -565,9 +628,9 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
      * @param  string  $moduleCode  The module code (e.g., 'hrm')
      * @param  string  $subModuleCode  The sub-module code (e.g., 'leaves')
      * @param  string|null  $actionCode  Optional action code to check specific action access (e.g., 'approve')
-     * @return \Illuminate\Support\Collection Collection of User models
+     * @return Collection Collection of User models
      */
-    public function getUsersWithSubModuleAccess(string $moduleCode, string $subModuleCode, ?string $actionCode = null): \Illuminate\Support\Collection
+    public function getUsersWithSubModuleAccess(string $moduleCode, string $subModuleCode, ?string $actionCode = null): Collection
     {
         // Get the module
         $module = Module::where('code', $moduleCode)->where('is_active', true)->first();
@@ -585,7 +648,9 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
         }
 
         // Build query to find role IDs with access
-        $roleIdsQuery = RoleModuleAccess::query()
+        // D17: suspended rows must not be included in notification dispatch
+        $roleIdsQuery = $this->accessModel()::query()
+            ->where('status', RoleModuleAccess::STATUS_ACTIVE)
             ->where(function ($query) use ($module, $subModule) {
                 // Direct module access (grants access to all sub-modules)
                 $query->where(function ($q) use ($module) {
@@ -616,7 +681,7 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
                 });
 
                 // Also check specific action access
-                $actionIds = \Aero\HRMAC\Models\Action::whereIn('component_id', $componentIds)
+                $actionIds = Action::whereIn('component_id', $componentIds)
                     ->where('code', $actionCode)
                     ->where('is_active', true)
                     ->pluck('id');
@@ -634,7 +699,7 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
         }
 
         // Get the User model class from config
-        $userModel = config('hrmac.models.user', \Aero\Core\Models\User::class);
+        $userModel = config('hrmac.models.user', User::class);
 
         // Find all active users with these roles
         return $userModel::whereHas('roles', function ($query) use ($roleIds) {
@@ -651,9 +716,9 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
      * @param  string  $subModuleCode  The sub-module code (e.g., 'leaves')
      * @param  string  $componentCode  The component code (e.g., 'leave-requests')
      * @param  string  $actionCode  The action code (e.g., 'approve')
-     * @return \Illuminate\Support\Collection Collection of User models
+     * @return Collection Collection of User models
      */
-    public function getUsersWithActionAccess(string $moduleCode, string $subModuleCode, string $componentCode, string $actionCode): \Illuminate\Support\Collection
+    public function getUsersWithActionAccess(string $moduleCode, string $subModuleCode, string $componentCode, string $actionCode): Collection
     {
         // Get the module hierarchy
         $module = Module::where('code', $moduleCode)->where('is_active', true)->first();
@@ -677,13 +742,15 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
             return collect();
         }
 
-        $action = \Aero\HRMAC\Models\Action::where('component_id', $component->id)
+        $action = Action::where('component_id', $component->id)
             ->where('code', $actionCode)
             ->where('is_active', true)
             ->first();
 
         // Build query to find role IDs with cascading access
-        $roleIds = RoleModuleAccess::query()
+        // D17: suspended rows must not be included in notification dispatch
+        $roleIds = $this->accessModel()::query()
+            ->where('status', RoleModuleAccess::STATUS_ACTIVE)
             ->where(function ($query) use ($module, $subModule, $component, $action) {
                 // Module level access (full access)
                 $query->where(function ($q) use ($module) {
@@ -717,7 +784,7 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
         }
 
         // Get the User model class from config
-        $userModel = config('hrmac.models.user', \Aero\Core\Models\User::class);
+        $userModel = config('hrmac.models.user', User::class);
 
         // Find all active users with these roles
         return $userModel::whereHas('roles', function ($query) use ($roleIds) {
@@ -746,5 +813,51 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
     protected function cache()
     {
         return Cache::store();
+    }
+
+    /**
+     * Per-role cache version (Axis C C6/C8 — complete invalidation).
+     *
+     * All per-role access caches embed this version in their key. Bumping it
+     * (clearRoleCache) instantly invalidates EVERY cached access result for the
+     * role — closing the gap where individual module/sub-module/component/action
+     * caches previously "naturally expired" only after TTL, leaving a revoked
+     * grant authorizing for up to CACHE_TTL. A version miss simply re-resolves
+     * from the DB (the correct answer), so this is safe.
+     */
+    protected function roleCacheVersion(mixed $roleId): int
+    {
+        return (int) $this->cache()->get($this->getCacheKey("role_cache_version:{$roleId}"), 1);
+    }
+
+    /**
+     * Build a per-role cache key carrying the role's current cache version.
+     */
+    protected function versionedRoleKey(mixed $roleId, string $suffix): string
+    {
+        return $this->getCacheKey("role:{$roleId}:v{$this->roleCacheVersion($roleId)}:{$suffix}");
+    }
+
+    /**
+     * Bump a role's cache version, invalidating all of its versioned access caches.
+     */
+    protected function bumpRoleCacheVersion(mixed $roleId): void
+    {
+        $key = $this->getCacheKey("role_cache_version:{$roleId}");
+        $this->cache()->forever($key, $this->roleCacheVersion($roleId) + 1);
+    }
+
+    /**
+     * The RoleModuleAccess model class — configurable by the consuming package
+     * (config('hrmac.models.role_module_access')), defaulting to the bundled model.
+     *
+     * HRMAC is context-free: this model uses the DEFAULT database connection, so the
+     * host/consumer's runtime context (stancl tenancy for tenant requests, central for
+     * platform requests, single DB for standalone) determines which data is read/written.
+     * HRMAC itself never detects or names a connection.
+     */
+    private function accessModel(): string
+    {
+        return config('hrmac.models.role_module_access', RoleModuleAccess::class);
     }
 }

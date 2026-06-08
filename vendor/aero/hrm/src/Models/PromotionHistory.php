@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *
  * Tracks employee promotions with position and compensation changes.
  */
-class PromotionHistory extends Model
+class PromotionHistory extends TenantModel
 {
     use HasFactory, SoftDeletes;
 

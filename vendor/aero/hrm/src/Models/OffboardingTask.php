@@ -2,13 +2,15 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Aero\Core\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class OffboardingTask extends Model
+class OffboardingTask extends TenantModel
 {
     use HasFactory, SoftDeletes;
 
@@ -36,7 +38,7 @@ class OffboardingTask extends Model
         'completed_date' => 'date',
     ];
 
-    protected static function boot()
+    protected static function boot(): void
     {
         parent::boot();
         static::creating(function (self $model) {

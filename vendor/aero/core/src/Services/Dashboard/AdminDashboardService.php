@@ -4,25 +4,18 @@ declare(strict_types=1);
 
 namespace Aero\Core\Services\Dashboard;
 
-use Aero\Core\Contracts\ModuleSummaryProvider;
+use Aero\Contracts\ModuleSummaryProvider;
 use Aero\Core\Models\Announcement;
 use Aero\Core\Models\AuditLog;
 use Aero\Core\Models\CompanySetting;
-use Aero\Notifications\Models\NotificationLog;
+use Aero\Core\Models\Module;
 use Aero\Core\Models\User;
 use Aero\Core\Models\UserDevice;
 use Aero\Core\Models\UserSession;
 use Aero\Core\Services\ModuleRegistry;
-use Aero\DMS\Models\Document;
-use Aero\Finance\Models\Invoice;
-use Aero\HRM\Models\Department;
-use Aero\HRM\Models\Holiday;
-use Aero\HRM\Models\LeaveRequest;
+use Aero\Core\Support\TenantCache;
 use Aero\HRMAC\Facades\HRMAC;
 use Aero\HRMAC\Models\Role;
-use Aero\Platform\Models\ErrorLog;
-use Aero\Project\Models\Task;
-use Aero\Quality\Models\NonConformanceReport;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -142,9 +135,35 @@ class AdminDashboardService
         };
     }
 
+    /**
+     * Lightweight tenant stats for the dashboard index page.
+     *
+     * @return array{total_users: int, active_users: int, total_roles: int, modules_enabled: int}
+     */
+    public function getTenantStats(): array
+    {
+        try {
+            return [
+                'total_users' => User::count(),
+                'active_users' => User::where('is_active', true)->count(),
+                'total_roles' => \Aero\HRMAC\Models\Role::count(),
+                'modules_enabled' => Module::where('is_active', true)->count(),
+            ];
+        } catch (\Throwable $e) {
+            report($e);
+
+            return [
+                'total_users' => 0,
+                'active_users' => 0,
+                'total_roles' => 0,
+                'modules_enabled' => 0,
+            ];
+        }
+    }
+
     public function getCoreStats(): array
     {
-        return Cache::remember('admin_dashboard.core_stats', 300, function () {
+        return TenantCache::remember('admin_dashboard.core_stats', 300, function () {
             try {
                 $totalUsers = User::count();
                 $activeUsers = User::where('active', true)->count();
@@ -198,7 +217,7 @@ class AdminDashboardService
     {
         $cacheKey = "admin_dashboard.user_activity.{$period}";
 
-        return Cache::remember($cacheKey, 300, function () use ($period) {
+        return TenantCache::remember($cacheKey, 300, function () use ($period) {
             try {
                 $days = match ($period) {
                     'month' => 30,
@@ -262,7 +281,7 @@ class AdminDashboardService
      */
     public function getSecurityOverview(): array
     {
-        return Cache::remember('admin_dashboard.security_overview', 120, function () {
+        return TenantCache::remember('admin_dashboard.security_overview', 120, function () {
             try {
                 $failedLoginsToday = AuditLog::where('action', 'failed_login')
                     ->whereDate('created_at', today())
@@ -324,7 +343,7 @@ class AdminDashboardService
      */
     public function getStorageAnalytics(): array
     {
-        return Cache::remember('admin_dashboard.storage_analytics', 600, function () {
+        return TenantCache::remember('admin_dashboard.storage_analytics', 600, function () {
             try {
                 $storagePath = storage_path('app');
                 $totalUsed = 0;
@@ -365,7 +384,7 @@ class AdminDashboardService
      */
     public function getSubscriptionInfo(): array
     {
-        return Cache::remember('admin_dashboard.subscription_info', 900, function () {
+        return TenantCache::remember('admin_dashboard.subscription_info', 900, function () {
             try {
                 $tenant = tenant();
                 if (! $tenant) {
@@ -413,105 +432,13 @@ class AdminDashboardService
     }
 
     /**
-     * Cross-module pending approval counts.
-     *
-     * @return array<string, mixed>
-     */
-    public function getPendingApprovals(): array
-    {
-        return Cache::remember('admin_dashboard.pending_approvals', 180, function () {
-            $approvals = [];
-            $total = 0;
-
-            $moduleChecks = [
-                'hrm' => function () {
-                    $pending = [];
-                    try {
-                        if (class_exists(LeaveRequest::class)) {
-                            $pending['pendingLeaves'] = LeaveRequest::where('status', 'pending')->count();
-                        }
-                    } catch (\Throwable) {
-                    }
-
-                    return $pending;
-                },
-                'finance' => function () {
-                    $pending = [];
-                    try {
-                        if (class_exists(Invoice::class)) {
-                            $pending['pendingInvoices'] = Invoice::where('status', 'pending')->count();
-                        }
-                    } catch (\Throwable) {
-                    }
-
-                    return $pending;
-                },
-                'dms' => function () {
-                    $pending = [];
-                    try {
-                        if (class_exists(Document::class)) {
-                            $pending['pendingDocumentApprovals'] = Document::where('status', 'pending_approval')->count();
-                        }
-                    } catch (\Throwable) {
-                    }
-
-                    return $pending;
-                },
-                'project' => function () {
-                    $pending = [];
-                    try {
-                        if (class_exists(Task::class)) {
-                            $pending['overdueTasks'] = Task::where('due_date', '<', now())
-                                ->whereNotIn('status', ['completed', 'cancelled'])
-                                ->count();
-                        }
-                    } catch (\Throwable) {
-                    }
-
-                    return $pending;
-                },
-                'quality' => function () {
-                    $pending = [];
-                    try {
-                        if (class_exists(NonConformanceReport::class)) {
-                            $pending['pendingNCRs'] = NonConformanceReport::where('status', 'pending')->count();
-                        }
-                    } catch (\Throwable) {
-                    }
-
-                    return $pending;
-                },
-            ];
-
-            foreach ($moduleChecks as $moduleKey => $callback) {
-                try {
-                    if ($this->isModuleAccessible($moduleKey)) {
-                        $result = $callback();
-                        if (! empty($result)) {
-                            $approvals[$moduleKey] = $result;
-                            $total += array_sum($result);
-                        }
-                    }
-                } catch (\Throwable) {
-                    // Skip module silently
-                }
-            }
-
-            return [
-                'modules' => $approvals,
-                'total' => $total,
-            ];
-        });
-    }
-
-    /**
      * Per-module summary cards via registered providers.
      *
      * @return array<int, array<string, mixed>>
      */
     public function getModuleSummaries(): array
     {
-        return Cache::remember('admin_dashboard.module_summaries', 300, function () {
+        return TenantCache::remember('admin_dashboard.module_summaries', 300, function () {
             $summaries = [];
             $providers = app()->tagged('module.summary.provider');
 
@@ -539,7 +466,7 @@ class AdminDashboardService
      */
     public function getRecentAuditLog(int $limit = 15): array
     {
-        return Cache::remember('admin_dashboard.recent_audit_log', 120, function () use ($limit) {
+        return TenantCache::remember('admin_dashboard.recent_audit_log', 120, function () use ($limit) {
             try {
                 return AuditLog::with('user:id,name')
                     ->latest()
@@ -572,7 +499,7 @@ class AdminDashboardService
      */
     public function getSystemHealth(): array
     {
-        return Cache::remember('admin_dashboard.system_health', 120, function () {
+        return TenantCache::remember('admin_dashboard.system_health', 120, function () {
             try {
                 $health = [
                     'database' => 'healthy',
@@ -621,8 +548,9 @@ class AdminDashboardService
 
                 // Error count today
                 try {
-                    if (class_exists(ErrorLog::class)) {
-                        $health['errorCountToday'] = ErrorLog::whereDate('created_at', today())->count();
+                    if (class_exists('Aero\\Platform\\Models\\ErrorLog')) {
+                        $errLogClass = 'Aero\\Platform\\Models\\ErrorLog';
+                        $health['errorCountToday'] = $errLogClass::whereDate('created_at', today())->count();
                     }
                 } catch (\Throwable) {
                     // Platform not installed
@@ -672,7 +600,7 @@ class AdminDashboardService
      */
     public function getAnnouncements(): array
     {
-        return Cache::remember('admin_dashboard.announcements', 300, function () {
+        return TenantCache::remember('admin_dashboard.announcements', 300, function () {
             try {
                 if (! class_exists(Announcement::class)) {
                     return [];
@@ -768,7 +696,7 @@ class AdminDashboardService
      */
     public function getOnboardingProgress(): ?array
     {
-        return Cache::remember('admin_dashboard.onboarding_progress', 600, function () {
+        return TenantCache::remember('admin_dashboard.onboarding_progress', 600, function () {
             try {
                 $tenant = tenant();
                 if (! $tenant) {
@@ -807,66 +735,21 @@ class AdminDashboardService
     }
 
     /**
-     * Upcoming events from across modules.
-     *
-     * @return array<int, array<string, mixed>>
-     */
-    public function getUpcomingEvents(int $days = 7): array
-    {
-        return Cache::remember('admin_dashboard.upcoming_events', 600, function () use ($days) {
-            $events = [];
-
-            // Holidays from HRM
-            try {
-                if (class_exists(Holiday::class)) {
-                    $holidays = Holiday::whereBetween('date', [now(), now()->addDays($days)])
-                        ->get(['name', 'date'])
-                        ->map(fn ($h) => [
-                            'title' => $h->name,
-                            'date' => $h->date->toDateString(),
-                            'type' => 'holiday',
-                            'module' => 'hrm',
-                        ]);
-                    $events = array_merge($events, $holidays->toArray());
-                }
-            } catch (\Throwable) {
-            }
-
-            // Task deadlines from Project
-            try {
-                if (class_exists(Task::class)) {
-                    $tasks = Task::whereBetween('due_date', [now(), now()->addDays($days)])
-                        ->whereNotIn('status', ['completed', 'cancelled'])
-                        ->limit(10)
-                        ->get(['title', 'due_date'])
-                        ->map(fn ($t) => [
-                            'title' => $t->title,
-                            'date' => $t->due_date->toDateString(),
-                            'type' => 'deadline',
-                            'module' => 'project',
-                        ]);
-                    $events = array_merge($events, $tasks->toArray());
-                }
-            } catch (\Throwable) {
-            }
-
-            // Sort by date
-            usort($events, fn ($a, $b) => strcmp($a['date'], $b['date']));
-
-            return $events;
-        });
-    }
-
-    /**
      * Recent notification log entries for the dashboard.
      *
      * @return array<string, mixed>
      */
     public function getRecentNotifications(): array
     {
-        return Cache::remember('admin_dashboard.recent_notifications', 120, function () {
+        return TenantCache::remember('admin_dashboard.recent_notifications', 120, function () {
             try {
-                $items = NotificationLog::latest()
+                if (! class_exists('Aero\Notifications\Models\NotificationLog')) {
+                    return ['items' => [], 'total' => 0, 'unread' => 0, 'failedToday' => 0];
+                }
+
+                $notifLogClass = 'Aero\Notifications\Models\NotificationLog';
+
+                $items = $notifLogClass::latest()
                     ->limit(8)
                     ->get(['id', 'user_id', 'channel', 'notification_type', 'subject', 'status', 'sent_at', 'read_at', 'created_at'])
                     ->map(fn ($n) => [
@@ -880,9 +763,9 @@ class AdminDashboardService
                     ])
                     ->toArray();
 
-                $total = NotificationLog::count();
-                $unread = NotificationLog::whereNull('read_at')->count();
-                $failedToday = NotificationLog::where('status', 'failed')
+                $total = $notifLogClass::count();
+                $unread = $notifLogClass::whereNull('read_at')->count();
+                $failedToday = $notifLogClass::where('status', 'failed')
                     ->whereDate('created_at', today())
                     ->count();
 
@@ -907,7 +790,7 @@ class AdminDashboardService
      */
     public function getActiveSessionsData(): array
     {
-        return Cache::remember('admin_dashboard.active_sessions', 60, function () {
+        return TenantCache::remember('admin_dashboard.active_sessions', 60, function () {
             try {
                 $onlineNow = UserSession::where('last_activity', '>=', now()->subMinutes(5))->count();
                 $activeToday = UserSession::whereDate('last_activity', today())->count();
@@ -1023,18 +906,6 @@ class AdminDashboardService
         } catch (\Throwable) {
             return false;
         }
-    }
-
-    protected function hasDepartments(): bool
-    {
-        try {
-            if (class_exists(Department::class)) {
-                return Department::count() > 0;
-            }
-        } catch (\Throwable) {
-        }
-
-        return false;
     }
 
     protected function hasMultipleModules(): bool

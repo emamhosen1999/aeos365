@@ -2,10 +2,17 @@
 
 namespace Aero\Core;
 
-use Aero\Core\Contracts\EmployeeServiceContract;
-use Aero\Core\Contracts\LicenseServiceInterface;
-use Aero\Core\Contracts\NotificationRoutingContract;
-use Aero\Core\Contracts\TenantScopeInterface;
+use Aero\Contracts\AeroMode;
+use Aero\Contracts\AuditServiceInterface;
+use Aero\Contracts\EmployeeServiceContract;
+use Aero\Contracts\EncryptionDriverInterface;
+use Aero\Contracts\LicenseServiceInterface;
+use Aero\Contracts\MailContextResolverInterface;
+use Aero\Contracts\NotificationChannelInterface;
+use Aero\Contracts\NotificationRoutingContract;
+use Aero\Contracts\SmsContextResolverInterface;
+use Aero\Contracts\TenantScopeInterface;
+use Aero\Contracts\TranslationDriverInterface;
 use Aero\Core\Database\Seeders\CoreDatabaseSeeder;
 use Aero\Core\Exceptions\Handler;
 use Aero\Core\Http\Middleware\CheckModuleAccess;
@@ -14,12 +21,16 @@ use Aero\Core\Http\Middleware\EnforceLicense;
 use Aero\Core\Http\Middleware\EnsureTenantContext;
 use Aero\Core\Http\Middleware\HandleInertiaRequests;
 use Aero\Core\Http\Middleware\InitializeTenancyIfNotCentral;
+use Aero\Core\Http\Middleware\ResolvePlatformContext;
+use Aero\Core\Http\Middleware\ResolveTenantContext;
 use Aero\Core\Models\User;
 use Aero\Core\Providers\CoreModuleProvider;
 use Aero\Core\Providers\ModuleRouteServiceProvider;
+use Aero\Core\Services\AddonCatalogService;
+use Aero\Core\Services\AddonInstaller;
 use Aero\Core\Services\DashboardRegistry;
-use Aero\Core\Services\DashboardWidgetRegistry;
 use Aero\Core\Services\HrmacNotificationRoutingService;
+use Aero\Core\Services\InstallationState;
 use Aero\Core\Services\License\DomainBinding;
 use Aero\Core\Services\License\LicenseCache;
 use Aero\Core\Services\License\LicenseService;
@@ -37,12 +48,8 @@ use Aero\Core\Services\StandaloneTenantScope;
 use Aero\Core\Services\UserRelationshipRegistry;
 use Aero\Core\Traits\ParsesHostDomain;
 use Aero\HRM\Services\EmployeeService;
-use Aero\HRMAC\Contracts\RoleModuleAccessInterface;
+use Aero\Contracts\RoleModuleAccessInterface;
 use Aero\HRMAC\Services\RoleModuleAccessService;
-use Aero\Notifications\Contracts\MailContextResolver;
-use Aero\Notifications\Contracts\SmsContextResolver;
-use Aero\Platform\AeroPlatformServiceProvider;
-use Aero\Platform\Http\Middleware\EnsureTenantIsActive;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Migrations\Migrator;
@@ -74,13 +81,16 @@ class AeroCoreServiceProvider extends ServiceProvider
             // This handles navigation, self-service items, dashboards, etc.
             $this->app->register(CoreModuleProvider::class);
 
+            // Register Octane flush callbacks for per-request singletons
+            $this->app->register(\Aero\Core\Providers\AeroOctaneServiceProvider::class);
+
             // Override the Migrator to exclude app's migration directory
             // Core and module packages provide all necessary migrations
             //
             // NOTE: Skip this override if Platform is installed
             // Platform has its own migrator override that restricts landlord migrations
             // to only platform package migrations (tenants, domains, plans, etc.)
-            if (! class_exists(AeroPlatformServiceProvider::class)) {
+            if (! class_exists('Aero\\Platform\\AeroPlatformServiceProvider')) {
                 $this->app->extend('migrator', function ($migrator, $app) {
                     return new class($app['migration.repository'], $app['db'], $app['files'], $app['events']) extends Migrator
                     {
@@ -106,7 +116,7 @@ class AeroCoreServiceProvider extends ServiceProvider
             $this->mergeConfigFrom(__DIR__.'/../config/security.php', 'security');
             // Module definitions are in config/module.php and loaded by ModuleDiscoveryService
             $this->mergeConfigFrom(__DIR__.'/../config/core.php', 'aero.core');
-            $this->mergeConfigFrom(__DIR__.'/../config/permission.php', 'permission');
+            // Spatie permission config removed — access control is HRMAC.
             $this->mergeConfigFrom(__DIR__.'/../config/license.php', 'license');
 
             $this->app->singleton(LicenseServiceInterface::class, function ($app) {
@@ -119,28 +129,43 @@ class AeroCoreServiceProvider extends ServiceProvider
 
             $this->app->singleton(ProductManifestLoader::class);
 
-            $this->app->singleton(\Aero\Core\Services\AddonCatalogService::class);
-            $this->app->singleton(\Aero\Core\Services\AddonInstaller::class);
+            $this->app->singleton(AddonCatalogService::class);
+            $this->app->singleton(AddonInstaller::class);
 
             // Configure auth to use Core's User model
             config(['auth.providers.users.model' => User::class]);
 
+            // Encryption driver — swappable for AWS KMS, HashiCorp Vault, etc.
+            $this->app->singleton(EncryptionDriverInterface::class, function ($app) {
+                return new \Aero\Core\Encryption\LaravelEncryptionDriver(
+                    $app['encrypter']
+                );
+            });
+
+            // Audit service — writes to audit_logs (tenant) or platform_audit_logs (central)
+            $this->app->singleton(AuditServiceInterface::class, \Aero\Core\Services\Audit\AuditService::class);
+
             // Register Core Singletons
             $this->app->singleton(ModuleRegistry::class);
+            $this->app->alias(ModuleRegistry::class, \Aero\Contracts\ModuleRegistryInterface::class);
             $this->app->singleton(NavigationRegistry::class);
+            $this->app->alias(NavigationRegistry::class, \Aero\Contracts\NavigationRegistryInterface::class);
             $this->app->singleton(UserRelationshipRegistry::class);
-            $this->app->singleton(DashboardWidgetRegistry::class);
             $this->app->singleton(DashboardRegistry::class);
 
-            // Bind notification context resolvers to new aero-notifications package
-            $this->app->singleton(MailContextResolver::class, CoreMailContextResolver::class);
-            $this->app->singleton(SmsContextResolver::class, CoreSmsContextResolver::class);
+            // Bind notification context resolvers — use aero-core interfaces as the canonical binding
+            $this->app->singleton(MailContextResolverInterface::class, CoreMailContextResolver::class);
+            $this->app->singleton(SmsContextResolverInterface::class, CoreSmsContextResolver::class);
+            if (class_exists('Aero\\Notifications\\Contracts\\MailContextResolver')) {
+                $this->app->singleton('Aero\\Notifications\\Contracts\\MailContextResolver', CoreMailContextResolver::class);
+                $this->app->singleton('Aero\\Notifications\\Contracts\\SmsContextResolver', CoreSmsContextResolver::class);
+            }
 
             // Register Module Access Services (with error handling for missing tables)
             // These services are lazy-loaded, so they won't cause issues pre-install
             $this->app->singleton(ModuleAccessService::class, function ($app) {
                 // Only instantiate if installed to avoid DB queries pre-install
-                if (! file_exists(storage_path('app/aeos.installed'))) {
+                if (! InstallationState::isInstalled()) {
                     return new class
                     {
                         private function deny(string $reason): array
@@ -205,7 +230,7 @@ class AeroCoreServiceProvider extends ServiceProvider
 
             $this->app->singleton(RoleModuleAccessService::class, function ($app) {
                 // Only instantiate if installed to avoid DB queries pre-install
-                if (! file_exists(storage_path('app/aeos.installed'))) {
+                if (! InstallationState::isInstalled()) {
                     return new class
                     {
                         public function canUserAccessModule(int $userId, string $moduleCode): bool
@@ -261,6 +286,38 @@ class AeroCoreServiceProvider extends ServiceProvider
             // Bind TenantScopeInterface to StandaloneTenantScope as default
             // This can be overridden by aero-platform for SaaS mode
             $this->app->singleton(TenantScopeInterface::class, StandaloneTenantScope::class);
+
+            // Wire AeroMode so aero-contracts TenantModel can detect SaaS/standalone
+            // without importing aero-core helpers directly.
+            AeroMode::setModeResolver(fn () => is_saas_mode());
+            AeroMode::setTenantContextChecker(function (string $modelClass) {
+                // Fail CLOSED (Axis A A10). Previously a catch-all swallowed any
+                // non-LogicException — so a container/resolution fault let the query
+                // run against whatever connection was active, the exact cross-tenant
+                // access the guard exists to block. The ONLY legitimate allowance is
+                // genuine early boot before the scope is bound; narrow it to that.
+                if (! app()->bound(TenantScopeInterface::class)) {
+                    return;
+                }
+
+                $scope = app(TenantScopeInterface::class);
+                if (! $scope->inTenantContext()) {
+                    throw new \LogicException(
+                        $modelClass . ' queried outside of tenant context. ' .
+                        'Ensure this runs after tenancy middleware. ' .
+                        'For central-DB models extend CentralModel instead.'
+                    );
+                }
+            });
+
+            // HRMAC is a context-free shared package: its models carry no guard. As the
+            // tenant host, we supply the isolation guard — enforcing tenant context for
+            // tenant requests while allowing the platform/central context. (Standalone
+            // and early boot are no-ops.) See Aero\Core\Hrmac\HrmacContextGuard.
+            $this->app->singleton(
+                \Aero\Contracts\HrmacModelGuardInterface::class,
+                \Aero\Core\Hrmac\HrmacContextGuard::class
+            );
 
             // Register cross-package contracts for modular architecture
             $this->registerCrossPackageContracts();
@@ -379,7 +436,6 @@ class AeroCoreServiceProvider extends ServiceProvider
                 $this->registerCoreNavigation();
 
                 // Register Core dashboard widgets
-                $this->registerDashboardWidgets();
 
                 // Register Core dashboards in the DashboardRegistry
                 $this->registerDashboards();
@@ -404,18 +460,6 @@ class AeroCoreServiceProvider extends ServiceProvider
      *
      * Note: Holidays and Organization widgets are in HRM package
      */
-    protected function registerDashboardWidgets(): void
-    {
-        // Only register if the registry is available
-        if (! $this->app->bound(DashboardWidgetRegistry::class)) {
-            return;
-        }
-
-        $registry = $this->app->make(DashboardWidgetRegistry::class);
-
-        // All core dashboard widgets are now statically rendered in Dashboard.jsx
-        // No dynamic widget registrations needed for core dashboard
-    }
 
     /**
      * Register Core dashboards with DashboardRegistry.
@@ -494,7 +538,20 @@ class AeroCoreServiceProvider extends ServiceProvider
             // so route:list and cached routes cannot leak onto the platform domain.
             $platformDomain = env('PLATFORM_DOMAIN', env('APP_DOMAIN', 'localhost'));
 
+            // B-43: constrain {tenant} so reserved subdomains (admin, www, api, …) are
+            // NOT treated as tenants. Without this, admin.<domain> matches {tenant}=admin
+            // and the tenant routes (auth:web) shadow the platform admin routes — the
+            // intent the InitializeTenancyIfNotCentral docblock assumed but never enforced.
+            // Uses stancl/tenancy's canonical reserved list (config tenancy.reserved_subdomains).
+            // Anchor the exclusion on the domain separator (\.) — within the compiled
+            // host regex the {tenant} segment is followed by ".<domain>", so a `$`
+            // anchor would never apply. This makes e.g. "admin.<domain>" fail to match
+            // the tenant group while "administrator.<domain>" still matches.
+            $reserved = config('tenancy.reserved_subdomains', ['admin', 'www', 'api']);
+            $tenantConstraint = '(?!(?:'.implode('|', $reserved).')\.)[A-Za-z0-9-]+';
+
             Route::domain('{tenant}.'.$platformDomain)
+                ->where(['tenant' => $tenantConstraint])
                 ->middleware([
                     'web',
                     InitializeTenancyIfNotCentral::class,
@@ -619,9 +676,12 @@ class AeroCoreServiceProvider extends ServiceProvider
             // Register HandleInertiaRequests middleware to web middleware group
             $router->pushMiddlewareToGroup('web', HandleInertiaRequests::class);
 
-            // In SaaS mode, add tenant.active middleware to web group (after auth)
-            if (is_saas_mode() && class_exists('\Aero\Platform\Http\Middleware\EnsureTenantIsActive')) {
-                $router->pushMiddlewareToGroup('web', EnsureTenantIsActive::class);
+            // In SaaS mode, block suspended/archived/failed tenants on BOTH the web
+            // AND api groups (Axis A A8). Previously only 'web' was gated, so a
+            // suspended tenant's Sanctum token could still reach /api/* endpoints.
+            if (is_saas_mode() && class_exists('Aero\\Platform\\Http\\Middleware\\EnsureTenantIsActive')) {
+                $router->pushMiddlewareToGroup('web', 'Aero\\Platform\\Http\\Middleware\\EnsureTenantIsActive');
+                $router->pushMiddlewareToGroup('api', 'Aero\\Platform\\Http\\Middleware\\EnsureTenantIsActive');
             }
 
             // Enforce license validity on every web request (standalone mode only; SaaS is a no-op)
@@ -636,6 +696,10 @@ class AeroCoreServiceProvider extends ServiceProvider
 
             // Register 'dashboard.redirect' middleware alias for role-based dashboard routing
             $router->aliasMiddleware('dashboard.redirect', DashboardRedirectMiddleware::class);
+
+            // Register request context resolution middleware aliases
+            $router->aliasMiddleware('resolve.platform.context', ResolvePlatformContext::class);
+            $router->aliasMiddleware('resolve.tenant.context', ResolveTenantContext::class);
         });
     }
 
@@ -749,7 +813,8 @@ class AeroCoreServiceProvider extends ServiceProvider
     {
         $this->commands([
             Console\Commands\InstallCommand::class,
-            Console\Commands\SyncModuleHierarchy::class,
+            // aero:sync-module is provided solely by aero-hrmac (one sync for both
+            // modes, HRMAC models, nested parent_id support).
             Console\Commands\SyncModuleMigrations::class,
             Console\Commands\SeedCommand::class,
             Console\Commands\CleanupExpiredSessions::class,
@@ -913,6 +978,13 @@ class AeroCoreServiceProvider extends ServiceProvider
                 continue;
             }
 
+            // Respect explicit nav suppression (e.g. embedded cross-cutting
+            // features like comments_mentions that are surfaced inline, not as
+            // a standalone menu page).
+            if (($submodule['show_in_nav'] ?? true) === false) {
+                continue;
+            }
+
             // Get submodule icon for fallback
             $submoduleIcon = $submodule['icon'] ?? 'FolderIcon';
             $components = $submodule['components'] ?? [];
@@ -997,7 +1069,7 @@ class AeroCoreServiceProvider extends ServiceProvider
      */
     protected function installed(): bool
     {
-        return file_exists(storage_path('app/aeos.installed'));
+        return InstallationState::isInstalled();
     }
 
     /**
@@ -1075,12 +1147,52 @@ class AeroCoreServiceProvider extends ServiceProvider
             }
         );
 
+        // TranslationDriverInterface — default uses Laravel's own trans() helper
+        $this->app->singleton(
+            TranslationDriverInterface::class,
+            function ($app) {
+                return new class implements TranslationDriverInterface
+                {
+                    public function translate(string $key, array $replace = [], ?string $locale = null): string
+                    {
+                        return __($key, $replace, $locale) ?? $key;
+                    }
+
+                    public function has(string $key, ?string $locale = null): bool
+                    {
+                        return app('translator')->has($key, $locale);
+                    }
+
+                    public function getLocale(): string
+                    {
+                        return app()->getLocale();
+                    }
+                };
+            }
+        );
+
+        // NotificationChannelInterface — no-op null channel default
+        $this->app->singleton(
+            NotificationChannelInterface::class,
+            function ($app) {
+                return new class implements NotificationChannelInterface
+                {
+                    public function send(object $notifiable, object $notification): void {}
+
+                    public function channelName(): string
+                    {
+                        return 'null';
+                    }
+                };
+            }
+        );
+
         // NotificationRoutingContract - HRMAC-based notification routing
         $this->app->singleton(
             NotificationRoutingContract::class,
             function ($app) {
                 // Only instantiate if HRMAC and installed
-                if (! file_exists(storage_path('app/aeos.installed'))) {
+                if (! InstallationState::isInstalled()) {
                     return new class implements NotificationRoutingContract
                     {
                         public function getRecipients(string $moduleCode, string $subModuleCode, ?string $componentCode = null, ?string $actionCode = null, array $context = []): Collection

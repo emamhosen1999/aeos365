@@ -2,9 +2,10 @@
 
 namespace Aero\Core\Models;
 
-use Aero\Core\Contracts\Searchable;
-use Aero\Core\Contracts\UserContract;
+use Aero\Contracts\Searchable;
+use Aero\Contracts\UserContract;
 use Aero\Core\Database\Factories\UserFactory;
+use Aero\Core\Models\Concerns\EnforcesTenantContext;
 use Aero\Core\Services\UserRelationshipRegistry;
 use Aero\Core\Traits\Searchable as SearchableTrait;
 use Aero\Core\Traits\Taggable;
@@ -60,6 +61,7 @@ use Illuminate\Support\Facades\Log;
  */
 class User extends Authenticatable implements MustVerifyEmail, UserContract, Searchable
 {
+    use EnforcesTenantContext;
     use HasFactory;
     use Notifiable;
     use SearchableTrait;
@@ -370,15 +372,51 @@ class User extends Authenticatable implements MustVerifyEmail, UserContract, Sea
     }
 
     /**
+     * Role names for this user (Spatie-compatible).
+     *
+     * Callers (UserProfileController, UserImpersonationService) expect a
+     * Collection of role-name strings. User uses custom roles (not Spatie), so
+     * this must be defined explicitly — otherwise /profile 500s with
+     * "Call to undefined method getRoleNames()".
+     */
+    public function getRoleNames(): \Illuminate\Support\Collection
+    {
+        return $this->roles()->pluck('name');
+    }
+
+    /**
+     * Human-readable label for audit trails.
+     *
+     * AuditService::log() calls $subject->getAuditLabel(). User extends
+     * Authenticatable (not TenantModel/CentralModel, which provide this), so it
+     * must define its own — otherwise every audited auth event throws
+     * "undefined method getAuditLabel" (swallowed, but spams the log).
+     */
+    public function getAuditLabel(): ?string
+    {
+        return $this->name ?? $this->email ?? "User #{$this->getKey()}";
+    }
+
+    /**
      * Check if user has a specific role.
      *
      * @param  string|array|object  $role  Role name, Role object, or array of role names
      */
     public function hasRole($role): bool
     {
-        // Handle array of role names - return true if user has ANY of them
+        // Handle array of role names - return true if user has ANY of them.
+        // Flatten first: callers sometimes pass the guard-scoped super_admin_roles
+        // config (['web' => [...], 'landlord' => [...]]) — a nested array would
+        // make whereIn throw "Nested arrays may not be passed to whereIn".
         if (is_array($role)) {
-            return $this->roles()->whereIn('name', $role)->exists();
+            $names = [];
+            array_walk_recursive($role, function ($r) use (&$names) {
+                if (is_string($r)) {
+                    $names[] = $r;
+                }
+            });
+
+            return ! empty($names) && $this->roles()->whereIn('name', $names)->exists();
         }
 
         if (is_string($role)) {
@@ -500,7 +538,18 @@ class User extends Authenticatable implements MustVerifyEmail, UserContract, Sea
      */
     public function hasAnyRole($roles, $guard = null): bool
     {
-        return $this->roles()->whereIn('name', (array) $roles)->exists();
+        // Flatten: callers (e.g. isSuperAdmin) pass the guard-scoped
+        // super_admin_roles config (['web' => [...], 'landlord' => [...]]); a
+        // nested array makes whereIn throw "Nested arrays may not be passed".
+        $rolesArray = (array) $roles;
+        $names = [];
+        array_walk_recursive($rolesArray, function ($r) use (&$names) {
+            if (is_string($r)) {
+                $names[] = $r;
+            }
+        });
+
+        return ! empty($names) && $this->roles()->whereIn('name', $names)->exists();
     }
 
     /**

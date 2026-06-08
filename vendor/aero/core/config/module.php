@@ -8,6 +8,7 @@ return [
     */
 
     'code' => 'core',
+    'schema_version' => '2.0',
     'scope' => 'tenant',
     'name' => 'Core Framework',
     'description' => 'Foundation framework including Dashboard, Users, Roles, Permissions, Authentication, Audit Logs, Notifications, File Manager, and Settings',
@@ -24,39 +25,6 @@ return [
     'release_date' => '2024-01-01',
     'enabled' => true,
     'minimum_plan' => null,
-
-    'features' => [
-        'dashboard'                  => true,
-        'self_service'               => true,
-        'subscription_billing_view'  => true, // SaaS only
-        'organization_profile'       => true,
-        'user_management'            => true,
-        'authentication'             => true,
-        'sso_identity'               => true,
-        'roles_permissions'          => true,
-        'audit_logs'                 => true,
-        'notifications'              => true,
-        'user_preferences'           => true,
-        'file_manager'               => true,
-        'api_webhooks'               => true,
-        'workflow_engine'            => true,
-        'custom_fields'              => true,
-        'form_builder'               => true,
-        'tags_labels'                => true,
-        'saved_views'                => true,
-        'global_search'              => true,
-        'translations_i18n'          => true,
-        'comments_mentions'          => true,
-        'activity_feed'              => true,
-        'help_support'               => true,
-        // 'data_privacy' => true, // DEPRECATED: Use aero-compliance package for GDPR/CCPA/HIPAA features
-        'data_export_import'         => true,
-        'trash_recycle_bin'          => true,
-        'email_engine'               => true,
-        'system_health'              => true,
-        'mobile_pwa'                 => true,
-        'settings'                   => true,
-    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -156,7 +124,7 @@ return [
                         ['code' => 'delete', 'name' => 'Delete Announcement'],
                     ],
                 ],
-               
+
             ],
         ],
 
@@ -172,7 +140,7 @@ return [
             'icon' => 'CreditCardIcon',
             'route' => '/subscription',
             'priority' => 2,
-            'show_in_nav' => false,
+            'show_in_nav' => true, // Real tenant self-service page; no other nav home
             'plan' => 'saas',
 
             'components' => [
@@ -498,7 +466,7 @@ return [
             'name' => 'File Manager',
             'description' => 'Manage file storage and media library',
             'icon' => 'FolderOpenIcon',
-            'route' => '/files',
+            'route' => '/file-manager',
             'priority' => 8,
 
             'components' => [
@@ -663,7 +631,7 @@ return [
             'name' => 'Organization',
             'description' => 'Organization profile, identity, fiscal year, addresses, contacts',
             'icon' => 'BuildingOffice2Icon',
-            'route' => '/organization',
+            'route' => '/organization/profile',
             'priority' => 9,
             'components' => [
                 [
@@ -748,108 +716,12 @@ return [
 
         /*
         |--------------------------------------------------------------------------
-        | 2.2 SSO & Identity Federation
+        | 2.2 SSO & Identity Federation — MOVED to aero-auth (Plan 05 T6)
         |--------------------------------------------------------------------------
+        | The sso_identity submodule declarations were moved to
+        | packages/aero-auth/config/module.php where the controllers live.
+        | Permission paths changed: core.sso_identity.* → auth.sso_identity.*
         */
-        [
-            'code' => 'sso_identity',
-            'name' => 'SSO & Identity',
-            'description' => 'SAML, OIDC, OAuth, SCIM provisioning, social login, passkeys, magic links',
-            'icon' => 'KeyIcon',
-            'route' => '/identity',
-            'priority' => 11,
-            'components' => [
-                [
-                    'code' => 'sso_saml', 'name' => 'SAML 2.0', 'type' => 'page', 'route' => '/identity/saml',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View SAML'],
-                        ['code' => 'configure', 'name' => 'Configure SAML SP/IdP'],
-                        ['code' => 'test', 'name' => 'Test SAML Login'],
-                        ['code' => 'metadata', 'name' => 'Download Metadata'],
-                    ],
-                ],
-                [
-                    'code' => 'sso_oidc', 'name' => 'OIDC / OAuth 2.0', 'type' => 'page', 'route' => '/identity/oidc',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View OIDC'],
-                        ['code' => 'configure', 'name' => 'Configure OIDC Provider'],
-                        ['code' => 'test', 'name' => 'Test OIDC Login'],
-                    ],
-                ],
-                [
-                    'code' => 'oauth_provider', 'name' => 'OAuth Provider (Be an OAuth IdP)', 'type' => 'page', 'route' => '/identity/oauth-provider',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View OAuth Apps'],
-                        ['code' => 'create', 'name' => 'Create OAuth App'],
-                        ['code' => 'revoke', 'name' => 'Revoke OAuth App'],
-                    ],
-                ],
-                [
-                    'code' => 'scim_provisioning', 'name' => 'SCIM 2.0 Provisioning', 'type' => 'page', 'route' => '/identity/scim',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View SCIM'],
-                        ['code' => 'configure', 'name' => 'Configure SCIM Endpoint'],
-                        ['code' => 'logs', 'name' => 'View SCIM Logs'],
-                    ],
-                ],
-                [
-                    'code' => 'social_login', 'name' => 'Social Login', 'type' => 'page', 'route' => '/identity/social',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Providers'],
-                        ['code' => 'configure', 'name' => 'Configure Provider (Google/Microsoft/Apple/GitHub)'],
-                    ],
-                ],
-                [
-                    'code' => 'magic_link', 'name' => 'Magic Link Login', 'type' => 'page', 'route' => '/identity/magic-link',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Magic Link Settings'],
-                        ['code' => 'configure', 'name' => 'Configure Magic Link'],
-                    ],
-                ],
-                [
-                    'code' => 'passkeys', 'name' => 'Passkeys / WebAuthn', 'type' => 'page', 'route' => '/identity/passkeys',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Passkeys'],
-                        ['code' => 'register', 'name' => 'Register Passkey'],
-                        ['code' => 'remove', 'name' => 'Remove Passkey'],
-                    ],
-                ],
-                [
-                    'code' => 'mfa_policies', 'name' => 'MFA Enforcement Policies', 'type' => 'page', 'route' => '/identity/mfa-policies',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View MFA Policies'],
-                        ['code' => 'manage', 'name' => 'Manage MFA Policies'],
-                    ],
-                ],
-                [
-                    'code' => 'session_policies', 'name' => 'Session Policies', 'type' => 'page', 'route' => '/identity/session-policies',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Session Policies'],
-                        ['code' => 'manage', 'name' => 'Manage Session Policies'],
-                    ],
-                ],
-                [
-                    'code' => 'login_activity', 'name' => 'Login Activity & Geo', 'type' => 'page', 'route' => '/identity/login-activity',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Login Activity'],
-                        ['code' => 'export', 'name' => 'Export Login Activity'],
-                    ],
-                ],
-                [
-                    'code' => 'verification', 'name' => 'Email & Phone Verification', 'type' => 'page', 'route' => '/identity/verification',
-                    'actions' => [
-                        ['code' => 'configure', 'name' => 'Configure Verification'],
-                        ['code' => 'send', 'name' => 'Send Verification Code'],
-                    ],
-                ],
-                [
-                    'code' => 'account_recovery', 'name' => 'Account Recovery', 'type' => 'page', 'route' => '/identity/account-recovery',
-                    'actions' => [
-                        ['code' => 'configure', 'name' => 'Configure Recovery'],
-                    ],
-                ],
-            ],
-        ],
 
         /*
         |--------------------------------------------------------------------------
@@ -861,7 +733,7 @@ return [
             'name' => 'API & Webhooks',
             'description' => 'API keys, personal access tokens, OAuth apps, outbound webhooks, rate limits',
             'icon' => 'CommandLineIcon',
-            'route' => '/api',
+            'route' => '/api/keys',
             'priority' => 17,
             'components' => [
                 [
@@ -1105,7 +977,7 @@ return [
             'name' => 'Data Export/Import',
             'description' => 'Export and import data across entities with support for multiple formats, export history, and scheduling',
             'icon' => 'ArrowPathIcon',
-            'route' => '/export-import',
+            'route' => '/export-import/exports',
             'priority' => 19,
             'components' => [
                 [
@@ -1191,6 +1063,9 @@ return [
             'icon' => 'AdjustmentsVerticalIcon',
             'route' => '/preferences',
             'priority' => 18,
+            // Hidden until rebuilt: the page set (Core/UserPreferences/*) targets a
+            // Radix-style API (Select.Trigger/.Content/.Item, Switch onCheckedChange,
+            // Tabs.*) that @aero/ui does not implement, so it renders blank (React #130).
             'show_in_nav' => false,
             'components' => [
                 [

@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Manages succession planning for critical positions.
  * Links key positions to potential successors with readiness levels.
  */
-class SuccessionPlan extends Model
+class SuccessionPlan extends TenantModel
 {
     use HasFactory, SoftDeletes;
 

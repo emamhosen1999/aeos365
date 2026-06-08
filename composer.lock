@@ -131,7 +131,7 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-core",
-                "reference": "929387bc35665a2b28143eaadf43ea87732c347d"
+                "reference": "8973b632f51472f0c1c705e7ad5d6c99055d74aa"
             },
             "require": {
                 "aero/contracts": "^1.0",
@@ -141,7 +141,6 @@
                 "php": "^8.2",
                 "spatie/laravel-backup": "^9.0",
                 "spatie/laravel-medialibrary": "^11.0",
-                "spatie/laravel-permission": "^6.20",
                 "tightenco/ziggy": "^2.0"
             },
             "require-dev": {
@@ -218,7 +217,7 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-hrm",
-                "reference": "46ed2ba4d997178bd5e54686aa863b806d249f7f"
+                "reference": "ebb27aa5dbe014f9ff2c73b0356c5e21a8801483"
             },
             "require": {
                 "aero/contracts": "^1.0",
@@ -229,8 +228,7 @@
                 "maatwebsite/excel": "^3.1",
                 "php": "^8.2",
                 "phpoffice/phpspreadsheet": ">=1.29.0",
-                "spatie/laravel-activitylog": "^4.10",
-                "spatie/laravel-permission": "^6.20"
+                "spatie/laravel-activitylog": "^4.10"
             },
             "require-dev": {
                 "mockery/mockery": "^1.6",
@@ -549,7 +547,7 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-platform",
-                "reference": "a3c539187ec2e4d478222a19cae3e5cf4c5b9859"
+                "reference": "ebbe7186f8af26429aa2b206492e988f23c1ce51"
             },
             "require": {
                 "aero/auth": "*",
@@ -561,7 +559,6 @@
                 "laravel/framework": "^11.0|^12.0",
                 "php": "^8.2",
                 "spatie/laravel-medialibrary": "^11.0",
-                "spatie/laravel-permission": "^6.20",
                 "stancl/tenancy": "^3.9"
             },
             "require-dev": {
@@ -6687,90 +6684,6 @@
                 }
             ],
             "time": "2026-05-19T14:06:37+00:00"
-        },
-        {
-            "name": "spatie/laravel-permission",
-            "version": "6.25.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/spatie/laravel-permission.git",
-                "reference": "d7d4cb0d58616722f1afc90e0484e4825155b9b3"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-permission/zipball/d7d4cb0d58616722f1afc90e0484e4825155b9b3",
-                "reference": "d7d4cb0d58616722f1afc90e0484e4825155b9b3",
-                "shasum": ""
-            },
-            "require": {
-                "illuminate/auth": "^8.12|^9.0|^10.0|^11.0|^12.0|^13.0",
-                "illuminate/container": "^8.12|^9.0|^10.0|^11.0|^12.0|^13.0",
-                "illuminate/contracts": "^8.12|^9.0|^10.0|^11.0|^12.0|^13.0",
-                "illuminate/database": "^8.12|^9.0|^10.0|^11.0|^12.0|^13.0",
-                "php": "^8.0"
-            },
-            "require-dev": {
-                "laravel/passport": "^11.0|^12.0|^13.0",
-                "laravel/pint": "^1.0",
-                "orchestra/testbench": "^6.23|^7.0|^8.0|^9.0|^10.0|^11.0",
-                "pestphp/pest": "^2.0|^3.0|^4.0",
-                "pestphp/pest-plugin-laravel": "^2.0|^3.0|^4.0"
-            },
-            "type": "library",
-            "extra": {
-                "laravel": {
-                    "providers": [
-                        "Spatie\\Permission\\PermissionServiceProvider"
-                    ]
-                },
-                "branch-alias": {
-                    "dev-main": "6.x-dev",
-                    "dev-master": "6.x-dev"
-                }
-            },
-            "autoload": {
-                "files": [
-                    "src/helpers.php"
-                ],
-                "psr-4": {
-                    "Spatie\\Permission\\": "src"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Freek Van der Herten",
-                    "email": "freek@spatie.be",
-                    "homepage": "https://spatie.be",
-                    "role": "Developer"
-                }
-            ],
-            "description": "Permission handling for Laravel 8.0 and up",
-            "homepage": "https://github.com/spatie/laravel-permission",
-            "keywords": [
-                "acl",
-                "laravel",
-                "permission",
-                "permissions",
-                "rbac",
-                "roles",
-                "security",
-                "spatie"
-            ],
-            "support": {
-                "issues": "https://github.com/spatie/laravel-permission/issues",
-                "source": "https://github.com/spatie/laravel-permission/tree/6.25.0"
-            },
-            "funding": [
-                {
-                    "url": "https://github.com/spatie",
-                    "type": "github"
-                }
-            ],
-            "time": "2026-03-17T22:46:46+00:00"
         },
         {
             "name": "spatie/laravel-signal-aware-command",

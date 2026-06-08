@@ -2,17 +2,23 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Aero\Core\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Department extends Model
+class Department extends TenantModel
 {
     use HasFactory, SoftDeletes;
 
-    // Specify the table name if it's different from the default
     protected $table = 'departments';
+
+    protected static function newFactory(): \Aero\HRM\Database\Factories\DepartmentFactory
+    {
+        return \Aero\HRM\Database\Factories\DepartmentFactory::new();
+    }
 
     // Define the fillable attributes - ISO compliant attributes
     protected $fillable = [
@@ -21,6 +27,7 @@ class Department extends Model
         'description',
         'parent_id',
         'manager_id',
+        'head_employee_id',
         'location',
         'is_active',
         'established_date',
@@ -44,9 +51,17 @@ class Department extends Model
     /**
      * Get child departments
      */
-    public function children()
+    public function children(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->hasMany(Department::class, 'parent_id');
+        return $this->hasMany(self::class, 'parent_id');
+    }
+
+    /**
+     * Get the department head employee
+     */
+    public function head(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'head_employee_id');
     }
 
     /**

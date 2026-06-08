@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Aero\Core\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -34,7 +36,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read User|null $approver
  * @property-read string $status_color
  */
-class Leave extends Model
+class Leave extends TenantModel
 {
     use HasFactory;
 

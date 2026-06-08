@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -10,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * AI-generated insights and alerts for HR decision-making.
  */
-class AIInsight extends Model
+class AIInsight extends TenantModel
 {
     protected $table = 'ai_insights';
 

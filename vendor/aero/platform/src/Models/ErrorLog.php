@@ -40,7 +40,7 @@ use Illuminate\Support\Str;
  * @property Carbon $created_at
  * @property Carbon $updated_at
  */
-class ErrorLog extends Model
+class ErrorLog extends CentralModel
 {
     use HasFactory;
 
@@ -97,7 +97,7 @@ class ErrorLog extends Model
     /**
      * Boot method to generate trace_id
      */
-    protected static function boot()
+    protected static function boot(): void
     {
         parent::boot();
 

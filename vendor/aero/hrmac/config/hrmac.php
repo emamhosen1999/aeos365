@@ -1,6 +1,11 @@
 <?php
 
 declare(strict_types=1);
+use Aero\Core\Models\User;
+use Aero\HRMAC\Http\Middleware\CheckRoleModuleAccess;
+use Aero\HRMAC\Http\Middleware\SmartLandingRedirect;
+use Aero\HRMAC\Models\Role;
+use Aero\HRMAC\Models\RoleModuleAccess;
 
 return [
     /*
@@ -9,13 +14,18 @@ return [
     |--------------------------------------------------------------------------
     |
     | Configure the models used by HRMAC. You can override these with your own
-    | implementations if needed.
+    | implementations if needed. A consuming package/host may override any of
+    | these (e.g. to point the access model at a different table/connection) —
+    | HRMAC stays context-free.
     |
     */
 
     'models' => [
-        'role' => \Aero\HRMAC\Models\Role::class,
-        'user' => \Aero\Core\Models\User::class,
+        'role' => Role::class,
+        'user' => User::class,
+        // RoleModuleAccess model. Uses the DEFAULT connection so the host's runtime
+        // context (tenancy / central / standalone) decides which DB is read/written.
+        'role_module_access' => RoleModuleAccess::class,
     ],
 
     /*
@@ -23,15 +33,29 @@ return [
     | Super Admin Roles
     |--------------------------------------------------------------------------
     |
-    | Users with these roles bypass all module access checks.
-    | They have full access to all modules, sub-modules, components, and actions.
+    | Users holding any of these roles bypass all module access checks.
+    |
+    | Context-free: HRMAC does not detect the active guard. Roles are resolved
+    | from the current (host-decided) connection, so a tenant user only carries
+    | tenant role rows and a platform user only carries central role rows — a
+    | single flat union list is safe (names absent from the current DB never
+    | match). A consuming package may add its own super-admin role names here.
+    |
+    | The legacy guard-scoped assoc format is still accepted (values flattened),
+    | but the flat list below is the standard.
     |
     */
 
     'super_admin_roles' => [
+        // Platform / landlord (central DB)
+        'Super Platform Admin',
+        'Platform Super Administrator',
+        'platform-super-admin',
+        // Tenant / standalone (tenant or single DB)
+        'Tenant Super Administrator',
+        'tenant_super_administrator',
         'Super Administrator',
         'super-admin',
-        'tenant_super_administrator',
     ],
 
     /*
@@ -54,6 +78,23 @@ return [
         // Cache key prefix
         'prefix' => 'hrmac',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Enforcement Toggles (Plan 04 Task 3)
+    |--------------------------------------------------------------------------
+    |
+    | enforce_is_active — when true (default), RoleModuleAccessService filters
+    | Module / SubModule / Component / Action lookups by is_active=true.
+    | A row with is_active=false denies access even to users who hold the
+    | role grant. Set false ONLY for admin debugging or emergency unbypass.
+    |
+    | The actual is_active filtering lives in RoleModuleAccessService — see
+    | userCanAccessModule(), userCanAccessSubModule(), userCanAccessAction().
+    |
+    */
+
+    'enforce_is_active' => env('HRMAC_ENFORCE_IS_ACTIVE', true),
 
     /*
     |--------------------------------------------------------------------------
@@ -141,23 +182,46 @@ return [
     */
 
     'middleware' => [
-        'role.access' => \Aero\HRMAC\Http\Middleware\CheckRoleModuleAccess::class,
-        'smart.landing' => \Aero\HRMAC\Http\Middleware\SmartLandingRedirect::class,
+        'role.access' => CheckRoleModuleAccess::class,
+        'smart.landing' => SmartLandingRedirect::class,
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Baseline Modules (Audit D15)
+    |--------------------------------------------------------------------------
+    |
+    | Modules that are ALWAYS included in a tenant's catalog regardless of
+    | product subscriptions. These are the foundation packages every tenant
+    | needs: identity, access control, UI shell, etc.
+    |
+    | When --scope=tenant runs sync, the discovered modules are filtered to
+    | (baseline_modules ∪ tenant's active product_subscriptions.products.module_code).
+    |
+    */
+    'baseline_modules' => ['core', 'auth', 'ui', 'i18n', 'notifications', 'hrmac'],
 
     /*
     |--------------------------------------------------------------------------
     | Module Discovery Configuration
     |--------------------------------------------------------------------------
     |
-    | Configure paths for module discovery. The ModuleDiscoveryService
-    | scans these paths for config/module.php files.
+    | Paths the ModuleDiscoveryService scans for config/module.php files.
+    | Production discovery is vendor-only (Audit D13):
+    |   - vendor/aero/{pkg}/config/module.php — composer-installed Aero packages.
+    |     Standalone deployments use composer-path symlinks which resolve this
+    |     glob to the actual packages/aero-* source directories transparently.
+    |   - modules/{pkg}/config/module.php — operator-installed add-ons (standalone
+    |     mode primarily; SaaS rarely uses this).
+    |
+    | Plan 04 T4 previously included packages/aero-* glob for monorepo dev
+    | convenience but Audit D13 reversed: a modules:sync run from a production
+    | host must never scan a packages/ directory that does not exist in
+    | deployed artifacts.
     |
     */
 
     'discovery' => [
-        // Paths to scan for module.php config files
-        // {path} is relative to application base path
         'paths' => [
             'vendor/aero/*/config/module.php',
             'modules/*/config/module.php',
@@ -166,8 +230,11 @@ return [
         // Whether to validate module configs during discovery
         'validate' => true,
 
-        // Required fields in module.php config
-        'required_fields' => ['module_key', 'label', 'scope'],
+        // Required fields in module.php config (Plan 04 T4 fix).
+        // Previously listed ['module_key', 'label', 'scope'] which mismatched
+        // every shipped config (which all use 'code'/'name'/'scope'). That made
+        // the validator warn on every package and erode signal/noise ratio.
+        'required_fields' => ['code', 'name', 'scope'],
     ],
 
     /*

@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use App\Models\Tenant\HRM\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
-class EventRegistration extends Model
+class EventRegistration extends TenantModel
 {
     use HasFactory, SoftDeletes;
 
@@ -43,7 +45,7 @@ class EventRegistration extends Model
 
     protected $appends = ['status_badge_color'];
 
-    protected static function boot()
+    protected static function boot(): void
     {
         parent::boot();
 

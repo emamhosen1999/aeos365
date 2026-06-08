@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *
  * Manages employee grievances and complaints separate from disciplinary cases.
  */
-class Grievance extends Model
+class Grievance extends TenantModel
 {
     use HasFactory, SoftDeletes;
 
@@ -196,7 +198,7 @@ class Grievance extends Model
     /**
      * Boot method for model events.
      */
-    protected static function boot()
+    protected static function boot(): void
     {
         parent::boot();
 

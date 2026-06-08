@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * Central tracking of AI-computed risk metrics for each employee.
  * Aggregates attrition risk, burnout risk, and engagement scores.
  */
-class EmployeeRiskScore extends Model
+class EmployeeRiskScore extends TenantModel
 {
     protected $fillable = [
         'employee_id',

@@ -2,6 +2,8 @@
 
 return [
     'code' => 'hrm',
+    'product_code' => 'hrm',
+    'schema_version' => '2.0',
     'scope' => 'tenant',
     'name' => 'Human Resources',
     'description' => 'Complete HR management including employees, attendance, leave, payroll, recruitment, performance, training, and analytics',
@@ -12,7 +14,6 @@ return [
     'is_core' => false,
     'is_active' => true,
     'version' => '1.0.0',
-    'min_plan' => 'basic',
     'license_type' => 'standard',
     'dependencies' => ['core'],
     'release_date' => '2024-01-01',
@@ -268,6 +269,47 @@ return [
             'route' => '/hrm/employees',
             'priority' => 1,
             'components' => [
+                // HRMAC-scoped components for granular permission enforcement
+                [
+                    'code' => 'list',
+                    'name' => 'Employee List',
+                    'type' => 'page',
+                    'route' => '/hrm/employees',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View'],
+                        ['code' => 'edit', 'name' => 'Create/Edit'],
+                    ],
+                ],
+                [
+                    'code' => 'detail',
+                    'name' => 'Employee Profile',
+                    'type' => 'page',
+                    'route' => '/hrm/employees/{id}',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View'],
+                        ['code' => 'edit', 'name' => 'Edit'],
+                    ],
+                ],
+                [
+                    'code' => 'bank-details',
+                    'name' => 'Bank Details',
+                    'type' => 'feature',
+                    'route' => '/hrm/employees/{id}',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View'],
+                        ['code' => 'edit', 'name' => 'Edit'],
+                    ],
+                ],
+                [
+                    'code' => 'documents',
+                    'name' => 'Documents',
+                    'type' => 'feature',
+                    'route' => '/hrm/employees/{id}/documents',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View'],
+                        ['code' => 'edit', 'name' => 'Upload'],
+                    ],
+                ],
                 [
                     'code' => 'employee-directory',
                     'name' => 'Employee Directory',
@@ -297,30 +339,6 @@ return [
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Profile'],
                         ['code' => 'update', 'name' => 'Update Profile'],
-                    ],
-                ],
-                [
-                    'code' => 'departments',
-                    'name' => 'Departments',
-                    'type' => 'page',
-                    'route' => '/hrm/departments',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Departments'],
-                        ['code' => 'create', 'name' => 'Create Department'],
-                        ['code' => 'update', 'name' => 'Update Department'],
-                        ['code' => 'delete', 'name' => 'Delete Department'],
-                    ],
-                ],
-                [
-                    'code' => 'designations',
-                    'name' => 'Designations',
-                    'type' => 'page',
-                    'route' => '/hrm/designations',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Designations'],
-                        ['code' => 'create', 'name' => 'Create Designation'],
-                        ['code' => 'update', 'name' => 'Update Designation'],
-                        ['code' => 'delete', 'name' => 'Delete Designation'],
                     ],
                 ],
                 [
@@ -399,7 +417,10 @@ return [
                     'name' => 'Attendance Logs',
                     'type' => 'page',
                     'route' => '/hrm/attendance',
-                    'actions' => [['code' => 'view', 'name' => 'View Attendance Logs']],
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Attendance Logs'],
+                        ['code' => 'update', 'name' => 'Update Attendance Log'],
+                    ],
                 ],
                 [
                     'code' => 'shift-scheduling',
@@ -533,7 +554,11 @@ return [
                     'name' => 'Leave Policies',
                     'type' => 'page',
                     'route' => '/hrm/leaves', // Fixed: Use working leave management page
-                    'actions' => [['code' => 'manage', 'name' => 'Manage Leave Policies']],
+                    'actions' => [
+                        ['code' => 'manage', 'name' => 'Manage Leave Policies'],
+                        ['code' => 'view', 'name' => 'View Leave Policies'],
+                        ['code' => 'edit', 'name' => 'Edit Leave Policies'],
+                    ],
                 ],
                 [
                     'code' => 'leave-accrual',
@@ -953,7 +978,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'improvement_plans',
+                    'code' => 'improvement-plans',
                     'name' => 'Performance Improvement Plans',
                     'type' => 'page',
                     'route' => '/hrm/performance/improvement-plans',
@@ -962,6 +987,25 @@ return [
                         ['code' => 'create', 'name' => 'Create Improvement Plan'],
                         ['code' => 'update', 'name' => 'Update Improvement Plan'],
                         ['code' => 'delete', 'name' => 'Delete Improvement Plan'],
+                    ],
+                ],
+                [
+                    'code' => 'goals',
+                    'name' => 'Goals',
+                    'type' => 'page',
+                    'route' => '/hrm/performance/goals',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Goals'],
+                        ['code' => 'edit', 'name' => 'Create/Edit/Delete Goals'],
+                    ],
+                ],
+                [
+                    'code' => 'skill-matrix',
+                    'name' => 'Skill Matrix',
+                    'type' => 'page',
+                    'route' => '/hrm/performance/skills',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Skill Matrix'],
                     ],
                 ],
             ],
@@ -1036,6 +1080,16 @@ return [
                         ['code' => 'download', 'name' => 'Download Certificate'],
                     ],
                 ],
+                [
+                    'code' => 'training-feedback',
+                    'name' => 'Training Feedback',
+                    'type' => 'page',
+                    'route' => '/hrm/training',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Feedback'],
+                        ['code' => 'submit', 'name' => 'Submit Feedback'],
+                    ],
+                ],
             ],
         ],
 
@@ -1108,6 +1162,16 @@ return [
                         ['code' => 'export', 'name' => 'Export Performance Data'],
                     ],
                 ],
+                [
+                    'code' => 'hr-reports',
+                    'name' => 'HR Reports',
+                    'type' => 'page',
+                    'route' => '/hrm/hr-reports',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View HR Reports'],
+                        ['code' => 'export', 'name' => 'Export Reports'],
+                    ],
+                ],
             ],
         ],
 
@@ -1140,6 +1204,16 @@ return [
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Candidates'],
                         ['code' => 'manage', 'name' => 'Manage Candidates'],
+                    ],
+                ],
+                [
+                    'code' => 'talent-pool',
+                    'name' => 'Talent Pool',
+                    'type' => 'page',
+                    'route' => '/hrm/succession-planning/talent-pool',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Talent Pool'],
+                        ['code' => 'manage', 'name' => 'Manage Talent Pool'],
                     ],
                 ],
             ],
@@ -1601,6 +1675,58 @@ return [
             ],
         ],
 
+        // 2.27 Org Structure
+        [
+            'code' => 'org-structure',
+            'name' => 'Org Structure',
+            'description' => 'Departments, designations, grades, and work locations',
+            'icon' => 'BuildingOffice2Icon',
+            'route' => '/hrm/org-structure/departments',
+            'priority' => 25,
+            'components' => [
+                [
+                    'code' => 'departments',
+                    'name' => 'Departments',
+                    'type' => 'page',
+                    'route' => '/hrm/org-structure/departments',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Departments'],
+                        ['code' => 'edit', 'name' => 'Create/Edit/Delete Departments'],
+                    ],
+                ],
+                [
+                    'code' => 'designations',
+                    'name' => 'Designations',
+                    'type' => 'page',
+                    'route' => '/hrm/org-structure/designations',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Designations'],
+                        ['code' => 'edit', 'name' => 'Create/Edit/Delete Designations'],
+                    ],
+                ],
+                [
+                    'code' => 'grades',
+                    'name' => 'Grades',
+                    'type' => 'page',
+                    'route' => '/hrm/org-structure/grades',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Grades'],
+                        ['code' => 'edit', 'name' => 'Create/Edit/Delete Grades'],
+                    ],
+                ],
+                [
+                    'code' => 'work-locations',
+                    'name' => 'Work Locations',
+                    'type' => 'page',
+                    'route' => '/hrm/org-structure/work-locations',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Work Locations'],
+                        ['code' => 'edit', 'name' => 'Create/Edit/Delete Work Locations'],
+                    ],
+                ],
+            ],
+        ],
+
         // 2.25 HR Settings
         [
             'code' => 'settings',
@@ -1658,6 +1784,56 @@ return [
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Settings'],
                         ['code' => 'update', 'name' => 'Update Settings'],
+                    ],
+                ],
+                [
+                    'code' => 'general-settings',
+                    'name' => 'General Settings',
+                    'type' => 'page',
+                    'route' => '/hrm/settings/general',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View General Settings'],
+                        ['code' => 'update', 'name' => 'Update General Settings'],
+                    ],
+                ],
+                [
+                    'code' => 'leave-settings',
+                    'name' => 'Leave Settings',
+                    'type' => 'page',
+                    'route' => '/hrm/settings/leave',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Leave Settings'],
+                        ['code' => 'update', 'name' => 'Update Leave Settings'],
+                    ],
+                ],
+                [
+                    'code' => 'attendance-settings',
+                    'name' => 'Attendance Settings',
+                    'type' => 'page',
+                    'route' => '/hrm/settings/attendance',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Attendance Settings'],
+                        ['code' => 'update', 'name' => 'Update Attendance Settings'],
+                    ],
+                ],
+                [
+                    'code' => 'task-templates',
+                    'name' => 'Task Templates',
+                    'type' => 'page',
+                    'route' => '/hrm/settings/task-templates',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Task Templates'],
+                        ['code' => 'manage', 'name' => 'Manage Task Templates'],
+                    ],
+                ],
+                [
+                    'code' => 'holidays',
+                    'name' => 'Public Holidays',
+                    'type' => 'page',
+                    'route' => '/hrm/settings/holidays',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Holidays'],
+                        ['code' => 'manage', 'name' => 'Manage Holidays'],
                     ],
                 ],
             ],
@@ -1730,5 +1906,105 @@ return [
                 ],
             ],
         ],
+
+        // 2.28 Benefits
+        [
+            'code' => 'benefits',
+            'name' => 'Benefits',
+            'description' => 'Benefits catalog, enrollment periods, open enrollment, and employee benefits',
+            'icon' => 'GiftIcon',
+            'route' => '/hrm/benefits',
+            'priority' => 26,
+            'components' => [
+                [
+                    'code' => 'benefit-catalog',
+                    'name' => 'Benefits Catalog',
+                    'type' => 'page',
+                    'route' => '/hrm/benefits/catalog',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View'],
+                        ['code' => 'edit', 'name' => 'Create/Edit/Delete'],
+                    ],
+                ],
+                [
+                    'code' => 'enrollment-periods',
+                    'name' => 'Enrollment Periods',
+                    'type' => 'page',
+                    'route' => '/hrm/benefits/enrollment-periods',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View'],
+                        ['code' => 'edit', 'name' => 'Create/Edit'],
+                        ['code' => 'activate', 'name' => 'Activate Period'],
+                    ],
+                ],
+                [
+                    'code' => 'open-enrollment',
+                    'name' => 'Open Enrollment',
+                    'type' => 'page',
+                    'route' => '/hrm/benefits/open-enrollment',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View'],
+                        ['code' => 'edit', 'name' => 'Enroll'],
+                    ],
+                ],
+                [
+                    'code' => 'enrollments',
+                    'name' => 'Employee Enrollments',
+                    'type' => 'page',
+                    'route' => '/hrm/benefits/enrollments',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View All Enrollments'],
+                    ],
+                ],
+            ],
+        ],
+
+        // 2.29 Events & Announcements
+        [
+            'code' => 'events',
+            'name' => 'Events & Announcements',
+            'description' => 'Company events, registrations, and announcements',
+            'icon' => 'CalendarDaysIcon',
+            'route' => '/hrm/events',
+            'priority' => 27,
+            'components' => [
+                [
+                    'code' => 'events-list',
+                    'name' => 'Events',
+                    'type' => 'page',
+                    'route' => '/hrm/events',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View'],
+                        ['code' => 'edit', 'name' => 'Create/Edit/Delete'],
+                        ['code' => 'publish', 'name' => 'Publish'],
+                    ],
+                ],
+                [
+                    'code' => 'registrations',
+                    'name' => 'Event Registrations',
+                    'type' => 'page',
+                    'route' => '/hrm/events/{id}/registrations',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View'],
+                        ['code' => 'edit', 'name' => 'Manage Registrations'],
+                    ],
+                ],
+                [
+                    'code' => 'announcements',
+                    'name' => 'Announcements',
+                    'type' => 'page',
+                    'route' => '/hrm/announcements',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View'],
+                        ['code' => 'edit', 'name' => 'Create/Edit'],
+                    ],
+                ],
+            ],
+        ],
     ],
+
+    // Per-submodule licensing was removed per Audit D23: entitlement is module
+    // (product) level only. Subscribing to the HRM product grants access to
+    // ALL HRM submodules. The per-tenant module catalog (Audit D15) is the
+    // single source of truth — see Tenant::subscribed_product_modules.
 ];

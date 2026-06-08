@@ -2,9 +2,10 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
 use Aero\Core\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -30,7 +31,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Carbon\Carbon|null $verified_at
  * @property int|null $verified_by
  */
-class EmployeeBankDetail extends Model
+class EmployeeBankDetail extends TenantModel
 {
     use HasFactory, SoftDeletes;
 
@@ -38,6 +39,7 @@ class EmployeeBankDetail extends Model
 
     protected $fillable = [
         'user_id',
+        'employee_id',
         'bank_name',
         'branch_name',
         'account_holder_name',
@@ -82,15 +84,23 @@ class EmployeeBankDetail extends Model
     /**
      * Get the user that owns this bank detail.
      */
-    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
     /**
+     * Get the employee record associated with this bank detail (via employee_id).
+     */
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employee_id');
+    }
+
+    /**
      * Get the user who verified this bank detail.
      */
-    public function verifier(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function verifier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'verified_by');
     }

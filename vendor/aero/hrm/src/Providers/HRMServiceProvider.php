@@ -2,13 +2,14 @@
 
 namespace Aero\HRM\Providers;
 
-use Aero\Core\Contracts\EmployeeServiceContract;
-use Aero\Core\Providers\AbstractModuleProvider;
+use Aero\Contracts\AuditServiceInterface;
+use Aero\Contracts\EmployeeServiceContract;
+use Aero\Contracts\Providers\AbstractModuleProvider;
+use Aero\Core\Models\User;
 use Aero\Core\Services\DashboardRegistry;
-use Aero\Core\Services\DashboardWidgetRegistry;
-use Aero\Core\Services\ModuleRegistry;
 use Aero\Core\Services\UserRelationshipRegistry;
 use Aero\HRM\Console\Commands\SendOnboardingRemindersCommand;
+use Aero\HRM\Http\Middleware\EnsureEmployeeProfile;
 use Aero\HRM\Jobs\CheckBirthdaysJob;
 use Aero\HRM\Jobs\CheckExpiringContractsJob;
 use Aero\HRM\Jobs\CheckExpiringDocumentsJob;
@@ -35,23 +36,53 @@ use Aero\HRM\Services\AIAnalytics\BurnoutRiskService;
 use Aero\HRM\Services\AIAnalytics\PerformancePredictionService;
 use Aero\HRM\Services\AIAnalytics\RecruitmentAnalyticsService;
 use Aero\HRM\Services\AIAnalytics\WorkforceAnalyticsService;
+use Aero\HRM\Services\Analytics\AttritionRiskService;
+use Aero\HRM\Services\Analytics\DEIService;
+use Aero\HRM\Services\Analytics\HeadcountAnalyticsService;
+use Aero\HRM\Services\Analytics\PulseSurveyService;
+use Aero\HRM\Services\Analytics\TurnoverAnalyticsService;
+use Aero\HRM\Services\Analytics\WorkforcePlanService;
+use Aero\HRM\Services\Asset\AssetAllocationService;
 use Aero\HRM\Services\AttendanceCalculationService;
+use Aero\HRM\Services\Benefits\BenefitCatalogService;
+use Aero\HRM\Services\Benefits\EligibilityService;
+use Aero\HRM\Services\Benefits\EnrollmentPeriodService;
+use Aero\HRM\Services\Benefits\OpenEnrollmentService;
 use Aero\HRM\Services\DEIAnalyticsService;
+use Aero\HRM\Services\Disciplinary\DisciplinaryCaseService;
+use Aero\HRM\Services\Disciplinary\ExitInterviewService;
+use Aero\HRM\Services\Disciplinary\GrievanceService;
+use Aero\HRM\Services\Disciplinary\ReferenceGenerator;
+use Aero\HRM\Services\Disciplinary\WarningService;
 use Aero\HRM\Services\EmployeeService;
+use Aero\HRM\Services\Expense\ExpenseClaimService;
 use Aero\HRM\Services\HRMetricsAggregatorService;
 use Aero\HRM\Services\HrmNotificationChannelResolver;
+use Aero\HRM\Services\LeaveApplicationService;
 use Aero\HRM\Services\LeaveBalanceService;
+use Aero\HRM\Services\Payroll\PayrollApprovalService;
+use Aero\HRM\Services\Payroll\PayrollCalculator;
+use Aero\HRM\Services\Payroll\PayrollRunGenerator;
+use Aero\HRM\Services\Payroll\PayslipPdfRenderer;
 use Aero\HRM\Services\PayrollCalculationService;
-use Aero\HRM\Widgets\MyGoalsWidget;
-use Aero\HRM\Widgets\MyLeaveBalanceWidget;
-use Aero\HRM\Widgets\OrganizationInfoWidget;
-use Aero\HRM\Widgets\PayrollSummaryWidget;
-use Aero\HRM\Widgets\PendingLeaveApprovalsWidget;
-use Aero\HRM\Widgets\PendingReviewsWidget;
-use Aero\HRM\Widgets\PunchStatusWidget;
-use Aero\HRM\Widgets\TeamAttendanceWidget;
-use Aero\HRM\Widgets\UpcomingHolidaysWidget;
+use Aero\HRM\Services\Performance\Feedback360Service;
+use Aero\HRM\Services\Performance\GoalLifecycleService;
+use Aero\HRM\Services\Performance\PIPService;
+use Aero\HRM\Services\Performance\ReviewCycleService;
+use Aero\HRM\Services\Performance\ReviewSubmissionService;
+use Aero\HRM\Services\Recruitment\ApplicationPipelineService;
+use Aero\HRM\Services\Recruitment\InterviewScheduler;
+use Aero\HRM\Services\Recruitment\JobLifecycleService;
+use Aero\HRM\Services\Recruitment\OfferService;
+use Aero\HRM\Services\Recruitment\OnboardingService;
+use Aero\HRM\Services\Safety\SafetyIncidentService;
+use Aero\HRM\Services\Safety\SafetyInspectionService;
+use Aero\HRM\Services\Safety\SafetyKpiService;
+use Aero\HRM\Services\Safety\SafetyTrainingService;
+use Aero\HRM\Services\Training\CourseService;
+use Aero\HRM\Services\Training\EnrollmentService;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -84,12 +115,20 @@ class HRMServiceProvider extends AbstractModuleProvider
     /**
      * Load HRM routes via parent (AbstractModuleProvider).
      *
-     * Routes live in routes/web.php and are loaded with the correct SaaS or
-     * standalone outer middleware wrapper by the base class.
+     * Routes live in routes/web.php (Inertia surface) and routes/api.php
+     * (REST surface — HRM Push H.T2). The base class loads the web routes
+     * with SaaS/standalone outer middleware; we also load the API routes
+     * inside the same registration scope so tokens issued via aero-core's
+     * ApiKey admin can hit /api/hrm/* immediately after install.
      */
     protected function loadRoutes(): void
     {
         parent::loadRoutes();
+
+        $apiRoutes = $this->getModulePath('routes/api.php');
+        if (file_exists($apiRoutes)) {
+            $this->loadRoutesFrom($apiRoutes);
+        }
     }
 
     /**
@@ -123,6 +162,12 @@ class HRMServiceProvider extends AbstractModuleProvider
         });
 
         // Register specific services
+        $this->app->singleton(LeaveApplicationService::class, function ($app) {
+            return new LeaveApplicationService(
+                $app->make(AuditServiceInterface::class)
+            );
+        });
+
         $this->app->singleton('hrm.leave', function ($app) {
             return new LeaveBalanceService;
         });
@@ -135,8 +180,109 @@ class HRMServiceProvider extends AbstractModuleProvider
             return new PayrollCalculationService;
         });
 
+        // Payroll v2 services
+        $this->app->singleton(PayrollCalculator::class);
+
+        $this->app->singleton(PayrollRunGenerator::class, function ($app) {
+            return new PayrollRunGenerator(
+                $app->make(PayrollCalculator::class),
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        $this->app->singleton(PayrollApprovalService::class, function ($app) {
+            return new PayrollApprovalService(
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        $this->app->singleton(PayslipPdfRenderer::class);
+
+        // Register Performance Management Services (H6)
+        $this->app->singleton(ReviewCycleService::class, function ($app) {
+            return new ReviewCycleService(
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        $this->app->singleton(ReviewSubmissionService::class, function ($app) {
+            return new ReviewSubmissionService(
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        $this->app->singleton(GoalLifecycleService::class, function ($app) {
+            return new GoalLifecycleService(
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        $this->app->singleton(Feedback360Service::class, function ($app) {
+            return new Feedback360Service(
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        $this->app->singleton(PIPService::class, function ($app) {
+            return new PIPService(
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        // Register Recruitment Services (H7)
+        $this->app->singleton(JobLifecycleService::class, function ($app) {
+            return new JobLifecycleService(
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        $this->app->singleton(ApplicationPipelineService::class, function ($app) {
+            return new ApplicationPipelineService(
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        $this->app->singleton(InterviewScheduler::class, function ($app) {
+            return new InterviewScheduler(
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        $this->app->singleton(OfferService::class, function ($app) {
+            return new OfferService(
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        $this->app->singleton(OnboardingService::class, function ($app) {
+            return new OnboardingService(
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        // Register Training Services (H8)
+        $this->app->singleton(CourseService::class, function ($app) {
+            return new CourseService(
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        $this->app->singleton(EnrollmentService::class, function ($app) {
+            return new EnrollmentService(
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
         // Register DEI Analytics Service
         $this->app->singleton(DEIAnalyticsService::class);
+
+        // Register H10 Analytics Services
+        $this->app->singleton(HeadcountAnalyticsService::class);
+        $this->app->singleton(TurnoverAnalyticsService::class);
+        $this->app->singleton(AttritionRiskService::class);
+        $this->app->singleton(DEIService::class);
+        $this->app->singleton(PulseSurveyService::class);
+        $this->app->singleton(WorkforcePlanService::class);
 
         // Register AI Analytics Services
         $this->app->singleton(AttritionPredictionService::class);
@@ -144,6 +290,83 @@ class HRMServiceProvider extends AbstractModuleProvider
         $this->app->singleton(PerformancePredictionService::class);
         $this->app->singleton(RecruitmentAnalyticsService::class);
         $this->app->singleton(WorkforceAnalyticsService::class);
+
+        // Register Benefits Services (H11)
+        $this->app->singleton(EligibilityService::class);
+
+        $this->app->singleton(BenefitCatalogService::class, function ($app) {
+            return new BenefitCatalogService(
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        $this->app->singleton(EnrollmentPeriodService::class, function ($app) {
+            return new EnrollmentPeriodService(
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        $this->app->singleton(OpenEnrollmentService::class, function ($app) {
+            return new OpenEnrollmentService(
+                $app->make(EligibilityService::class),
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        // Register Disciplinary Services (H12)
+        $this->app->singleton(ReferenceGenerator::class);
+
+        $this->app->singleton(DisciplinaryCaseService::class, function ($app) {
+            return new DisciplinaryCaseService(
+                $app->make(ReferenceGenerator::class),
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        $this->app->singleton(WarningService::class, function ($app) {
+            return new WarningService(
+                $app->make(ReferenceGenerator::class),
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        $this->app->singleton(ExitInterviewService::class, function ($app) {
+            return new ExitInterviewService(
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        $this->app->singleton(GrievanceService::class, function ($app) {
+            return new GrievanceService(
+                $app->make(ReferenceGenerator::class),
+                $app->make(AuditServiceInterface::class),
+            );
+        });
+
+        // Register Asset Services (H14)
+        $this->app->singleton(AssetAllocationService::class, function ($app) {
+            return new AssetAllocationService($app->make(AuditServiceInterface::class));
+        });
+
+        // Register Expense Services (H15)
+        $this->app->singleton(ExpenseClaimService::class, function ($app) {
+            return new ExpenseClaimService($app->make(AuditServiceInterface::class));
+        });
+
+        // Register Safety Services (H13)
+        $this->app->singleton(SafetyKpiService::class);
+
+        $this->app->singleton(SafetyIncidentService::class, function ($app) {
+            return new SafetyIncidentService($app->make(AuditServiceInterface::class));
+        });
+
+        $this->app->singleton(SafetyInspectionService::class, function ($app) {
+            return new SafetyInspectionService($app->make(AuditServiceInterface::class));
+        });
+
+        $this->app->singleton(SafetyTrainingService::class, function ($app) {
+            return new SafetyTrainingService($app->make(AuditServiceInterface::class));
+        });
 
         // Merge HRM-specific configuration
         $hrmConfigPath = $this->getModulePath('config/hrm.php');
@@ -157,6 +380,11 @@ class HRMServiceProvider extends AbstractModuleProvider
      */
     protected function bootModule(): void
     {
+        // Register middleware alias for self-service employee guard
+        /** @var Router $router */
+        $router = $this->app->make(Router::class);
+        $router->aliasMiddleware('employee.required', EnsureEmployeeProfile::class);
+
         // Register policies
         $this->registerPolicies();
 
@@ -174,9 +402,6 @@ class HRMServiceProvider extends AbstractModuleProvider
 
         // Register scheduled jobs
         $this->registerScheduledJobs();
-
-        // Register dashboard widgets for Core Dashboard
-        $this->registerDashboardWidgets();
 
         // Register HRM dashboards with DashboardRegistry
         $this->registerDashboards();
@@ -263,38 +488,6 @@ class HRMServiceProvider extends AbstractModuleProvider
     }
 
     /**
-     * Register HRM widgets for the Core Dashboard.
-     *
-     * These are ACTION/ALERT/SUMMARY widgets only.
-     * Full analytics stay on HRM Dashboard (/hrm/dashboard).
-     */
-    protected function registerDashboardWidgets(): void
-    {
-        // Only register if the registry is available
-        if (! $this->app->bound(DashboardWidgetRegistry::class)) {
-            return;
-        }
-
-        $registry = $this->app->make(DashboardWidgetRegistry::class);
-
-        // Register HRM widgets for Core Dashboard
-        $registry->registerMany([
-            // Leave & Attendance widgets
-            new PunchStatusWidget,
-            new MyLeaveBalanceWidget,
-            new PendingLeaveApprovalsWidget,
-            new UpcomingHolidaysWidget,
-            new OrganizationInfoWidget,
-            // Performance Management widgets
-            new MyGoalsWidget,
-            new PendingReviewsWidget,
-            // Manager widgets
-            new TeamAttendanceWidget,
-            new PayrollSummaryWidget,
-        ]);
-    }
-
-    /**
      * Register User model relationships via UserRelationshipRegistry.
      * This allows the core User model to be extended without hard dependencies.
      */
@@ -306,7 +499,12 @@ class HRMServiceProvider extends AbstractModuleProvider
 
         $registry = $this->app->make(UserRelationshipRegistry::class);
 
-        // Register employee relationship
+        // Register employee relationship via both registry and resolveRelationUsing
+        // resolveRelationUsing enables property access ($user->employee) via Eloquent __get
+        User::resolveRelationUsing('employee', function ($user) {
+            return $user->hasOne(Employee::class);
+        });
+
         $registry->registerRelationship('employee', function ($user) {
             return $user->hasOne(Employee::class);
         });
@@ -408,7 +606,7 @@ class HRMServiceProvider extends AbstractModuleProvider
             Leave::class => LeavePolicy::class,
             Attendance::class => AttendancePolicy::class,
             SafetyInspection::class => SafetyInspectionPolicy::class,
-                    SafetyTraining::class => SafetyTrainingPolicy::class,
+            SafetyTraining::class => SafetyTrainingPolicy::class,
         ];
 
         foreach ($policies as $model => $policy) {
@@ -428,17 +626,5 @@ class HRMServiceProvider extends AbstractModuleProvider
                 SendOnboardingRemindersCommand::class,
             ]);
         }
-    }
-
-    /**
-     * Register this module with the ModuleRegistry.
-     */
-    public function register(): void
-    {
-        parent::register();
-
-        // Register this module with the registry
-        $registry = $this->app->make(ModuleRegistry::class);
-        $registry->register($this);
     }
 }

@@ -2,12 +2,16 @@
 
 namespace Aero\Platform\Models;
 
+use Aero\Contracts\Models\CentralModel;
+use Aero\Platform\Contracts\BillableSubscription as BillableSubscriptionContract;
+use Aero\Platform\Observers\SubscriptionImmutableObserver;
 use Carbon\Carbon;
 use Database\Factories\SubscriptionFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Cashier\Subscription as CashierSubscription;
 
@@ -31,7 +35,7 @@ use Laravel\Cashier\Subscription as CashierSubscription;
  * @property Carbon|null $ends_at Subscription end date
  * @property string|null $stripe_id Stripe subscription ID (from Cashier)
  */
-class Subscription extends CashierSubscription
+class Subscription extends CashierSubscription implements BillableSubscriptionContract
 {
     /** @use HasFactory<SubscriptionFactory> */
     use HasFactory, HasUuids, SoftDeletes;
@@ -48,6 +52,30 @@ class Subscription extends CashierSubscription
     public const STATUS_TRIALING = 'trialing';
 
     public const STATUS_EXPIRED = 'expired';
+
+    /**
+     * Boot the model — register immutability observer.
+     */
+    protected static function booted(): void
+    {
+        parent::booted();
+        static::observe(SubscriptionImmutableObserver::class);
+
+        // Subscriptions are central-owned. Cashier's base model uses the default
+        // connection, which in tenant context is the tenant DB (no subscriptions
+        // table). Pin writes to the central connection like CentralModel does.
+        static::creating(fn (self $m) => $m->setConnection(CentralModel::centralConnectionName()));
+        static::saving(fn (self $m) => $m->setConnection(CentralModel::centralConnectionName()));
+    }
+
+    /**
+     * Resolve the central connection so tenant-context reads/writes hit the
+     * central DB (mirrors CentralModel; Cashier's base class can't extend it).
+     */
+    public function getConnectionName(): ?string
+    {
+        return CentralModel::centralConnectionName();
+    }
 
     /**
      * Override Cashier incrementing because we use UUID primary keys.
@@ -103,6 +131,10 @@ class Subscription extends CashierSubscription
         'downgrade_scheduled_at',
         'grace_period_ends_at',
         'current_period_start',
+        // P-2 additions
+        'current_period_end',
+        'cancel_reason',
+        'stripe_subscription_id',
     ];
 
     /**
@@ -129,6 +161,8 @@ class Subscription extends CashierSubscription
         'downgrade_scheduled_at' => 'datetime',
         'grace_period_ends_at' => 'datetime',
         'current_period_start' => 'datetime',
+        // P-2 additions
+        'current_period_end' => 'datetime',
     ];
 
     // =========================================================================
@@ -153,7 +187,7 @@ class Subscription extends CashierSubscription
     /**
      * Cashier polymorphic billable relation alias.
      */
-    public function owner(): \Illuminate\Database\Eloquent\Relations\MorphTo
+    public function owner(): MorphTo
     {
         return $this->morphTo(__FUNCTION__, 'billable_type', 'billable_id');
     }
@@ -306,6 +340,30 @@ class Subscription extends CashierSubscription
             'cancelled_at' => now(),
             'cancellation_reason' => $reason,
         ]);
+    }
+
+    // =========================================================================
+    // BillableSubscription interface implementation
+    // =========================================================================
+
+    public function billableType(): string
+    {
+        return 'plan';
+    }
+
+    public function getTenantId(): string
+    {
+        return (string) $this->billable_id;
+    }
+
+    public function getStatus(): string
+    {
+        return (string) $this->status;
+    }
+
+    public function getTrialEndsAt(): ?Carbon
+    {
+        return $this->trial_ends_at instanceof Carbon ? $this->trial_ends_at : null;
     }
 
     /**

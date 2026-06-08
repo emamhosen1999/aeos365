@@ -3,7 +3,6 @@
 namespace Aero\Core\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
@@ -14,12 +13,13 @@ use Illuminate\Support\Collection;
  * Represents a functional area within a module (e.g., Employees within HRM)
  * Contains components and has its own permission requirements.
  */
-class SubModule extends Model
+class SubModule extends TenantModel
 {
     use HasFactory;
 
     protected $fillable = [
         'module_id',
+        'parent_id',
         'code',
         'name',
         'description',

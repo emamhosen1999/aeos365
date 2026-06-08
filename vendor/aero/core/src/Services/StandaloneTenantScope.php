@@ -2,7 +2,7 @@
 
 namespace Aero\Core\Services;
 
-use Aero\Core\Contracts\TenantScopeInterface;
+use Aero\Contracts\TenantScopeInterface;
 
 /**
  * StandaloneTenantScope

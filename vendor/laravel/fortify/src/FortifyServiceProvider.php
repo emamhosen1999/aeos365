@@ -133,6 +133,9 @@ class FortifyServiceProvider extends ServiceProvider
             'passkeys.timeout' => config('fortify.passkeys.timeout', 60000),
             'passkeys.guard' => config('fortify.guard', 'web'),
             'passkeys.middleware' => config('fortify.middleware', ['web']),
+            'passkeys.management_middleware' => config('fortify-options.passkeys.confirmPassword', true)
+                ? ['password.confirm']
+                : [],
             'passkeys.redirect' => Fortify::redirects('login'),
             'passkeys.throttle' => $this->passkeyThrottleMiddleware(),
         ]);

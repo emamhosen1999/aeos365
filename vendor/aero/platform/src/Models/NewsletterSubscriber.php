@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
  *
  * Manages newsletter subscriptions for platform marketing.
  */
-class NewsletterSubscriber extends Model
+class NewsletterSubscriber extends CentralModel
 {
     use HasFactory;
     use SoftDeletes;
@@ -94,6 +94,35 @@ class NewsletterSubscriber extends Model
     public function scopePending($query)
     {
         return $query->where('status', self::STATUS_PENDING);
+    }
+
+    /**
+     * Selectable status options (value => label) for filters and forms.
+     *
+     * @return array<string, string>
+     */
+    public static function getStatusOptions(): array
+    {
+        return [
+            self::STATUS_PENDING => 'Pending',
+            self::STATUS_CONFIRMED => 'Confirmed',
+            self::STATUS_UNSUBSCRIBED => 'Unsubscribed',
+        ];
+    }
+
+    /**
+     * Selectable source options (value => label) for filters and forms.
+     *
+     * @return array<string, string>
+     */
+    public static function getSourceOptions(): array
+    {
+        return [
+            self::SOURCE_WEBSITE => 'Website',
+            self::SOURCE_REGISTRATION => 'Registration',
+            self::SOURCE_IMPORT => 'Import',
+            self::SOURCE_API => 'API',
+        ];
     }
 
     /**

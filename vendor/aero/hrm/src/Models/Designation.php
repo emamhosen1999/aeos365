@@ -2,19 +2,27 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Designation extends Model
+class Designation extends TenantModel
 {
     use HasFactory, SoftDeletes;
 
     protected $table = 'designations';
 
+    protected static function newFactory(): \Aero\HRM\Database\Factories\DesignationFactory
+    {
+        return \Aero\HRM\Database\Factories\DesignationFactory::new();
+    }
+
     protected $fillable = [
         'title',
         'department_id',
+        'grade_id',
         'parent_id',
         'hierarchy_level',
         'is_active',
@@ -32,6 +40,11 @@ class Designation extends Model
     public function department(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function grade(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Grade::class);
     }
 
     public function employees(): \Illuminate\Database\Eloquent\Relations\HasMany

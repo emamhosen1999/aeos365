@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Aero\HRMAC;
 
 use Aero\HRMAC\Console\Commands\SyncModuleHierarchy;
-use Aero\HRMAC\Contracts\RoleModuleAccessInterface;
+use Aero\Contracts\RoleModuleAccessInterface;
 use Aero\HRMAC\Http\Middleware\CheckRoleModuleAccess;
 use Aero\HRMAC\Http\Middleware\SmartLandingRedirect;
 use Aero\HRMAC\Services\ModuleDiscoveryService;
@@ -50,6 +50,20 @@ class HRMACServiceProvider extends ServiceProvider
         // Register middleware
         $this->registerMiddleware();
 
+        // Wire HRMAC into the Gate so controllers' authorize()/can() for dot-path
+        // abilities (e.g. 'hrm.employees.list.view') resolve via role-module access.
+        // Without this, $user->can('module.sub.component.action') is an undefined
+        // ability → Laravel default-denies → every controller authorize() 403s for
+        // non-super-admins, even though the service grants the cascading access.
+        $this->registerHrmacGate();
+
+        // HRMAC owns the canonical RBAC + module-hierarchy schema (roles, model_has_roles,
+        // modules, sub_modules, module_components, module_component_actions,
+        // role_module_access). As a foundational shared package it runs in BOTH central and
+        // tenant DBs — ONE schema, no per-context column differences. (Migrations were
+        // previously duplicated across aero-core + aero-platform; consolidated here.)
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+
         // Register commands
         if ($this->app->runningInConsole()) {
             $this->commands([
@@ -66,6 +80,44 @@ class HRMACServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations' => database_path('migrations'),
             ], 'hrmac-migrations');
         }
+    }
+
+    /**
+     * Delegate dot-path ability checks (Gate / authorize() / can()) to HRMAC.
+     *
+     * Abilities look like 'module.submodule[.component].action' (e.g.
+     * 'hrm.employees.list.view'). Returns true when the role-module-access service
+     * grants it (cascading from module/sub-module grants), and null otherwise so
+     * non-HRMAC abilities and explicit policies still resolve normally.
+     */
+    protected function registerHrmacGate(): void
+    {
+        \Illuminate\Support\Facades\Gate::before(function ($user, string $ability) {
+            if (! is_object($user) || ! str_contains($ability, '.')) {
+                return null;
+            }
+
+            $parts = array_values(array_filter(explode('.', $ability), fn ($p) => $p !== ''));
+            if (count($parts) < 2) {
+                return null; // not a module.submodule ability
+            }
+
+            $module = $parts[0];
+            $subModule = $parts[1];
+            // 3+ segments → last is the action (component segment, if any, is implied).
+            $action = count($parts) >= 3 ? $parts[count($parts) - 1] : null;
+
+            try {
+                $svc = app(RoleModuleAccessInterface::class);
+                $allowed = $action !== null
+                    ? $svc->userCanAccessAction($user, $module, $subModule, $action)
+                    : $svc->userCanAccessSubModule($user, $module, $subModule);
+            } catch (\Throwable) {
+                return null; // never hard-deny on resolution error; fall through
+            }
+
+            return $allowed ? true : null;
+        });
     }
 
     /**

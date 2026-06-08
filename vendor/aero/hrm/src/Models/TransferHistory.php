@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *
  * Tracks employee transfers between departments, locations, or branches.
  */
-class TransferHistory extends Model
+class TransferHistory extends TenantModel
 {
     use HasFactory, SoftDeletes;
 

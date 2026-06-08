@@ -4,26 +4,39 @@ namespace Aero\Platform;
 
 use Aero\Auth\Context\TenantAuthContext;
 use Aero\Auth\Contracts\AuthContext;
-use Aero\Core\Contracts\TenantScopeInterface;
+use Aero\Contracts\MailSenderInterface;
+use Aero\Contracts\PlanCatalogInterface;
+use Aero\Contracts\ProductAccessInterface;
+use Aero\Contracts\SmsGatewayInterface;
+use Aero\Contracts\TenantScopeInterface;
+use Aero\Contracts\TranslationDriverInterface;
+use Aero\Core\Services\InstallationState;
 use Aero\Core\Services\NavigationRegistry;
+use Aero\Core\ValueObjects\RequestContext;
 use Aero\Core\Traits\ParsesHostDomain;
 use Aero\HRMAC\Services\RoleModuleAccessService as HRMACRoleModuleAccessService;
 use Aero\I18n\Http\Middleware\SetLocale;
+use Aero\I18n\Services\TranslationService;
 use Aero\Notifications\Contracts\MailContextResolver;
 use Aero\Notifications\Contracts\SmsContextResolver;
+use Aero\Notifications\Services\Mail\MailService;
+use Aero\Notifications\Services\Sms\SmsGatewayService;
 use Aero\Platform\Auth\LandlordAuthContext;
 use Aero\Platform\Bootstrappers\CachePrefixTenancyBootstrapper;
+use Aero\Platform\Bootstrappers\FailClosedQueueTenancyBootstrapper;
 use Aero\Platform\Console\Commands\CleanupFailedInstallation;
 use Aero\Platform\Console\Commands\EnsureSuperAdmin;
 use Aero\Platform\Console\Commands\ExpireGracePeriods;
 use Aero\Platform\Console\Commands\ProcessPendingSubscriptionChanges;
 use Aero\Platform\Console\Commands\ProcessSubscriptionRenewals;
 use Aero\Platform\Console\Commands\PurgeExpiredTenants;
+use Aero\Platform\Console\Commands\PurgeSuspendedRoleAccess;
 use Aero\Platform\Console\Commands\SetupApplication;
 use Aero\Platform\Console\Commands\TenantCreate;
 use Aero\Platform\Console\Commands\TenantFlush;
 use Aero\Platform\Console\Commands\TenantHealth;
 use Aero\Platform\Console\Commands\TenantMigrate;
+use Aero\Platform\Events\ProductSubscriptionChanged;
 use Aero\Platform\Http\Middleware\BootstrapGuard;
 use Aero\Platform\Http\Middleware\CheckMaintenanceMode;
 use Aero\Platform\Http\Middleware\CheckModuleAccess;
@@ -49,12 +62,17 @@ use Aero\Platform\Http\Middleware\SetDatabaseConnectionFromDomain;
 use Aero\Platform\Http\Middleware\SmartLandingRedirect;
 use Aero\Platform\Http\Middleware\TenantSuperAdmin;
 use Aero\Platform\Http\Middleware\TrustHosts;
+use Aero\Platform\Listeners\ReactivateRoleAccessOnResubscribe;
+use Aero\Platform\Listeners\ResyncTenantModuleCatalog;
+use Aero\Platform\Listeners\SuspendUnsubscribedRoleAccess;
 use Aero\Platform\Listeners\TenantCreatedListener;
 use Aero\Platform\Models\LandlordUser;
 use Aero\Platform\Models\Plan;
+use Aero\Platform\Models\ProductSubscription;
 use Aero\Platform\Models\Subscription;
 use Aero\Platform\Models\Tenant;
 use Aero\Platform\Observers\PlanAuditObserver;
+use Aero\Platform\Observers\ProductSubscriptionObserver;
 use Aero\Platform\Observers\SubscriptionObserver;
 use Aero\Platform\Policies\PlanPolicy;
 use Aero\Platform\Policies\TenantPolicy;
@@ -68,6 +86,7 @@ use Aero\Platform\Services\Module\RoleModuleAccessService;
 use Aero\Platform\Services\Monitoring\Tenant\ErrorLogService;
 use Aero\Platform\Services\Notifications\PlatformMailContextResolver;
 use Aero\Platform\Services\Notifications\PlatformSmsContextResolver;
+use Aero\Platform\Services\PlatformPlanService;
 use Aero\Platform\Services\PlatformSettingService;
 use Aero\Platform\Services\PlatformWidgetRegistry;
 use Aero\Platform\Services\ProductAccessService;
@@ -98,6 +117,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Cashier\Cashier;
 use Stancl\Tenancy\Bootstrappers\DatabaseTenancyBootstrapper;
+use Stancl\Tenancy\Bootstrappers\FilesystemTenancyBootstrapper;
 use Stancl\Tenancy\Bootstrappers\QueueTenancyBootstrapper;
 use Stancl\Tenancy\Events\TenantCreated;
 
@@ -130,12 +150,31 @@ class AeroPlatformServiceProvider extends ServiceProvider
                 : new TenantAuthContext;
         });
 
+        // Host-aware DEFAULT RequestContext so the whole admin domain — including
+        // GUEST pages (login, forgot-password) that render shared HRMAC-backed nav —
+        // resolves as platform context. The ResolvePlatformContext/ResolveTenantContext
+        // route middleware still override this where present (authenticated routes).
+        // Without this, HRMAC's context guard fail-closes on admin guest pages.
+        $this->app->bind(RequestContext::class, function ($app) {
+            $host = $app->make('request')->getHost();
+            $adminHost = config('aero.admin_domain', 'admin.'.config('app.domain', parse_url(config('app.url', ''), PHP_URL_HOST)));
+
+            return str_starts_with($host, 'admin.') || $host === $adminHost
+                ? new RequestContext('platform', 'landlord')
+                : new RequestContext('tenant', 'web');
+        });
+
         // Register global BootstrapGuard middleware FIRST
         // This runs before route matching and handles:
         // 1. Installation status check
         // 2. Cross-domain redirect to platform /install if not installed
         $kernel = $this->app->make(Kernel::class);
         $kernel->pushMiddleware(BootstrapGuard::class);
+
+        // B-36: on the bare platform domain, redirect /login -> /signup before routing
+        // (the mode-agnostic aero-auth tenant login route is registered without a domain
+        // and would otherwise render a dead login form on the marketing domain).
+        $kernel->pushMiddleware(\Aero\Platform\Http\Middleware\RedirectCentralLoginToSignup::class);
 
         // CRITICAL: Only register tenancy if installed AND in SaaS mode
         // This prevents tenancy from being enabled during installation
@@ -164,12 +203,20 @@ class AeroPlatformServiceProvider extends ServiceProvider
         // Platform provides the SaaS implementation using stancl/tenancy
         $this->app->singleton(TenantScopeInterface::class, SaaSTenantScope::class);
 
+        // SaaS data-decision (Audit D15): tenant module syncs are gated to subscribed
+        // products. HRMAC's context-free sync command applies this filter only because
+        // the platform (the consumer) binds it here. Standalone never binds it.
+        $this->app->singleton(
+            \Aero\Contracts\ModuleSyncFilterInterface::class,
+            \Aero\Platform\Services\TenantSubscriptionModuleFilter::class
+        );
+
         // Register Module Access Services with fallback stubs for pre-install
         // These services are lazy-loaded to avoid DB queries before installation
         $this->app->singleton(HRMACRoleModuleAccessService::class, function ($app) {
             // Before installation: return a null-object stub that satisfies the
             // RoleModuleAccessService type hint without making any DB queries.
-            if (! file_exists(storage_path('app/aeos.installed'))) {
+            if (! InstallationState::isInstalled()) {
                 return new NullRoleModuleAccessService;
             }
 
@@ -185,7 +232,7 @@ class AeroPlatformServiceProvider extends ServiceProvider
 
         $this->app->singleton(ModuleAccessService::class, function ($app) {
             // Only instantiate if installed to avoid DB queries pre-install
-            if (! file_exists(storage_path('app/aeos.installed'))) {
+            if (! InstallationState::isInstalled()) {
                 return new class
                 {
                     public function __call($method, $args)
@@ -219,6 +266,17 @@ class AeroPlatformServiceProvider extends ServiceProvider
         $this->app->singleton(ProductSubscriptionService::class);
         $this->app->singleton(LicenseIssuer::class);
         $this->app->singleton(DownloadService::class);
+        $this->app->singleton(PlatformPlanService::class);
+
+        // Interface bindings for aero-core compatibility (standalone mode uses class_exists guard)
+        $this->app->singleton(
+            ProductAccessInterface::class,
+            ProductAccessService::class
+        );
+        $this->app->singleton(
+            PlanCatalogInterface::class,
+            PlatformPlanService::class
+        );
 
         // Register tenant lifecycle services
         $this->app->singleton(TenantRetentionService::class);
@@ -230,6 +288,13 @@ class AeroPlatformServiceProvider extends ServiceProvider
         // Bind notification context resolvers to platform implementations
         $this->app->singleton(MailContextResolver::class, PlatformMailContextResolver::class);
         $this->app->singleton(SmsContextResolver::class, PlatformSmsContextResolver::class);
+
+        // aero-core interface bindings for mail/SMS services
+        $this->app->singleton(MailSenderInterface::class, MailService::class);
+        $this->app->singleton(SmsGatewayInterface::class, SmsGatewayService::class);
+
+        // aero-core TranslationDriverInterface — override the anonymous-class default registered in Core
+        $this->app->singleton(TranslationDriverInterface::class, TranslationService::class);
 
         // Configure auth guards and providers programmatically
         $this->configureAuth();
@@ -274,19 +339,41 @@ class AeroPlatformServiceProvider extends ServiceProvider
         Plan::observe(PlanAuditObserver::class);
         Subscription::observe(SubscriptionObserver::class);
 
+        // Audit D15 — product subscription lifecycle drives tenant module catalog.
+        // Observer fires ProductSubscriptionChanged; listener re-syncs the catalog.
+        ProductSubscription::observe(ProductSubscriptionObserver::class);
+        Event::listen(ProductSubscriptionChanged::class, ResyncTenantModuleCatalog::class);
+
+        // Audit D17 — soft-suspend role grants on unsubscribe; restore on re-subscribe.
+        // SuspendUnsubscribedRoleAccess marks rows suspended (30-day grace; no access at runtime).
+        // ReactivateRoleAccessOnResubscribe flips them back to active within the grace window.
+        Event::listen(ProductSubscriptionChanged::class, SuspendUnsubscribedRoleAccess::class);
+        Event::listen(ProductSubscriptionChanged::class, ReactivateRoleAccessOnResubscribe::class);
+
         // Configure Cashier to use our unified Subscription model as the single source of truth
         // This eliminates drift between Cashier-managed Stripe data and lifecycle-managed fields.
         Cashier::useSubscriptionModel(Subscription::class);
         Cashier::useCustomerModel(Tenant::class);
 
-        // Override tenancy bootstrappers after all providers registered
-        // FilesystemTenancyBootstrapper disabled - causes "Undefined array key 'local'" error
-        // Using custom CachePrefixTenancyBootstrapper instead of stancl's CacheTenancyBootstrapper
-        // because file/database cache drivers don't support tagging
+        // Authoritative runtime tenancy bootstrapper list (Axis A A5, 2026-05-30).
+        // This MUST match config/tenancy.php — kept in sync; the runtime test
+        // TenancyRuntimeConfigTest asserts the BOOTED list (not the file) so this
+        // can never silently drift again.
+        //
+        //  - CachePrefixTenancyBootstrapper: driver-agnostic per-tenant cache key
+        //    prefix (works on array/file/database/redis — no tagging requirement),
+        //    chosen over Stancl's CacheTenancyBootstrapper which needs a tagging store.
+        //  - FilesystemTenancyBootstrapper: per-tenant storage roots. Previously
+        //    stripped here with a stale "Undefined array key 'local'" note — that bug
+        //    was fixed by adding the tenancy.filesystem config block (Phase 0 T5);
+        //    WITHOUT this, tenant uploads share one root = cross-tenant file leak.
+        //  - FailClosedQueueTenancyBootstrapper (Audit D5c): refuses jobs for
+        //    suspended/deleted tenants instead of the stock bootstrapper.
         Config::set('tenancy.bootstrappers', [
             DatabaseTenancyBootstrapper::class,
-            CachePrefixTenancyBootstrapper::class, // Works with all cache drivers
-            QueueTenancyBootstrapper::class,
+            CachePrefixTenancyBootstrapper::class,
+            FilesystemTenancyBootstrapper::class,
+            FailClosedQueueTenancyBootstrapper::class,
         ]);
 
         // CRITICAL: Override central_domains to include the platform domain and admin subdomain
@@ -351,6 +438,7 @@ class AeroPlatformServiceProvider extends ServiceProvider
                 ProcessPendingSubscriptionChanges::class,
                 ProcessSubscriptionRenewals::class,
                 ExpireGracePeriods::class,
+                PurgeSuspendedRoleAccess::class, // D17: daily hard-delete after 30-day grace
             ]);
         }
 
@@ -430,6 +518,13 @@ class AeroPlatformServiceProvider extends ServiceProvider
         $submoduleNav = [];
         foreach ($config['submodules'] ?? [] as $submodule) {
             $submoduleCode = $submodule['code'] ?? '';
+
+            // Respect explicit nav suppression — used to hide features whose
+            // backend exists but whose admin UI is not built yet (no page),
+            // so the sidebar never links to a blank screen.
+            if (($submodule['show_in_nav'] ?? true) === false) {
+                continue;
+            }
 
             // Get submodule icon for fallback
             $submoduleIcon = $submodule['icon'] ?? 'FolderIcon';
@@ -826,6 +921,10 @@ class AeroPlatformServiceProvider extends ServiceProvider
             'middleware' => ['web'],
             'domain' => $adminDomain,
         ], function () {
+            // Landlord/admin AUTH routes (login/logout/root/session-check/impersonation).
+            // Moved out of aero-auth to keep that package mode-agnostic; loaded first
+            // so the guest login routes are available, then the protected admin routes.
+            $this->loadRoutesFrom(__DIR__.'/../routes/admin-auth.php');
             $this->loadRoutesFrom(__DIR__.'/../routes/admin.php');
         });
 
@@ -981,20 +1080,37 @@ class AeroPlatformServiceProvider extends ServiceProvider
      */
     protected function overrideMigratorForLandlord(): void
     {
-        $platformMigrationsPath = realpath(__DIR__.'/../database/migrations');
+        // The central/landlord DB runs: aero-platform + the FOUNDATIONAL SHARED packages
+        // (auth, ui, i18n, notifications, hrmac — everything in baseline_modules EXCEPT
+        // core, which is tenant-only). These shared packages are pure, single-schema
+        // packages used identically by central and tenants — no per-context columns.
+        $allowedMigrationPaths = [realpath(__DIR__.'/../database/migrations')];
+        $sharedPackages = array_diff(
+            (array) config('hrmac.baseline_modules', ['core', 'auth', 'ui', 'i18n', 'notifications', 'hrmac']),
+            ['core']
+        );
+        foreach ($sharedPackages as $pkg) {
+            foreach ([base_path("vendor/aero/{$pkg}/database/migrations"), base_path("packages/aero-{$pkg}/database/migrations")] as $candidate) {
+                if (is_dir($candidate)) {
+                    $allowedMigrationPaths[] = realpath($candidate);
+                }
+            }
+        }
+        $allowedMigrationPaths = array_values(array_filter(array_unique($allowedMigrationPaths)));
         $centralDatabase = config('tenancy.database.central_connection', config('database.default'));
 
-        $this->app->extend('migrator', function ($migrator, $app) use ($platformMigrationsPath, $centralDatabase) {
-            return new class($app['migration.repository'], $app['db'], $app['files'], $app['events'], $platformMigrationsPath, $centralDatabase) extends Migrator
+        $this->app->extend('migrator', function ($migrator, $app) use ($allowedMigrationPaths, $centralDatabase) {
+            return new class($app['migration.repository'], $app['db'], $app['files'], $app['events'], $allowedMigrationPaths, $centralDatabase) extends Migrator
             {
-                protected string $platformMigrationsPath;
+                /** @var array<int, string> */
+                protected array $allowedMigrationPaths;
 
                 protected string $centralDatabase;
 
-                public function __construct($repository, $resolver, $files, $dispatcher, string $platformMigrationsPath, string $centralDatabase)
+                public function __construct($repository, $resolver, $files, $dispatcher, array $allowedMigrationPaths, string $centralDatabase)
                 {
                     parent::__construct($repository, $resolver, $files, $dispatcher);
-                    $this->platformMigrationsPath = $platformMigrationsPath;
+                    $this->allowedMigrationPaths = $allowedMigrationPaths;
                     $this->centralDatabase = $centralDatabase;
                 }
 
@@ -1009,20 +1125,35 @@ class AeroPlatformServiceProvider extends ServiceProvider
                         return $files;
                     }
 
-                    // During installation or testing, allow ALL package migrations to run on central DB
-                    // Core, HRMAC, and other package migrations are needed for the initial setup
-                    if (! file_exists(storage_path('app/aeos.installed')) || app()->environment('testing')) {
-                        return $files;
+                    // During installation (not yet installed), allow ALL package migrations.
+                    if (! InstallationState::isInstalled() && ! app()->environment('testing')) {
+                        // Deduplicate by operation name before returning — keep latest timestamp.
+                        return collect($files)->unique(function ($path) {
+                            return preg_replace('/^\d{4}_\d{2}_\d{2}_\d{6}_/', '', basename($path, '.php'));
+                        })->all();
                     }
 
-                    // On central/landlord database: ONLY allow migrations from aero-platform package
-                    // All other packages (core, hrm, crm, etc.) are for tenant databases
-                    return collect($files)->filter(function ($path, $name) {
-                        // Normalize path for comparison (resolve ../ and convert slashes)
+                    // On central/landlord database (production + testing):
+                    // run aero-platform + the foundational shared packages (auth, ui,
+                    // i18n, notifications, hrmac). NOT core or product modules — those are
+                    // tenant-only. The shared packages carry the canonical roles/modules/
+                    // RBAC schema central needs.
+                    $platformFiles = collect($files)->filter(function ($path, $name) {
                         $normalizedPath = realpath($path) ?: $path;
+                        foreach ($this->allowedMigrationPaths as $allowed) {
+                            if (str_starts_with($normalizedPath, $allowed)) {
+                                return true;
+                            }
+                        }
 
-                        // Allow ONLY platform migrations
-                        return str_starts_with($normalizedPath, $this->platformMigrationsPath);
+                        return false;
+                    });
+
+                    // Deduplicate within the filtered set by operation name.
+                    // This removes any internal duplicates (e.g. create_notification_logs_table
+                    // exists in both aero-platform and as a copy from another path).
+                    return $platformFiles->unique(function ($path) {
+                        return preg_replace('/^\d{4}_\d{2}_\d{2}_\d{6}_/', '', basename($path, '.php'));
                     })->all();
                 }
             };
@@ -1135,7 +1266,7 @@ class AeroPlatformServiceProvider extends ServiceProvider
      */
     protected function installed(): bool
     {
-        return file_exists(storage_path('app/aeos.installed'));
+        return InstallationState::isInstalled();
     }
 
     /**

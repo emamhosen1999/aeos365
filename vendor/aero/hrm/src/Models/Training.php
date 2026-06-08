@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Aero\Core\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -41,7 +43,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property-read User|null $instructor
  * @property-read User|null $creator
  */
-class Training extends Model implements HasMedia
+class Training extends TenantModel implements HasMedia
 {
     use HasFactory, InteractsWithMedia, SoftDeletes;
 

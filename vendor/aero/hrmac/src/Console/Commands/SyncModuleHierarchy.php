@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Aero\HRMAC\Console\Commands;
 
+use Aero\Contracts\ModuleSyncFilterInterface;
 use Aero\HRMAC\Models\Action;
 use Aero\HRMAC\Models\Component;
 use Aero\HRMAC\Models\Module;
@@ -22,17 +23,17 @@ use Illuminate\Support\Facades\Schema;
  * - module_components (third level)
  * - module_component_actions (fourth level - leaf)
  *
- * Usage: php artisan hrmac:sync-modules
+ * Usage: php artisan aero:sync-module --scope=tenant|platform|all
  */
 class SyncModuleHierarchy extends Command
 {
-    protected $signature = 'hrmac:sync-modules
+    protected $signature = 'aero:sync-module
                           {--scope= : Override auto-detected scope (platform, tenant, or all)}
                           {--fresh : Clear all existing modules before syncing}
                           {--force : Force sync even if tables do not exist}
                           {--prune : Remove modules that are no longer installed}';
 
-    protected $description = 'Sync module hierarchy from package configs to database. Auto-detects context.';
+    protected $description = 'Sync module hierarchy from package configs to database. Scope is supplied via --scope (no context auto-detection).';
 
     protected ModuleDiscoveryService $moduleDiscovery;
 
@@ -57,90 +58,159 @@ class SyncModuleHierarchy extends Command
         $this->moduleDiscovery = $moduleDiscovery;
     }
 
+    /**
+     * Advisory lock key for hrmac:sync-modules.
+     *
+     * Plan 04 T5 — prevents concurrent runs from racing on
+     * updateOrCreate() and producing duplicate (module_id, code) rows.
+     */
+    protected const SYNC_LOCK_KEY = 'aero:hrmac:sync-modules';
+
     public function handle(): int
     {
         $this->info('🚀 HRMAC: Starting Module Hierarchy Sync...');
         $this->newLine();
 
-        // Schema validation
-        if (! $this->validateSchema()) {
+        // Plan 04 T5 — acquire advisory lock to serialize concurrent runs.
+        // On MySQL this uses GET_LOCK; sqlite (tests) gracefully no-ops.
+        if (! $this->acquireSyncLock()) {
+            $this->warn('⚠️  Another aero:sync-module run is in progress. Aborting to avoid duplicate rows.');
+
             return self::FAILURE;
         }
 
-        // Auto-detect scope
-        $scope = $this->option('scope') ?: $this->detectScope();
-        $fresh = $this->option('fresh');
-        $prune = $this->option('prune');
-
-        $this->info("📍 Context: {$scope}");
-        $this->newLine();
-
         try {
-            DB::beginTransaction();
 
-            // Fresh sync
-            if ($fresh) {
-                $this->clearExistingModules($scope);
+            // Schema validation
+            if (! $this->validateSchema()) {
+                return self::FAILURE;
             }
 
-            $modules = $this->moduleDiscovery->getModuleDefinitions();
+            // Scope is supplied by the consumer (no context auto-detection in HRMAC).
+            $scope = $this->option('scope') ?: 'all';
+            $fresh = $this->option('fresh');
+            $prune = $this->option('prune');
 
-            if ($modules->isEmpty()) {
-                $this->warn('⚠️  No module definitions found in packages.');
+            $this->info("📍 Context: {$scope}");
+            $this->newLine();
 
-                if ($prune) {
-                    $this->pruneRemovedModules(collect([]));
-                    DB::commit();
-                    $this->displayStats();
+            try {
+                DB::beginTransaction();
+
+                // Fresh sync
+                if ($fresh) {
+                    $this->clearExistingModules($scope);
+                }
+
+                $modules = $this->moduleDiscovery->getModuleDefinitions();
+
+                // The consuming package decides which modules a given scope receives
+                // (e.g. the SaaS platform filters a tenant to its subscribed products —
+                // Audit D15). HRMAC stays context-free: if no filter is bound, every
+                // discovered module is synced.
+                if (app()->bound(ModuleSyncFilterInterface::class)) {
+                    $modules = app(ModuleSyncFilterInterface::class)->filter($modules, $scope);
+                }
+
+                if ($modules->isEmpty()) {
+                    $this->warn('⚠️  No module definitions found in packages.');
+
+                    if ($prune) {
+                        $this->pruneRemovedModules(collect([]));
+                        DB::commit();
+                        $this->displayStats();
+
+                        return self::SUCCESS;
+                    }
+
+                    DB::rollBack();
 
                     return self::SUCCESS;
                 }
 
-                DB::rollBack();
+                $this->info("📦 Found {$modules->count()} module(s) to sync");
+                $this->newLine();
 
-                return self::SUCCESS;
-            }
+                $progressBar = $this->output->createProgressBar($modules->count());
+                $progressBar->setFormat('verbose');
 
-            $this->info("📦 Found {$modules->count()} module(s) to sync");
-            $this->newLine();
+                foreach ($modules as $moduleDef) {
+                    // Filter by scope
+                    $moduleScope = $moduleDef['scope'] ?? 'tenant';
+                    if ($scope && $scope !== 'all' && $moduleScope !== $scope) {
+                        $progressBar->advance();
 
-            $progressBar = $this->output->createProgressBar($modules->count());
-            $progressBar->setFormat('verbose');
+                        continue;
+                    }
 
-            foreach ($modules as $moduleDef) {
-                // Filter by scope
-                $moduleScope = $moduleDef['scope'] ?? 'tenant';
-                if ($scope && $scope !== 'all' && $moduleScope !== $scope) {
+                    $this->syncModule($moduleDef);
                     $progressBar->advance();
-
-                    continue;
                 }
 
-                $this->syncModule($moduleDef);
-                $progressBar->advance();
+                $progressBar->finish();
+                $this->newLine(2);
+
+                // Prune removed modules
+                if ($prune) {
+                    $this->pruneRemovedModules($modules);
+                }
+
+                DB::commit();
+
+                $this->displayStats();
+                $this->info('✅ Module hierarchy sync completed!');
+
+                return self::SUCCESS;
+            } catch (\Exception $e) {
+                DB::rollBack();
+
+                $this->error('❌ Sync failed: '.$e->getMessage());
+                $this->error('Stack trace: '.$e->getTraceAsString());
+
+                return self::FAILURE;
             }
 
-            $progressBar->finish();
-            $this->newLine(2);
+        } finally {
+            // Plan 04 T5 — release advisory lock no matter what
+            $this->releaseSyncLock();
+        }
+    }
 
-            // Prune removed modules
-            if ($prune) {
-                $this->pruneRemovedModules($modules);
+    /**
+     * Try to acquire the advisory sync lock.
+     * Returns true if acquired or if the driver doesn't support advisory locks
+     * (sqlite, test harness) — those drivers are inherently single-process so
+     * the race we guard against can't happen.
+     */
+    protected function acquireSyncLock(): bool
+    {
+        try {
+            $driver = DB::connection()->getDriverName();
+            if ($driver !== 'mysql' && $driver !== 'mariadb') {
+                return true; // sqlite/pgsql — no advisory lock needed in test/dev
             }
 
-            DB::commit();
+            $result = DB::selectOne('SELECT GET_LOCK(?, 30) AS ok', [self::SYNC_LOCK_KEY]);
 
-            $this->displayStats();
-            $this->info('✅ Module hierarchy sync completed!');
+            return (bool) ($result->ok ?? false);
+        } catch (\Throwable) {
+            return true; // Don't block the sync if lock subsystem is unavailable
+        }
+    }
 
-            return self::SUCCESS;
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            $this->error('❌ Sync failed: '.$e->getMessage());
-            $this->error('Stack trace: '.$e->getTraceAsString());
-
-            return self::FAILURE;
+    /**
+     * Release the advisory sync lock. Safe to call even if not held.
+     */
+    protected function releaseSyncLock(): void
+    {
+        try {
+            $driver = DB::connection()->getDriverName();
+            if ($driver !== 'mysql' && $driver !== 'mariadb') {
+                return;
+            }
+            DB::statement('SELECT RELEASE_LOCK(?)', [self::SYNC_LOCK_KEY]);
+        } catch (\Throwable) {
+            // best-effort release
         }
     }
 
@@ -180,26 +250,6 @@ class SyncModuleHierarchy extends Command
     /**
      * Auto-detect scope based on context.
      */
-    protected function detectScope(): string
-    {
-        // Tenant context
-        if (function_exists('tenancy') && tenancy()->initialized) {
-            return 'tenant';
-        }
-
-        // Central database (has tenants table)
-        if (Schema::hasTable('tenants')) {
-            return 'platform';
-        }
-
-        // Standalone mode
-        if (! class_exists(\Stancl\Tenancy\Tenancy::class)) {
-            return 'all';
-        }
-
-        return 'tenant';
-    }
-
     /**
      * Sync a module and its hierarchy.
      */
@@ -328,7 +378,7 @@ class SyncModuleHierarchy extends Command
     /**
      * Sync submodules for a module.
      */
-    protected function syncSubModules(Module $module, array $subModules): void
+    protected function syncSubModules(Module $module, array $subModules, ?int $parentId = null): void
     {
         foreach ($subModules as $subModuleDef) {
             $subModule = SubModule::updateOrCreate(
@@ -337,6 +387,7 @@ class SyncModuleHierarchy extends Command
                     'code' => $subModuleDef['code'],
                 ],
                 [
+                    'parent_id' => $parentId,
                     'name' => $subModuleDef['name'],
                     'description' => $subModuleDef['description'] ?? null,
                     'icon' => $subModuleDef['icon'] ?? null,
@@ -355,6 +406,11 @@ class SyncModuleHierarchy extends Command
             // Sync components
             if (isset($subModuleDef['components']) && is_array($subModuleDef['components'])) {
                 $this->syncComponents($module, $subModule, $subModuleDef['components']);
+            }
+
+            // Nested sub-modules: recurse, linking children to this sub-module.
+            if (isset($subModuleDef['submodules']) && is_array($subModuleDef['submodules'])) {
+                $this->syncSubModules($module, $subModuleDef['submodules'], $subModule->id);
             }
         }
     }

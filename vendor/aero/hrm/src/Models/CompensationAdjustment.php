@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * Individual salary adjustments within a compensation review.
  */
-class CompensationAdjustment extends Model
+class CompensationAdjustment extends TenantModel
 {
     use HasFactory;
 

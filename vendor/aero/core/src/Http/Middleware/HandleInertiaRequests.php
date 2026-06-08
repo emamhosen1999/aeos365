@@ -2,16 +2,15 @@
 
 namespace Aero\Core\Http\Middleware;
 
-use Aero\Core\Contracts\DomainContextContract;
+use Aero\Contracts\DomainContextContract;
+use Aero\Contracts\RoleModuleAccessInterface;
 use Aero\Core\Http\Resources\SystemSettingResource;
 use Aero\Core\Models\SystemSetting;
 use Aero\Core\Services\NavigationRegistry;
-use Aero\HRMAC\Contracts\RoleModuleAccessInterface;
 use Aero\HRMAC\Models\Action;
 use Aero\HRMAC\Models\Component;
 use Aero\HRMAC\Models\Module;
 use Aero\HRMAC\Models\SubModule;
-use Aero\I18n\Services\TranslationService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
@@ -158,6 +157,11 @@ class HandleInertiaRequests extends Middleware
                 'environment' => config('app.env', 'production'),
             ],
             'context' => 'tenant',
+            // Axis B B8 — always expose the deployment mode so shared aero-ui
+            // components have an explicit 'saas'|'standalone' signal in BOTH modes
+            // (previously aero.mode existed only in SaaS+tenant context, leaving
+            // standalone with undefined → silent mis-renders).
+            'aero' => ['mode' => aero_mode()],
             'systemSettings' => $systemSettingsPayload,
             'branding' => $branding,
             'theme' => [
@@ -169,7 +173,9 @@ class HandleInertiaRequests extends Middleware
             'url' => $request->fullUrl(),
             'csrfToken' => csrf_token(),
             'locale' => App::getLocale(),
-            ...app(TranslationService::class)->getSharedProps(),
+            ...(class_exists('Aero\I18n\Services\TranslationService')
+                ? app('Aero\I18n\Services\TranslationService')->getSharedProps()
+                : []),
             'navigation' => fn () => $this->getNavigationProps($user),
             'navigationGroups' => fn () => $this->getNavigationGroupsProps($user),
             'userNavMetadata' => fn () => $user ? app(NavigationRegistry::class)->getUserNavigationMetadata($user) : null,
@@ -258,7 +264,7 @@ class HandleInertiaRequests extends Middleware
                 'accessible_modules' => $accessibleModules,
                 'modules_lookup' => $modulesLookup,
                 'sub_modules_lookup' => $subModulesLookup,
-                'permissions_map' => $permissionsMap,
+                'hrmac_access' => $permissionsMap,
             ],
             'isAuthenticated' => true,
             'sessionValid' => true,
@@ -487,7 +493,7 @@ class HandleInertiaRequests extends Middleware
             return [];
         }
 
-        $cacheKey = "user_permissions_map:{$user->id}";
+        $cacheKey = "user_hrmac_access:{$user->id}";
 
         return Cache::remember($cacheKey, 600, function () use ($user) {
             try {
@@ -522,13 +528,14 @@ class HandleInertiaRequests extends Middleware
                     if (! $subModule || ! $module) {
                         continue;
                     }
-                    $key = $module->code . '.' . $subModule->code . '.' . $component->code . '.' . $action->code;
+                    $key = $module->code.'.'.$subModule->code.'.'.$component->code.'.'.$action->code;
                     $map[$key] = true;
                 }
 
                 return $map;
             } catch (Throwable $e) {
                 Log::warning('Failed to build user permissions map', ['error' => $e->getMessage()]);
+
                 return [];
             }
         });
@@ -541,6 +548,20 @@ class HandleInertiaRequests extends Middleware
      * @return array<string>
      */
     protected function getSubscribedModuleCodes(): array
+    {
+        // Axis C C2 — cache per tenant; this runs on EVERY authenticated page load.
+        // Invalidated on ProductSubscriptionChanged (see ResyncTenantModuleCatalog).
+        $tenantId = (function_exists('tenant') && tenant()) ? tenant()->getTenantKey() : 'none';
+
+        return Cache::remember("tenant_subscribed_modules:{$tenantId}", 600, function (): array {
+            return $this->computeSubscribedModuleCodes();
+        });
+    }
+
+    /**
+     * @return array<string>
+     */
+    protected function computeSubscribedModuleCodes(): array
     {
         try {
             // Always include core modules
@@ -555,20 +576,20 @@ class HandleInertiaRequests extends Middleware
             // Add plan-based modules from subscription
             $tenant = tenant();
             if ($tenant) {
-                // Check currentSubscription → plan → modules
-                $subscription = $tenant->currentSubscription ?? null;
-                if ($subscription && $subscription->plan) {
-                    $planModules = $subscription->plan->modules()->where('is_active', true)->pluck('modules.code')->toArray();
-                    $modules = array_merge($modules, $planModules);
-                }
+                // Access gate: ProductSubscription is the canonical source of module access.
+                // plan_modules defines the catalog/storefront only — it does NOT grant access.
+                $productModules = $tenant->productSubscriptions()
+                    ->where('status', 'active')
+                    ->where(fn ($q) => $q->whereNull('ends_at')->orWhere('ends_at', '>', now()))
+                    ->with('product:id,module_code')
+                    ->get()
+                    ->pluck('product.module_code')
+                    ->filter()
+                    ->values()
+                    ->toArray();
+                $modules = array_merge($modules, $productModules);
 
-                // Legacy/Direct plan check
-                if ($tenant->plan) {
-                    $directPlanModules = $tenant->plan->modules()->where('is_active', true)->pluck('modules.code')->toArray();
-                    $modules = array_merge($modules, $directPlanModules);
-                }
-
-                // Tenant-level module overrides (from tenant_module pivot)
+                // Admin overrides: granted outside subscription flow
                 $tenantModules = $tenant->modules()->where('is_active', true)->pluck('code')->toArray();
                 if (! empty($tenantModules)) {
                     $modules = array_merge($modules, $tenantModules);

@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * Individual responses to pulse surveys.
  */
-class PulseSurveyResponse extends Model
+class PulseSurveyResponse extends TenantModel
 {
     use HasFactory;
 
@@ -96,7 +98,7 @@ class PulseSurveyResponse extends Model
     /**
      * Boot method.
      */
-    protected static function boot()
+    protected static function boot(): void
     {
         parent::boot();
 

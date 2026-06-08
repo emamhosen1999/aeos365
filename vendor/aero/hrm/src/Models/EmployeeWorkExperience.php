@@ -2,9 +2,10 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
 use Aero\Core\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Stores previous work experience for employees.
  * Has a 1:Many relationship with User model.
  */
-class EmployeeWorkExperience extends Model
+class EmployeeWorkExperience extends TenantModel
 {
     use HasFactory, SoftDeletes;
 
@@ -21,6 +22,7 @@ class EmployeeWorkExperience extends Model
 
     protected $fillable = [
         'user_id',
+        'employee_id',
         'company_name',
         'company_industry',
         'company_location',
@@ -55,12 +57,20 @@ class EmployeeWorkExperience extends Model
     // RELATIONSHIPS
     // =========================================================================
 
-    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function verifier(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    /**
+     * Get the employee record associated with this work experience entry (via employee_id).
+     */
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employee_id');
+    }
+
+    public function verifier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'verified_by');
     }

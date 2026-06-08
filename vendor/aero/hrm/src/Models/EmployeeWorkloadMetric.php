@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -10,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * Tracks daily/weekly/monthly workload for burnout risk analysis.
  */
-class EmployeeWorkloadMetric extends Model
+class EmployeeWorkloadMetric extends TenantModel
 {
     protected $fillable = [
         'employee_id',

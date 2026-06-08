@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use App\Models\Tenant\HRM\SafetyInspectionItem;
 use App\Models\Tenant\HRM\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class SafetyInspection extends Model
+class SafetyInspection extends TenantModel
 {
     use HasFactory;
 

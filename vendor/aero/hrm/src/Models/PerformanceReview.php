@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Aero\Core\Models\User;
 use App\Models\PerformanceCompetencyScore;
 use App\Models\PerformanceGoal;
@@ -36,7 +38,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read User $reviewer
  * @property-read string $review_period
  */
-class PerformanceReview extends Model
+class PerformanceReview extends TenantModel
 {
     use HasFactory, SoftDeletes;
 

@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Aero\HRMAC\Http\Middleware;
 
-use Aero\HRMAC\Contracts\RoleModuleAccessInterface;
+use Aero\Contracts\RoleModuleAccessInterface;
+use Aero\HRMAC\Services\HrmacAuditService;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -42,7 +43,8 @@ class CheckRoleModuleAccess
     ];
 
     public function __construct(
-        protected RoleModuleAccessInterface $roleModuleAccessService
+        protected RoleModuleAccessInterface $roleModuleAccessService,
+        protected HrmacAuditService $audit,
     ) {}
 
     /**
@@ -83,6 +85,10 @@ class CheckRoleModuleAccess
         $hasAccess = $this->checkAccess($user, $moduleCode, $subModuleCode, $componentCode, $actionCode);
 
         if (! $hasAccess) {
+            // Plan 04 T1 — persist denial to hrmac_audit_log (queryable)
+            $this->audit->logDenial($request, $user, $moduleCode, $subModuleCode, $componentCode, $actionCode);
+
+            // Keep the Log channel write for short-term ops dashboards / SIEM tailing
             Log::warning('Role module access denied', [
                 'user_id' => $user->id,
                 'path' => $path,
@@ -171,22 +177,36 @@ class CheckRoleModuleAccess
     }
 
     /**
-     * Check if user is a super admin.
+     * Check if the given user holds a super-admin role.
+     *
+     * Context-free: HRMAC does NOT detect the active guard. The user's roles are
+     * resolved from the current (host-decided) connection, so a tenant user only
+     * carries tenant role rows and a platform user only carries central role rows.
+     * A single flat super_admin_roles list (the union of all contexts) is therefore
+     * safe — names that don't exist in the current DB simply never match.
+     *
+     * Accepts both the flat list format and the legacy guard-scoped assoc format
+     * (values are flattened) so transitional configs keep working.
      */
     protected function isSuperAdmin($user): bool
     {
-        $superAdminRoles = config('hrmac.super_admin_roles', [
-            'Super Administrator',
-            'super-admin',
-            'tenant_super_administrator',
-        ]);
+        $rolesConfig = config('hrmac.super_admin_roles', []);
 
-        // Check for hasAnyRole first (supports array of roles)
+        $superAdminRoles = [];
+        array_walk_recursive($rolesConfig, function ($role) use (&$superAdminRoles) {
+            if (is_string($role) && $role !== '') {
+                $superAdminRoles[] = $role;
+            }
+        });
+
+        if (empty($superAdminRoles)) {
+            return false;
+        }
+
         if (method_exists($user, 'hasAnyRole')) {
             return $user->hasAnyRole($superAdminRoles);
         }
 
-        // Fallback to hasRole with individual checks
         if (method_exists($user, 'hasRole')) {
             foreach ($superAdminRoles as $role) {
                 if ($user->hasRole($role)) {

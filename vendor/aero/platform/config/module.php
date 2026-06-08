@@ -21,6 +21,7 @@ return [
     */
 
     'code' => 'platform',
+    'schema_version' => '2.0',
     'scope' => 'platform',
     'name' => 'Platform Administration',
     'description' => 'Multi-tenant SaaS platform management including tenants, plans, billing, and system settings',
@@ -37,83 +38,6 @@ return [
     'release_date' => '2024-01-01',
     'enabled' => true,
 
-    'features' => [
-        // Foundation
-        'dashboard'                  => true,
-        'landlord_auth'              => true,
-        'platform_users'             => true,
-        'roles_permissions'          => true,
-        'impersonation'              => true,
-        'audit_logs'                 => true,
-
-        // Tenant lifecycle
-        'tenant_management'          => true,
-        'tenant_operations'          => true, // clone, migrate, export, freeze, archive
-        'tenant_backup_restore'      => true, // critical for SaaS
-        'multi_region'               => true, // data residency
-        'public_registration'        => true,
-        'onboarding'                 => true,
-        'tenant_communications'      => true, // broadcasts, in-app
-        'customer_success'           => true, // health score, churn
-        'help_center'                => true, // platform-side KB for tenants
-        'tenant_support_tickets'     => true,
-
-        // Commerce / Billing
-        'plan_management'            => true,
-        'subscription_billing'       => true,
-        'coupons_promotions'         => true,
-        'addons_metered_billing'     => true,
-        'refunds_credits'            => true,
-        'dunning_workflow'           => true,
-        'tax_engine'                 => true,
-        'multi_currency'             => true,
-        'reseller_partner'           => true, // channel partners (full)
-        'white_label_per_tenant'     => true, // custom domains, SSL, branding
-        'feature_flags'              => true, // rollouts per tenant
-
-        // Quotas & Resources
-        'quota_management'           => true,
-        'usage_metering'             => true,
-        'resource_provisioning'      => true,
-        'job_scheduler'              => true,
-
-        // Modules / Marketplace
-        'module_management'          => true,
-        'modules_marketplace'        => true,
-
-        // Status / Incident
-        'status_page'                => true,
-        'incident_management'        => true,
-        'maintenance_windows'        => true,
-        'sla_tracking'               => true,
-
-        // Compliance & Security
-        'compliance_legal'           => true, // DPA, subprocessors, ToS versions, certifications
-        'security_center'            => true, // pentest reports, incidents, bug bounty
-
-        // System Ops
-        'error_monitoring'           => true,
-        'developer_tools'            => true,
-        'system_settings'            => true,
-
-        // Email / Communications
-        'email_deliverability'       => true, // DKIM, suppression, bounce
-        'api_gateway'                => true, // per-tenant rate limits, quotas
-
-        // Analytics
-        'analytics'                  => true,
-
-        // Marketing
-        'seo_management'             => true,
-        'lead_management'            => true,
-        'newsletter_management'      => true,
-        'affiliate_program'          => true,
-        'social_auth'                => true,
-
-        // Integrations
-        'integrations'               => true,
-    ],
-
     'submodules' => [
         /*
         |--------------------------------------------------------------------------
@@ -121,7 +45,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'admin_dashboard',
+            'code' => 'platform-dashboard',
             'name' => 'Dashboard',
             'description' => 'Platform overview and statistics',
             'icon' => 'HomeIcon',
@@ -130,7 +54,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'dashboard_overview',
+                    'code' => 'dashboard-overview',
                     'name' => 'Dashboard',
                     'route' => '/dashboard',
                     'actions' => [
@@ -146,7 +70,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'tenant_management',
+            'code' => 'tenants',
             'name' => 'Tenants',
             'description' => 'Manage all tenant organizations',
             'icon' => 'BuildingOfficeIcon',
@@ -155,7 +79,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'tenant_list',
+                    'code' => 'tenant-list',
                     'name' => 'All Tenants',
                     'route' => '/tenants',
                     'actions' => [
@@ -166,10 +90,11 @@ return [
                         ['code' => 'suspend', 'name' => 'Suspend Tenant'],
                         ['code' => 'activate', 'name' => 'Activate Tenant'],
                         ['code' => 'impersonate', 'name' => 'Impersonate Tenant'],
+                        ['code' => 'forget', 'name' => 'GDPR Right to be Forgotten'],
                     ],
                 ],
                 [
-                    'code' => 'tenant_domains',
+                    'code' => 'tenant-domains',
                     'name' => 'Domains',
                     'route' => '/tenants/domains',
                     'actions' => [
@@ -178,7 +103,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'tenant_databases',
+                    'code' => 'tenant-databases',
                     'name' => 'Databases',
                     'route' => '/tenants/databases',
                     'actions' => [
@@ -196,7 +121,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'onboarding_management',
+            'code' => 'platform-onboarding',
             'name' => 'Onboarding',
             'description' => 'Manage tenant registration and onboarding',
             'icon' => 'UserPlusIcon',
@@ -205,7 +130,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'onboarding_dashboard',
+                    'code' => 'onboarding-dashboard',
                     'name' => 'Dashboard',
                     'route' => '/onboarding',
                     'actions' => [
@@ -213,7 +138,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'pending_approvals',
+                    'code' => 'pending-approvals',
                     'name' => 'Pending Approvals',
                     'route' => '/onboarding/pending',
                     'actions' => [
@@ -242,7 +167,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'onboarding_analytics',
+                    'code' => 'onboarding-analytics',
                     'name' => 'Analytics',
                     'route' => '/onboarding/analytics',
                     'actions' => [
@@ -251,7 +176,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'onboarding_automation',
+                    'code' => 'onboarding-automation',
                     'name' => 'Automation',
                     'route' => '/onboarding/automation',
                     'actions' => [
@@ -261,7 +186,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'onboarding_settings',
+                    'code' => 'onboarding-settings',
                     'name' => 'Settings',
                     'route' => '/onboarding/settings',
                     'actions' => [
@@ -278,7 +203,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'plan_management',
+            'code' => 'plan-management',
             'name' => 'Plans',
             'description' => 'Manage subscription plans and pricing',
             'icon' => 'CurrencyDollarIcon',
@@ -287,7 +212,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'plan_list',
+                    'code' => 'plan-list',
                     'name' => 'All Plans',
                     'route' => '/plans',
                     'actions' => [
@@ -300,23 +225,14 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'plan_details',
+                    'code' => 'plan-details',
                     'name' => 'Plan Details',
                     'route' => '/plans/{id}',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Plan Details'],
-                        ['code' => 'view_subscribers', 'name' => 'View Subscribers'],
-                        ['code' => 'view_revenue', 'name' => 'View Revenue Metrics'],
+                        ['code' => 'view-subscribers', 'name' => 'View Subscribers'],
+                        ['code' => 'view-revenue', 'name' => 'View Revenue Metrics'],
                         ['code' => 'export', 'name' => 'Export Reports'],
-                    ],
-                ],
-                [
-                    'code' => 'plan_modules',
-                    'name' => 'Module Assignment',
-                    'route' => '/plans/modules',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Module Assignments'],
-                        ['code' => 'assign', 'name' => 'Assign Modules'],
                     ],
                 ],
             ],
@@ -328,7 +244,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'quota_management',
+            'code' => 'quota-management',
             'name' => 'Quota Management',
             'description' => 'Monitor and configure quota enforcement across all tenants',
             'icon' => 'ChartPieIcon',
@@ -337,17 +253,17 @@ return [
 
             'components' => [
                 [
-                    'code' => 'quota_dashboard',
+                    'code' => 'quota-dashboard',
                     'name' => 'Quota Monitor',
                     'route' => '/quotas',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Quota Dashboard'],
                         ['code' => 'override', 'name' => 'Override Tenant Quotas'],
-                        ['code' => 'dismiss_warnings', 'name' => 'Dismiss Warnings'],
+                        ['code' => 'dismiss-warnings', 'name' => 'Dismiss Warnings'],
                     ],
                 ],
                 [
-                    'code' => 'quota_settings',
+                    'code' => 'quota-settings',
                     'name' => 'Enforcement Settings',
                     'route' => '/quotas/settings',
                     'actions' => [
@@ -356,7 +272,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'quota_analytics',
+                    'code' => 'quota-analytics',
                     'name' => 'Usage Analytics',
                     'route' => '/quotas/analytics',
                     'actions' => [
@@ -373,7 +289,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'billing_management',
+            'code' => 'billing-management',
             'name' => 'Billing',
             'description' => 'Manage subscriptions, invoices, and payments',
             'icon' => 'CreditCardIcon',
@@ -382,7 +298,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'billing_dashboard',
+                    'code' => 'billing-dashboard',
                     'name' => 'Dashboard',
                     'route' => '/billing',
                     'actions' => [
@@ -407,11 +323,11 @@ return [
                         ['code' => 'view', 'name' => 'View Invoices'],
                         ['code' => 'generate', 'name' => 'Generate Invoice'],
                         ['code' => 'send', 'name' => 'Send Invoice'],
-                        ['code' => 'mark_paid', 'name' => 'Mark as Paid'],
+                        ['code' => 'mark-paid', 'name' => 'Mark as Paid'],
                     ],
                 ],
                 [
-                    'code' => 'payment_gateways',
+                    'code' => 'payment-gateways',
                     'name' => 'Payment Gateways',
                     'route' => '/billing/gateways',
                     'actions' => [
@@ -428,7 +344,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'module_management',
+            'code' => 'module-management',
             'name' => 'Modules',
             'description' => 'Manage available modules and marketplace',
             'icon' => 'CubeIcon',
@@ -437,17 +353,17 @@ return [
 
             'components' => [
                 [
-                    'code' => 'module_list',
+                    'code' => 'module-list',
                     'name' => 'All Modules',
                     'route' => '/modules',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Modules'],
                         ['code' => 'configure', 'name' => 'Configure Module'],
-                        ['code' => 'toggle_active', 'name' => 'Toggle Active'],
+                        ['code' => 'toggle-active', 'name' => 'Toggle Active'],
                     ],
                 ],
                 [
-                    'code' => 'module_pricing',
+                    'code' => 'module-pricing',
                     'name' => 'Module Pricing',
                     'route' => '/modules/pricing',
                     'actions' => [
@@ -464,7 +380,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'error_monitoring',
+            'code' => 'error-monitoring',
             'name' => 'Error Logs',
             'description' => 'Monitor errors from all installations',
             'icon' => 'ExclamationTriangleIcon',
@@ -473,7 +389,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'error_log_list',
+                    'code' => 'error-log-list',
                     'name' => 'All Errors',
                     'route' => '/error-logs',
                     'actions' => [
@@ -483,7 +399,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'error_analytics',
+                    'code' => 'error-analytics',
                     'name' => 'Analytics',
                     'route' => '/error-logs/analytics',
                     'actions' => [
@@ -499,7 +415,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'landlord_users',
+            'code' => 'platform-users',
             'name' => 'Platform Users',
             'description' => 'Manage platform administrators',
             'icon' => 'UserGroupIcon',
@@ -508,7 +424,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'landlord_user_list',
+                    'code' => 'landlord-user-list',
                     'name' => 'All Users',
                     'route' => '/users',
                     'actions' => [
@@ -519,7 +435,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'landlord_roles',
+                    'code' => 'landlord-roles',
                     'name' => 'Roles',
                     'route' => '/roles',
                     'actions' => [
@@ -528,7 +444,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'module_access',
+                    'code' => 'module-access',
                     'name' => 'Module Access',
                     'route' => '/module-access',
                     'actions' => [
@@ -545,7 +461,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'integrations',
+            'code' => 'platform-integrations',
             'name' => 'Integrations',
             'description' => 'Manage API keys, webhooks, and connectors',
             'icon' => 'LinkIcon',
@@ -554,7 +470,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'api_keys',
+                    'code' => 'api-keys',
                     'name' => 'API Keys',
                     'route' => '/integrations/api',
                     'actions' => [
@@ -590,7 +506,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'platform_settings',
+            'code' => 'system-settings',
             'name' => 'Settings',
             'description' => 'Platform configuration and settings',
             'icon' => 'Cog6ToothIcon',
@@ -599,7 +515,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'general_settings',
+                    'code' => 'general-settings',
                     'name' => 'General',
                     'route' => '/settings',
                     'actions' => [
@@ -608,7 +524,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'branding_settings',
+                    'code' => 'branding-settings',
                     'name' => 'Branding',
                     'route' => '/settings/branding',
                     'actions' => [
@@ -617,7 +533,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'email_settings',
+                    'code' => 'email-settings',
                     'name' => 'Email',
                     'route' => '/settings/email',
                     'actions' => [
@@ -627,7 +543,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'localization_settings',
+                    'code' => 'localization-settings',
                     'name' => 'Localization',
                     'route' => '/settings/localization',
                     'actions' => [
@@ -636,7 +552,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'maintenance_settings',
+                    'code' => 'maintenance-settings',
                     'name' => 'Maintenance',
                     'route' => '/settings/maintenance',
                     'actions' => [
@@ -645,7 +561,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'infrastructure_settings',
+                    'code' => 'infrastructure-settings',
                     'name' => 'Infrastructure',
                     'icon' => 'ServerStackIcon',
                     'route' => '/settings/infrastructure',
@@ -664,7 +580,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'developer_tools',
+            'code' => 'developer-tools',
             'name' => 'Developer',
             'description' => 'Developer tools and system monitoring',
             'icon' => 'CommandLineIcon',
@@ -673,7 +589,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'developer_dashboard',
+                    'code' => 'developer-dashboard',
                     'name' => 'Dashboard',
                     'route' => '/developer',
                     'actions' => [
@@ -681,7 +597,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'cache_management',
+                    'code' => 'cache-management',
                     'name' => 'Cache',
                     'route' => '/developer/cache',
                     'actions' => [
@@ -690,7 +606,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'queue_management',
+                    'code' => 'queue-management',
                     'name' => 'Queues',
                     'route' => '/developer/queues',
                     'actions' => [
@@ -699,7 +615,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'log_viewer',
+                    'code' => 'log-viewer',
                     'name' => 'Logs',
                     'route' => '/developer/logs',
                     'actions' => [
@@ -716,7 +632,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'audit_logs',
+            'code' => 'audit-logs',
             'name' => 'Audit Logs',
             'description' => 'Platform activity and audit trail',
             'icon' => 'ClipboardDocumentListIcon',
@@ -725,7 +641,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'audit_log_list',
+                    'code' => 'audit-log-list',
                     'name' => 'All Logs',
                     'route' => '/audit-logs',
                     'actions' => [
@@ -738,11 +654,46 @@ return [
 
         /*
         |--------------------------------------------------------------------------
+        | 13b. Access Logs (PII access tracking)
+        |--------------------------------------------------------------------------
+        */
+        [
+            'code' => 'access-logs',
+            'name' => 'Access Logs',
+            'description' => 'Track access to sensitive fields and PII data',
+            'icon' => 'ShieldCheckIcon',
+            'route' => '/access-logs',
+            'priority' => 14,
+
+            'components' => [
+                [
+                    'code' => 'access-log-list',
+                    'name' => 'All Access Logs',
+                    'route' => '/access-logs',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Access Logs'],
+                        ['code' => 'export', 'name' => 'Export Logs'],
+                    ],
+                ],
+                [
+                    'code' => 'pii-access',
+                    'name' => 'PII Access',
+                    'route' => '/access-logs/pii',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View PII Access Logs'],
+                        ['code' => 'export', 'name' => 'Export PII Logs'],
+                    ],
+                ],
+            ],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
         | 14. Analytics & Reports
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'analytics',
+            'code' => 'platform-analytics',
             'name' => 'Analytics',
             'description' => 'Platform analytics and reports',
             'icon' => 'ChartBarIcon',
@@ -751,7 +702,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'analytics_dashboard',
+                    'code' => 'analytics-dashboard',
                     'name' => 'Dashboard',
                     'route' => '/analytics',
                     'actions' => [
@@ -759,7 +710,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'revenue_reports',
+                    'code' => 'revenue-reports',
                     'name' => 'Revenue',
                     'route' => '/analytics/revenue',
                     'actions' => [
@@ -768,7 +719,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'tenant_analytics',
+                    'code' => 'tenant-analytics',
                     'name' => 'Tenant Analytics',
                     'route' => '/analytics/tenants',
                     'actions' => [
@@ -784,7 +735,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'seo_management',
+            'code' => 'seo-management',
             'name' => 'SEO',
             'description' => 'Search engine optimization and meta tag management',
             'icon' => 'MagnifyingGlassIcon',
@@ -793,7 +744,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'seo_settings',
+                    'code' => 'seo-settings',
                     'name' => 'SEO Settings',
                     'route' => '/seo/settings',
                     'actions' => [
@@ -802,7 +753,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'page_seo',
+                    'code' => 'page-seo',
                     'name' => 'Page SEO',
                     'route' => '/seo/pages',
                     'actions' => [
@@ -811,7 +762,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'sitemap_management',
+                    'code' => 'sitemap-management',
                     'name' => 'Sitemap',
                     'route' => '/seo/sitemap',
                     'actions' => [
@@ -820,7 +771,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'analytics_integrations',
+                    'code' => 'analytics-integrations',
                     'name' => 'Analytics Integrations',
                     'route' => '/seo/analytics',
                     'actions' => [
@@ -837,7 +788,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'lead_management',
+            'code' => 'lead-management',
             'name' => 'Leads',
             'description' => 'Manage prospect leads and inquiries',
             'icon' => 'UserPlusIcon',
@@ -846,7 +797,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'lead_list',
+                    'code' => 'lead-list',
                     'name' => 'All Leads',
                     'route' => '/leads',
                     'actions' => [
@@ -859,7 +810,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'lead_pipeline',
+                    'code' => 'lead-pipeline',
                     'name' => 'Pipeline',
                     'route' => '/leads/pipeline',
                     'actions' => [
@@ -868,7 +819,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'lead_analytics',
+                    'code' => 'lead-analytics',
                     'name' => 'Lead Analytics',
                     'route' => '/leads/analytics',
                     'actions' => [
@@ -885,7 +836,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'newsletter_management',
+            'code' => 'newsletter-management',
             'name' => 'Newsletter',
             'description' => 'Manage newsletter subscribers and campaigns',
             'icon' => 'EnvelopeIcon',
@@ -894,7 +845,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'subscriber_list',
+                    'code' => 'subscriber-list',
                     'name' => 'Subscribers',
                     'route' => '/newsletter/subscribers',
                     'actions' => [
@@ -906,7 +857,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'newsletter_settings',
+                    'code' => 'newsletter-settings',
                     'name' => 'Settings',
                     'route' => '/newsletter/settings',
                     'actions' => [
@@ -923,7 +874,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'affiliate_program',
+            'code' => 'affiliate-program',
             'name' => 'Affiliates',
             'description' => 'Manage affiliate/referral program',
             'icon' => 'UsersIcon',
@@ -932,7 +883,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'affiliate_list',
+                    'code' => 'affiliate-list',
                     'name' => 'All Affiliates',
                     'route' => '/affiliates',
                     'actions' => [
@@ -945,16 +896,16 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'affiliate_referrals',
+                    'code' => 'affiliate-referrals',
                     'name' => 'Referrals',
                     'route' => '/affiliates/referrals',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Referrals'],
-                        ['code' => 'approve_commission', 'name' => 'Approve Commission'],
+                        ['code' => 'approve-commission', 'name' => 'Approve Commission'],
                     ],
                 ],
                 [
-                    'code' => 'affiliate_payouts',
+                    'code' => 'affiliate-payouts',
                     'name' => 'Payouts',
                     'route' => '/affiliates/payouts',
                     'actions' => [
@@ -964,7 +915,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'affiliate_settings',
+                    'code' => 'affiliate-settings',
                     'name' => 'Settings',
                     'route' => '/affiliates/settings',
                     'actions' => [
@@ -973,7 +924,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'affiliate_analytics',
+                    'code' => 'affiliate-analytics',
                     'name' => 'Analytics',
                     'route' => '/affiliates/analytics',
                     'actions' => [
@@ -990,7 +941,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'social_auth',
+            'code' => 'social-authentication',
             'name' => 'Social Login',
             'description' => 'Configure social authentication providers',
             'icon' => 'ShareIcon',
@@ -999,7 +950,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'social_providers',
+                    'code' => 'social-providers',
                     'name' => 'Providers',
                     'route' => '/social-auth/providers',
                     'actions' => [
@@ -1008,7 +959,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'social_accounts',
+                    'code' => 'social-accounts',
                     'name' => 'Linked Accounts',
                     'route' => '/social-auth/accounts',
                     'actions' => [
@@ -1025,7 +976,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'tenant_operations',
+            'code' => 'tenant-operations',
             'name' => 'Tenant Operations',
             'description' => 'Tenant clone, migration between regions/databases, full data export, freeze/unfreeze, archive',
             'icon' => 'ArrowsRightLeftIcon',
@@ -1034,14 +985,14 @@ return [
 
             'components' => [
                 [
-                    'code' => 'tenant_clone', 'name' => 'Tenant Cloning', 'route' => '/tenant-operations/clone',
+                    'code' => 'tenant-clone', 'name' => 'Tenant Cloning', 'route' => '/tenant-operations/clone',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Clones'],
                         ['code' => 'clone', 'name' => 'Clone Tenant'],
                     ],
                 ],
                 [
-                    'code' => 'tenant_migration', 'name' => 'Tenant Migration', 'route' => '/tenant-operations/migration',
+                    'code' => 'tenant-migration', 'name' => 'Tenant Migration', 'route' => '/tenant-operations/migration',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Migrations'],
                         ['code' => 'plan', 'name' => 'Plan Migration'],
@@ -1050,7 +1001,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'tenant_export', 'name' => 'Full Tenant Export (GDPR)', 'route' => '/tenant-operations/export',
+                    'code' => 'tenant-export', 'name' => 'Full Tenant Export (GDPR)', 'route' => '/tenant-operations/export',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Exports'],
                         ['code' => 'request', 'name' => 'Request Tenant Export'],
@@ -1058,7 +1009,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'tenant_import', 'name' => 'Tenant Import (Migration In)', 'route' => '/tenant-operations/import',
+                    'code' => 'tenant-import', 'name' => 'Tenant Import (Migration In)', 'route' => '/tenant-operations/import',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Imports'],
                         ['code' => 'upload', 'name' => 'Upload Import Bundle'],
@@ -1066,25 +1017,25 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'tenant_freeze', 'name' => 'Freeze / Unfreeze Tenant', 'route' => '/tenant-operations/freeze',
+                    'code' => 'tenant-freeze', 'name' => 'Freeze / Unfreeze Tenant', 'route' => '/tenant-operations/freeze',
                     'actions' => [
                         ['code' => 'freeze', 'name' => 'Freeze Tenant'],
                         ['code' => 'unfreeze', 'name' => 'Unfreeze Tenant'],
                     ],
                 ],
                 [
-                    'code' => 'tenant_archive', 'name' => 'Archive / Restore Tenant', 'route' => '/tenant-operations/archive',
+                    'code' => 'tenant-archive', 'name' => 'Archive / Restore Tenant', 'route' => '/tenant-operations/archive',
                     'actions' => [
                         ['code' => 'archive', 'name' => 'Archive Tenant'],
                         ['code' => 'restore', 'name' => 'Restore Tenant'],
                     ],
                 ],
                 [
-                    'code' => 'bulk_actions', 'name' => 'Bulk Tenant Actions', 'route' => '/tenant-operations/bulk',
+                    'code' => 'bulk-actions', 'name' => 'Bulk Tenant Actions', 'route' => '/tenant-operations/bulk',
                     'actions' => [
-                        ['code' => 'bulk_email', 'name' => 'Bulk Email'],
-                        ['code' => 'bulk_suspend', 'name' => 'Bulk Suspend'],
-                        ['code' => 'bulk_plan_change', 'name' => 'Bulk Plan Change'],
+                        ['code' => 'bulk-email', 'name' => 'Bulk Email'],
+                        ['code' => 'bulk-suspend', 'name' => 'Bulk Suspend'],
+                        ['code' => 'bulk-plan-change', 'name' => 'Bulk Plan Change'],
                     ],
                 ],
             ],
@@ -1096,7 +1047,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'backup_restore',
+            'code' => 'backup-restore',
             'name' => 'Backup & Restore',
             'description' => 'Scheduled tenant backups, on-demand backups, point-in-time restore',
             'icon' => 'CircleStackIcon',
@@ -1105,13 +1056,13 @@ return [
 
             'components' => [
                 [
-                    'code' => 'backup_dashboard', 'name' => 'Backup Dashboard', 'route' => '/backup-restore',
+                    'code' => 'backup-dashboard', 'name' => 'Backup Dashboard', 'route' => '/backup-restore',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Backups'],
                     ],
                 ],
                 [
-                    'code' => 'backup_schedules', 'name' => 'Backup Schedules', 'route' => '/backup-restore/schedules',
+                    'code' => 'backup-schedules', 'name' => 'Backup Schedules', 'route' => '/backup-restore/schedules',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Schedules'],
                         ['code' => 'create', 'name' => 'Create Schedule'],
@@ -1120,7 +1071,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'manual_backups', 'name' => 'On-Demand Backups', 'route' => '/backup-restore/manual',
+                    'code' => 'manual-backups', 'name' => 'On-Demand Backups', 'route' => '/backup-restore/manual',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Manual Backups'],
                         ['code' => 'create', 'name' => 'Create Manual Backup'],
@@ -1135,14 +1086,14 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'backup_storage', 'name' => 'Backup Storage', 'route' => '/backup-restore/storage',
+                    'code' => 'backup-storage', 'name' => 'Backup Storage', 'route' => '/backup-restore/storage',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Storage'],
                         ['code' => 'configure', 'name' => 'Configure Storage Backend'],
                     ],
                 ],
                 [
-                    'code' => 'retention_policies', 'name' => 'Backup Retention', 'route' => '/backup-restore/retention',
+                    'code' => 'retention-policies', 'name' => 'Backup Retention', 'route' => '/backup-restore/retention',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Retention Policies'],
                         ['code' => 'manage', 'name' => 'Manage Retention'],
@@ -1157,7 +1108,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'coupons_promotions',
+            'code' => 'coupons-promotions',
             'name' => 'Coupons & Promotions',
             'description' => 'Discount codes, promotional campaigns, time-limited offers',
             'icon' => 'TagIcon',
@@ -1173,7 +1124,7 @@ return [
                         ['code' => 'update', 'name' => 'Update Coupon'],
                         ['code' => 'delete', 'name' => 'Delete Coupon'],
                         ['code' => 'archive', 'name' => 'Archive Coupon'],
-                        ['code' => 'bulk_generate', 'name' => 'Bulk Generate Codes'],
+                        ['code' => 'bulk-generate', 'name' => 'Bulk Generate Codes'],
                     ],
                 ],
                 [
@@ -1201,7 +1152,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'addons_metered',
+            'code' => 'addons-metered',
             'name' => 'Add-ons & Metered Billing',
             'description' => 'À-la-carte add-ons, usage-based billing, pay-as-you-go',
             'icon' => 'CubeIcon',
@@ -1219,7 +1170,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'metered_meters', 'name' => 'Usage Meters', 'route' => '/addons-metered/meters',
+                    'code' => 'metered-meters', 'name' => 'Usage Meters', 'route' => '/addons-metered/meters',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Meters'],
                         ['code' => 'create', 'name' => 'Create Meter'],
@@ -1227,14 +1178,14 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'metered_events', 'name' => 'Usage Events', 'route' => '/addons-metered/events',
+                    'code' => 'metered-events', 'name' => 'Usage Events', 'route' => '/addons-metered/events',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Events'],
                         ['code' => 'export', 'name' => 'Export Events'],
                     ],
                 ],
                 [
-                    'code' => 'pay_as_you_go', 'name' => 'Pay-As-You-Go', 'route' => '/addons-metered/payg',
+                    'code' => 'pay-as-you-go', 'name' => 'Pay-As-You-Go', 'route' => '/addons-metered/payg',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View PAYG'],
                         ['code' => 'configure', 'name' => 'Configure PAYG Pricing'],
@@ -1249,7 +1200,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'refunds_credits',
+            'code' => 'refunds-credits',
             'name' => 'Refunds & Credit Notes',
             'description' => 'Process refunds, issue credit notes, apply credits',
             'icon' => 'ArrowUturnLeftIcon',
@@ -1267,7 +1218,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'credit_notes', 'name' => 'Credit Notes', 'route' => '/refunds-credits/credit-notes',
+                    'code' => 'credit-notes', 'name' => 'Credit Notes', 'route' => '/refunds-credits/credit-notes',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Credit Notes'],
                         ['code' => 'create', 'name' => 'Issue Credit Note'],
@@ -1292,28 +1243,28 @@ return [
 
             'components' => [
                 [
-                    'code' => 'dunning_dashboard', 'name' => 'Dunning Dashboard', 'route' => '/dunning',
+                    'code' => 'dunning-dashboard', 'name' => 'Dunning Dashboard', 'route' => '/dunning',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Dunning Dashboard'],
                     ],
                 ],
                 [
-                    'code' => 'dunning_rules', 'name' => 'Dunning Rules', 'route' => '/dunning/rules',
+                    'code' => 'dunning-rules', 'name' => 'Dunning Rules', 'route' => '/dunning/rules',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Rules'],
                         ['code' => 'manage', 'name' => 'Manage Rules'],
                     ],
                 ],
                 [
-                    'code' => 'failed_payments', 'name' => 'Failed Payments', 'route' => '/dunning/failed-payments',
+                    'code' => 'failed-payments', 'name' => 'Failed Payments', 'route' => '/dunning/failed-payments',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Failed Payments'],
                         ['code' => 'retry', 'name' => 'Retry Payment'],
-                        ['code' => 'mark_uncollectible', 'name' => 'Mark Uncollectible'],
+                        ['code' => 'mark-uncollectible', 'name' => 'Mark Uncollectible'],
                     ],
                 ],
                 [
-                    'code' => 'recovery_emails', 'name' => 'Recovery Email Templates', 'route' => '/dunning/templates',
+                    'code' => 'recovery-emails', 'name' => 'Recovery Email Templates', 'route' => '/dunning/templates',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Templates'],
                         ['code' => 'manage', 'name' => 'Manage Templates'],
@@ -1328,7 +1279,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'tax_engine',
+            'code' => 'tax-engine',
             'name' => 'Tax Engine',
             'description' => 'Regional tax rates, VAT/GST validation, tax provider integration',
             'icon' => 'ReceiptPercentIcon',
@@ -1337,27 +1288,27 @@ return [
 
             'components' => [
                 [
-                    'code' => 'tax_rates', 'name' => 'Tax Rates by Region', 'route' => '/tax-engine/rates',
+                    'code' => 'tax-rates', 'name' => 'Tax Rates by Region', 'route' => '/tax-engine/rates',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Rates'],
                         ['code' => 'manage', 'name' => 'Manage Rates'],
                     ],
                 ],
                 [
-                    'code' => 'tax_id_validation', 'name' => 'VAT / Tax ID Validation', 'route' => '/tax-engine/validation',
+                    'code' => 'tax-id-validation', 'name' => 'VAT / Tax ID Validation', 'route' => '/tax-engine/validation',
                     'actions' => [
                         ['code' => 'validate', 'name' => 'Validate Tax ID'],
                     ],
                 ],
                 [
-                    'code' => 'tax_providers', 'name' => 'Tax Providers (Stripe Tax / Avalara / TaxJar)', 'route' => '/tax-engine/providers',
+                    'code' => 'tax-providers', 'name' => 'Tax Providers (Stripe Tax / Avalara / TaxJar)', 'route' => '/tax-engine/providers',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Providers'],
                         ['code' => 'configure', 'name' => 'Configure Provider'],
                     ],
                 ],
                 [
-                    'code' => 'tax_reports', 'name' => 'Tax Reports', 'route' => '/tax-engine/reports',
+                    'code' => 'tax-reports', 'name' => 'Tax Reports', 'route' => '/tax-engine/reports',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Reports'],
                         ['code' => 'generate', 'name' => 'Generate Tax Report'],
@@ -1365,7 +1316,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'w9_1099', 'name' => 'W-9 / 1099 Forms', 'route' => '/tax-engine/w9-1099',
+                    'code' => 'w9-1099', 'name' => 'W-9 / 1099 Forms', 'route' => '/tax-engine/w9-1099',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Forms'],
                         ['code' => 'generate', 'name' => 'Generate Forms'],
@@ -1380,7 +1331,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'multi_currency',
+            'code' => 'multi-currency',
             'name' => 'Multi-Currency',
             'description' => 'Currency exchange rates, regional pricing, currency conversion',
             'icon' => 'GlobeAltIcon',
@@ -1396,7 +1347,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'exchange_rates', 'name' => 'Exchange Rates', 'route' => '/multi-currency/rates',
+                    'code' => 'exchange-rates', 'name' => 'Exchange Rates', 'route' => '/multi-currency/rates',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Rates'],
                         ['code' => 'sync', 'name' => 'Sync Rates'],
@@ -1404,7 +1355,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'regional_pricing', 'name' => 'Regional Pricing', 'route' => '/multi-currency/regional',
+                    'code' => 'regional-pricing', 'name' => 'Regional Pricing', 'route' => '/multi-currency/regional',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Regional Prices'],
                         ['code' => 'manage', 'name' => 'Manage Regional Prices'],
@@ -1419,7 +1370,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'reseller_partners',
+            'code' => 'reseller-partners',
             'name' => 'Reseller / Channel Partners',
             'description' => 'White-label resellers, partner-managed tenants, commission rules, partner portal',
             'icon' => 'UsersIcon',
@@ -1438,7 +1389,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'partner_commissions', 'name' => 'Commission Rules', 'route' => '/partners/commissions',
+                    'code' => 'partner-commissions', 'name' => 'Commission Rules', 'route' => '/partners/commissions',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Commissions'],
                         ['code' => 'manage', 'name' => 'Manage Commission Rules'],
@@ -1446,14 +1397,14 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'partner_tenants', 'name' => 'Partner-Managed Tenants', 'route' => '/partners/tenants',
+                    'code' => 'partner-tenants', 'name' => 'Partner-Managed Tenants', 'route' => '/partners/tenants',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Partner Tenants'],
                         ['code' => 'reassign', 'name' => 'Reassign Tenant'],
                     ],
                 ],
                 [
-                    'code' => 'partner_portal', 'name' => 'Partner Portal', 'route' => '/partners/portal',
+                    'code' => 'partner-portal', 'name' => 'Partner Portal', 'route' => '/partners/portal',
                     'actions' => [
                         ['code' => 'configure', 'name' => 'Configure Portal'],
                     ],
@@ -1467,7 +1418,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'white_label',
+            'code' => 'white-label',
             'name' => 'White-Label per Tenant',
             'description' => 'Custom domains, SSL provisioning, per-tenant branding, custom CSS',
             'icon' => 'PaintBrushIcon',
@@ -1476,7 +1427,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'custom_domains', 'name' => 'Custom Domains', 'route' => '/white-label/domains',
+                    'code' => 'custom-domains', 'name' => 'Custom Domains', 'route' => '/white-label/domains',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Custom Domains'],
                         ['code' => 'add', 'name' => 'Add Custom Domain'],
@@ -1485,7 +1436,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'ssl_provisioning', 'name' => 'SSL Provisioning (Lets Encrypt)', 'route' => '/white-label/ssl',
+                    'code' => 'ssl-provisioning', 'name' => 'SSL Provisioning (Lets Encrypt)', 'route' => '/white-label/ssl',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View SSL'],
                         ['code' => 'provision', 'name' => 'Provision SSL'],
@@ -1494,21 +1445,21 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'tenant_branding', 'name' => 'Tenant Branding', 'route' => '/white-label/branding',
+                    'code' => 'tenant-branding', 'name' => 'Tenant Branding', 'route' => '/white-label/branding',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Branding'],
                         ['code' => 'manage', 'name' => 'Manage Per-Tenant Branding'],
                     ],
                 ],
                 [
-                    'code' => 'custom_css', 'name' => 'Custom CSS / Code Injection', 'route' => '/white-label/custom-css',
+                    'code' => 'custom-css', 'name' => 'Custom CSS / Code Injection', 'route' => '/white-label/custom-css',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Custom CSS'],
                         ['code' => 'edit', 'name' => 'Edit Custom CSS'],
                     ],
                 ],
                 [
-                    'code' => 'tenant_email_branding', 'name' => 'Tenant Email Sender (DKIM)', 'route' => '/white-label/email',
+                    'code' => 'tenant-email-branding', 'name' => 'Tenant Email Sender (DKIM)', 'route' => '/white-label/email',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Email Senders'],
                         ['code' => 'configure', 'name' => 'Configure DKIM per Tenant'],
@@ -1524,7 +1475,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'feature_flags',
+            'code' => 'feature-flags',
             'name' => 'Feature Flags',
             'description' => 'Per-tenant feature flags, gradual rollouts, A/B experiments',
             'icon' => 'BeakerIcon',
@@ -1558,7 +1509,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'tenant_flags', 'name' => 'Per-Tenant Flag Overrides', 'route' => '/feature-flags/tenant-overrides',
+                    'code' => 'tenant-flags', 'name' => 'Per-Tenant Flag Overrides', 'route' => '/feature-flags/tenant-overrides',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Overrides'],
                         ['code' => 'manage', 'name' => 'Manage Overrides'],
@@ -1573,7 +1524,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'tenant_communications',
+            'code' => 'tenant-communications',
             'name' => 'Tenant Communications',
             'description' => 'Broadcast announcements, in-app messages, targeted email blasts',
             'icon' => 'MegaphoneIcon',
@@ -1587,11 +1538,11 @@ return [
                         ['code' => 'view', 'name' => 'View Broadcasts'],
                         ['code' => 'create', 'name' => 'Create Broadcast'],
                         ['code' => 'publish', 'name' => 'Publish Broadcast'],
-                        ['code' => 'dismiss_all', 'name' => 'Dismiss Globally'],
+                        ['code' => 'dismiss-all', 'name' => 'Dismiss Globally'],
                     ],
                 ],
                 [
-                    'code' => 'email_blasts', 'name' => 'Email Blasts to Tenants', 'route' => '/communications/email',
+                    'code' => 'email-blasts', 'name' => 'Email Blasts to Tenants', 'route' => '/communications/email',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Email Blasts'],
                         ['code' => 'create', 'name' => 'Create Email Blast'],
@@ -1599,14 +1550,14 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'targeted_messages', 'name' => 'Targeted Messages', 'route' => '/communications/targeted',
+                    'code' => 'targeted-messages', 'name' => 'Targeted Messages', 'route' => '/communications/targeted',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Targeted Messages'],
                         ['code' => 'create', 'name' => 'Create Targeted Message'],
                     ],
                 ],
                 [
-                    'code' => 'maintenance_windows', 'name' => 'Maintenance Windows', 'route' => '/communications/maintenance',
+                    'code' => 'maintenance-windows', 'name' => 'Maintenance Windows', 'route' => '/communications/maintenance',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Maintenance Windows'],
                         ['code' => 'schedule', 'name' => 'Schedule Maintenance'],
@@ -1622,7 +1573,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'status_incidents',
+            'code' => 'status-incidents',
             'name' => 'Status Page & Incidents',
             'description' => 'Public status page, incident management, postmortems, SLA reporting',
             'icon' => 'SignalIcon',
@@ -1631,18 +1582,18 @@ return [
 
             'components' => [
                 [
-                    'code' => 'status_page', 'name' => 'Public Status Page', 'route' => '/status',
+                    'code' => 'status-page', 'name' => 'Public Status Page', 'route' => '/status',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Status Page'],
                         ['code' => 'configure', 'name' => 'Configure Status Page'],
                     ],
                 ],
                 [
-                    'code' => 'service_components', 'name' => 'Service Components', 'route' => '/status/components',
+                    'code' => 'service-components', 'name' => 'Service Components', 'route' => '/status/components',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Components'],
                         ['code' => 'manage', 'name' => 'Manage Components'],
-                        ['code' => 'set_status', 'name' => 'Set Component Status'],
+                        ['code' => 'set-status', 'name' => 'Set Component Status'],
                     ],
                 ],
                 [
@@ -1663,14 +1614,14 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'sla_reporting', 'name' => 'SLA Reporting', 'route' => '/status/sla',
+                    'code' => 'sla-reporting', 'name' => 'SLA Reporting', 'route' => '/status/sla',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View SLA Report'],
                         ['code' => 'export', 'name' => 'Export SLA Report'],
                     ],
                 ],
                 [
-                    'code' => 'uptime_monitoring', 'name' => 'Uptime Monitoring', 'route' => '/status/uptime',
+                    'code' => 'uptime-monitoring', 'name' => 'Uptime Monitoring', 'route' => '/status/uptime',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Uptime'],
                         ['code' => 'configure', 'name' => 'Configure Monitors'],
@@ -1685,7 +1636,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'customer_success',
+            'code' => 'customer-success',
             'name' => 'Customer Success',
             'description' => 'Tenant health score, churn risk, onboarding tracking, CSM assignment, NPS',
             'icon' => 'HeartIcon',
@@ -1694,34 +1645,34 @@ return [
 
             'components' => [
                 [
-                    'code' => 'health_score', 'name' => 'Tenant Health Score', 'route' => '/customer-success/health',
+                    'code' => 'health-score', 'name' => 'Tenant Health Score', 'route' => '/customer-success/health',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Health Scores'],
                         ['code' => 'configure', 'name' => 'Configure Scoring'],
                     ],
                 ],
                 [
-                    'code' => 'churn_risk', 'name' => 'Churn Risk Predictions', 'route' => '/customer-success/churn',
+                    'code' => 'churn-risk', 'name' => 'Churn Risk Predictions', 'route' => '/customer-success/churn',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Churn Risk'],
                         ['code' => 'run', 'name' => 'Run Prediction'],
                     ],
                 ],
                 [
-                    'code' => 'onboarding_progress', 'name' => 'Onboarding Progress', 'route' => '/customer-success/onboarding-progress',
+                    'code' => 'onboarding-progress', 'name' => 'Onboarding Progress', 'route' => '/customer-success/onboarding-progress',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Onboarding Progress'],
                     ],
                 ],
                 [
-                    'code' => 'csm_assignment', 'name' => 'CSM Assignment', 'route' => '/customer-success/csm',
+                    'code' => 'csm-assignment', 'name' => 'CSM Assignment', 'route' => '/customer-success/csm',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View CSM Assignments'],
                         ['code' => 'assign', 'name' => 'Assign CSM'],
                     ],
                 ],
                 [
-                    'code' => 'nps_csat', 'name' => 'NPS / CSAT Surveys', 'route' => '/customer-success/nps',
+                    'code' => 'nps-csat', 'name' => 'NPS / CSAT Surveys', 'route' => '/customer-success/nps',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View NPS Scores'],
                         ['code' => 'send', 'name' => 'Send NPS Survey'],
@@ -1729,7 +1680,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'success_playbooks', 'name' => 'Success Playbooks', 'route' => '/customer-success/playbooks',
+                    'code' => 'success-playbooks', 'name' => 'Success Playbooks', 'route' => '/customer-success/playbooks',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Playbooks'],
                         ['code' => 'manage', 'name' => 'Manage Playbooks'],
@@ -1745,7 +1696,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'help_center',
+            'code' => 'help-center',
             'name' => 'Help Center',
             'description' => 'Knowledge base for tenants, in-app help, support tickets, live chat',
             'icon' => 'LifebuoyIcon',
@@ -1754,7 +1705,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'kb_articles', 'name' => 'Knowledge Base Articles', 'route' => '/help-center/articles',
+                    'code' => 'kb-articles', 'name' => 'Knowledge Base Articles', 'route' => '/help-center/articles',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Articles'],
                         ['code' => 'create', 'name' => 'Create Article'],
@@ -1764,14 +1715,14 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'video_tutorials', 'name' => 'Video Tutorials', 'route' => '/help-center/videos',
+                    'code' => 'video-tutorials', 'name' => 'Video Tutorials', 'route' => '/help-center/videos',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Videos'],
                         ['code' => 'manage', 'name' => 'Manage Videos'],
                     ],
                 ],
                 [
-                    'code' => 'tenant_tickets', 'name' => 'Tenant Support Tickets', 'route' => '/help-center/tickets',
+                    'code' => 'tenant-tickets', 'name' => 'Tenant Support Tickets', 'route' => '/help-center/tickets',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Tickets'],
                         ['code' => 'reply', 'name' => 'Reply to Ticket'],
@@ -1781,7 +1732,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'live_chat', 'name' => 'Live Chat', 'route' => '/help-center/chat',
+                    'code' => 'live-chat', 'name' => 'Live Chat', 'route' => '/help-center/chat',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Chats'],
                         ['code' => 'reply', 'name' => 'Reply to Chat'],
@@ -1789,7 +1740,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'in_app_help', 'name' => 'In-App Help & Tours', 'route' => '/help-center/in-app',
+                    'code' => 'in-app-help', 'name' => 'In-App Help & Tours', 'route' => '/help-center/in-app',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Tours'],
                         ['code' => 'create', 'name' => 'Create Tour'],
@@ -1805,7 +1756,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'compliance_legal',
+            'code' => 'compliance-legal',
             'name' => 'Compliance & Legal',
             'description' => 'DPA management, subprocessor registry, ToS/Privacy versions, certifications',
             'icon' => 'ScaleIcon',
@@ -1830,15 +1781,15 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'tos_versions', 'name' => 'Terms of Service Versions', 'route' => '/compliance-legal/tos',
+                    'code' => 'tos-versions', 'name' => 'Terms of Service Versions', 'route' => '/compliance-legal/tos',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View ToS Versions'],
                         ['code' => 'create', 'name' => 'Publish New Version'],
-                        ['code' => 'require_acceptance', 'name' => 'Require Re-Acceptance'],
+                        ['code' => 'require-acceptance', 'name' => 'Require Re-Acceptance'],
                     ],
                 ],
                 [
-                    'code' => 'privacy_versions', 'name' => 'Privacy Policy Versions', 'route' => '/compliance-legal/privacy',
+                    'code' => 'privacy-versions', 'name' => 'Privacy Policy Versions', 'route' => '/compliance-legal/privacy',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Versions'],
                         ['code' => 'create', 'name' => 'Publish New Version'],
@@ -1852,14 +1803,14 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'data_residency', 'name' => 'Data Residency per Tenant', 'route' => '/compliance-legal/data-residency',
+                    'code' => 'data-residency', 'name' => 'Data Residency per Tenant', 'route' => '/compliance-legal/data-residency',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Residency'],
                         ['code' => 'configure', 'name' => 'Configure Residency Rules'],
                     ],
                 ],
                 [
-                    'code' => 'platform_dsar', 'name' => 'Platform-Level DSAR', 'route' => '/compliance-legal/dsar',
+                    'code' => 'platform-dsar', 'name' => 'Platform-Level DSAR', 'route' => '/compliance-legal/dsar',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View DSARs'],
                         ['code' => 'fulfill', 'name' => 'Fulfill DSAR'],
@@ -1874,7 +1825,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'multi_region',
+            'code' => 'multi-region',
             'name' => 'Multi-Region & Geo',
             'description' => 'Region management, geo-distributed tenants, CDN configuration',
             'icon' => 'GlobeAmericasIcon',
@@ -1892,14 +1843,14 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'tenant_region_assignment', 'name' => 'Tenant Region Assignment', 'route' => '/multi-region/tenant-assignment',
+                    'code' => 'tenant-region-assignment', 'name' => 'Tenant Region Assignment', 'route' => '/multi-region/tenant-assignment',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Assignments'],
                         ['code' => 'reassign', 'name' => 'Reassign Tenant Region'],
                     ],
                 ],
                 [
-                    'code' => 'cdn_config', 'name' => 'CDN Configuration', 'route' => '/multi-region/cdn',
+                    'code' => 'cdn-config', 'name' => 'CDN Configuration', 'route' => '/multi-region/cdn',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View CDN'],
                         ['code' => 'configure', 'name' => 'Configure CDN'],
@@ -1915,7 +1866,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'security_center',
+            'code' => 'security-center',
             'name' => 'Security Center',
             'description' => 'Pentest reports, security incidents, vulnerability disclosures, bug bounty',
             'icon' => 'ShieldExclamationIcon',
@@ -1924,13 +1875,13 @@ return [
 
             'components' => [
                 [
-                    'code' => 'security_dashboard', 'name' => 'Security Dashboard', 'route' => '/security-center',
+                    'code' => 'security-dashboard', 'name' => 'Security Dashboard', 'route' => '/security-center',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Dashboard'],
                     ],
                 ],
                 [
-                    'code' => 'pentest_reports', 'name' => 'Penetration Test Reports', 'route' => '/security-center/pentest',
+                    'code' => 'pentest-reports', 'name' => 'Penetration Test Reports', 'route' => '/security-center/pentest',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Reports'],
                         ['code' => 'upload', 'name' => 'Upload Report'],
@@ -1938,7 +1889,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'security_incidents', 'name' => 'Security Incidents', 'route' => '/security-center/incidents',
+                    'code' => 'security-incidents', 'name' => 'Security Incidents', 'route' => '/security-center/incidents',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Incidents'],
                         ['code' => 'create', 'name' => 'Log Incident'],
@@ -1946,14 +1897,14 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'vulnerability_disclosures', 'name' => 'Vulnerability Disclosures', 'route' => '/security-center/vulnerabilities',
+                    'code' => 'vulnerability-disclosures', 'name' => 'Vulnerability Disclosures', 'route' => '/security-center/vulnerabilities',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Disclosures'],
                         ['code' => 'manage', 'name' => 'Manage Disclosures'],
                     ],
                 ],
                 [
-                    'code' => 'bug_bounty', 'name' => 'Bug Bounty Program', 'route' => '/security-center/bug-bounty',
+                    'code' => 'bug-bounty', 'name' => 'Bug Bounty Program', 'route' => '/security-center/bug-bounty',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Submissions'],
                         ['code' => 'manage', 'name' => 'Manage Program'],
@@ -1968,7 +1919,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'email_deliverability',
+            'code' => 'email-deliverability',
             'name' => 'Email Deliverability',
             'description' => 'DKIM/SPF/DMARC, suppression lists, bounces, sender reputation',
             'icon' => 'EnvelopeIcon',
@@ -1977,7 +1928,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'dns_setup', 'name' => 'DKIM / SPF / DMARC', 'route' => '/email-deliverability/dns',
+                    'code' => 'dns-setup', 'name' => 'DKIM / SPF / DMARC', 'route' => '/email-deliverability/dns',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View DNS Records'],
                         ['code' => 'configure', 'name' => 'Configure DNS'],
@@ -1985,21 +1936,21 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'suppression_list', 'name' => 'Suppression List', 'route' => '/email-deliverability/suppression',
+                    'code' => 'suppression-list', 'name' => 'Suppression List', 'route' => '/email-deliverability/suppression',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Suppression'],
                         ['code' => 'remove', 'name' => 'Remove from Suppression'],
                     ],
                 ],
                 [
-                    'code' => 'bounce_complaints', 'name' => 'Bounces & Complaints', 'route' => '/email-deliverability/bounces',
+                    'code' => 'bounce-complaints', 'name' => 'Bounces & Complaints', 'route' => '/email-deliverability/bounces',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Bounces'],
                         ['code' => 'export', 'name' => 'Export Bounces'],
                     ],
                 ],
                 [
-                    'code' => 'sender_reputation', 'name' => 'Sender Reputation', 'route' => '/email-deliverability/reputation',
+                    'code' => 'sender-reputation', 'name' => 'Sender Reputation', 'route' => '/email-deliverability/reputation',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Reputation'],
                     ],
@@ -2013,7 +1964,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'api_gateway',
+            'code' => 'api-gateway',
             'name' => 'API Gateway',
             'description' => 'Per-tenant API rate limits, quotas, usage analytics, gateway routing',
             'icon' => 'CommandLineIcon',
@@ -2022,28 +1973,28 @@ return [
 
             'components' => [
                 [
-                    'code' => 'rate_limits', 'name' => 'Rate Limits per Tenant', 'route' => '/api-gateway/rate-limits',
+                    'code' => 'rate-limits', 'name' => 'Rate Limits per Tenant', 'route' => '/api-gateway/rate-limits',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Rate Limits'],
                         ['code' => 'manage', 'name' => 'Manage Rate Limits'],
                     ],
                 ],
                 [
-                    'code' => 'api_quotas', 'name' => 'API Quotas per Tenant', 'route' => '/api-gateway/quotas',
+                    'code' => 'api-quotas', 'name' => 'API Quotas per Tenant', 'route' => '/api-gateway/quotas',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View API Quotas'],
                         ['code' => 'configure', 'name' => 'Configure Quotas'],
                     ],
                 ],
                 [
-                    'code' => 'api_usage_analytics', 'name' => 'API Usage Analytics', 'route' => '/api-gateway/usage',
+                    'code' => 'api-usage-analytics', 'name' => 'API Usage Analytics', 'route' => '/api-gateway/usage',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Usage'],
                         ['code' => 'export', 'name' => 'Export Usage'],
                     ],
                 ],
                 [
-                    'code' => 'gateway_routing', 'name' => 'Gateway Routing', 'route' => '/api-gateway/routing',
+                    'code' => 'gateway-routing', 'name' => 'Gateway Routing', 'route' => '/api-gateway/routing',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Routing'],
                         ['code' => 'configure', 'name' => 'Configure Routing'],
@@ -2058,7 +2009,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'resource_provisioning',
+            'code' => 'resource-provisioning',
             'name' => 'Resource Provisioning',
             'description' => 'Database server pools, storage backends, compute, auto-scaling',
             'icon' => 'ServerStackIcon',
@@ -2067,7 +2018,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'db_pools', 'name' => 'Database Server Pools', 'route' => '/provisioning/db-pools',
+                    'code' => 'db-pools', 'name' => 'Database Server Pools', 'route' => '/provisioning/db-pools',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Pools'],
                         ['code' => 'manage', 'name' => 'Manage Pools'],
@@ -2075,21 +2026,21 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'storage_backends', 'name' => 'Storage Backends (S3/GCS/Azure)', 'route' => '/provisioning/storage',
+                    'code' => 'storage-backends', 'name' => 'Storage Backends (S3/GCS/Azure)', 'route' => '/provisioning/storage',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Storage'],
                         ['code' => 'configure', 'name' => 'Configure Storage'],
                     ],
                 ],
                 [
-                    'code' => 'compute_resources', 'name' => 'Compute Resources', 'route' => '/provisioning/compute',
+                    'code' => 'compute-resources', 'name' => 'Compute Resources', 'route' => '/provisioning/compute',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Compute'],
                         ['code' => 'manage', 'name' => 'Manage Compute'],
                     ],
                 ],
                 [
-                    'code' => 'auto_scaling', 'name' => 'Auto-Scaling Rules', 'route' => '/provisioning/auto-scaling',
+                    'code' => 'auto-scaling', 'name' => 'Auto-Scaling Rules', 'route' => '/provisioning/auto-scaling',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Rules'],
                         ['code' => 'manage', 'name' => 'Manage Auto-Scaling'],
@@ -2104,7 +2055,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'platform_security',
+            'code' => 'platform-security',
             'name' => 'Platform Security',
             'description' => 'Landlord-side RBAC, tenant impersonation with audit, staff sessions, MFA enforcement, IP allowlist',
             'icon' => 'ShieldCheckIcon',
@@ -2113,7 +2064,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'landlord_roles', 'name' => 'Landlord Roles & Permissions', 'route' => '/platform-security/roles',
+                    'code' => 'landlord-roles', 'name' => 'Landlord Roles & Permissions', 'route' => '/platform-security/roles',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Roles'],
                         ['code' => 'create', 'name' => 'Create Role'],
@@ -2132,14 +2083,14 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'staff_sessions', 'name' => 'Staff Sessions', 'route' => '/platform-security/sessions',
+                    'code' => 'staff-sessions', 'name' => 'Staff Sessions', 'route' => '/platform-security/sessions',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Active Sessions'],
-                        ['code' => 'force_logout', 'name' => 'Force Logout'],
+                        ['code' => 'force-logout', 'name' => 'Force Logout'],
                     ],
                 ],
                 [
-                    'code' => 'staff_mfa', 'name' => 'Staff MFA Enforcement', 'route' => '/platform-security/mfa',
+                    'code' => 'staff-mfa', 'name' => 'Staff MFA Enforcement', 'route' => '/platform-security/mfa',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View MFA Status'],
                         ['code' => 'enforce', 'name' => 'Enforce MFA'],
@@ -2147,14 +2098,14 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'staff_sso', 'name' => 'Staff SSO (SAML/OIDC)', 'route' => '/platform-security/sso',
+                    'code' => 'staff-sso', 'name' => 'Staff SSO (SAML/OIDC)', 'route' => '/platform-security/sso',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View SSO Config'],
                         ['code' => 'configure', 'name' => 'Configure Staff SSO'],
                     ],
                 ],
                 [
-                    'code' => 'ip_allowlist', 'name' => 'Staff IP Allowlist', 'route' => '/platform-security/ip-allowlist',
+                    'code' => 'ip-allowlist', 'name' => 'Staff IP Allowlist', 'route' => '/platform-security/ip-allowlist',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Allowlist'],
                         ['code' => 'manage', 'name' => 'Manage Allowlist'],
@@ -2169,7 +2120,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'secrets_management',
+            'code' => 'secrets-management',
             'name' => 'Secrets Management',
             'description' => 'KMS, encryption-key lifecycle, per-tenant DEK, secret rotation',
             'icon' => 'KeyIcon',
@@ -2186,14 +2137,14 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'tenant_deks', 'name' => 'Per-Tenant Encryption Keys', 'route' => '/secrets/tenant-deks',
+                    'code' => 'tenant-deks', 'name' => 'Per-Tenant Encryption Keys', 'route' => '/secrets/tenant-deks',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View DEKs'],
                         ['code' => 'rotate', 'name' => 'Rotate Tenant DEK'],
                     ],
                 ],
                 [
-                    'code' => 'secrets_vault', 'name' => 'Secrets Vault', 'route' => '/secrets/vault',
+                    'code' => 'secrets-vault', 'name' => 'Secrets Vault', 'route' => '/secrets/vault',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Secrets'],
                         ['code' => 'create', 'name' => 'Store Secret'],
@@ -2202,7 +2153,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'secret_audit', 'name' => 'Secret Access Audit', 'route' => '/secrets/audit',
+                    'code' => 'secret-audit', 'name' => 'Secret Access Audit', 'route' => '/secrets/audit',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Access Log'],
                     ],
@@ -2216,7 +2167,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'outbound_webhooks',
+            'code' => 'outbound-webhooks',
             'name' => 'Outbound Webhooks',
             'description' => 'Platform-event webhooks: tenant.provisioned, subscription.updated, invoice.paid, etc.',
             'icon' => 'ArrowsRightLeftIcon',
@@ -2225,7 +2176,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'webhook_endpoints', 'name' => 'Webhook Endpoints', 'route' => '/outbound-webhooks/endpoints',
+                    'code' => 'webhook-endpoints', 'name' => 'Webhook Endpoints', 'route' => '/outbound-webhooks/endpoints',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Endpoints'],
                         ['code' => 'create', 'name' => 'Create Endpoint'],
@@ -2235,20 +2186,20 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'event_catalog', 'name' => 'Event Catalog', 'route' => '/outbound-webhooks/events',
+                    'code' => 'event-catalog', 'name' => 'Event Catalog', 'route' => '/outbound-webhooks/events',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Event Types'],
                     ],
                 ],
                 [
-                    'code' => 'delivery_logs', 'name' => 'Delivery Logs', 'route' => '/outbound-webhooks/logs',
+                    'code' => 'delivery-logs', 'name' => 'Delivery Logs', 'route' => '/outbound-webhooks/logs',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Logs'],
                         ['code' => 'replay', 'name' => 'Replay Delivery'],
                     ],
                 ],
                 [
-                    'code' => 'webhook_signing', 'name' => 'Webhook Signing Secrets', 'route' => '/outbound-webhooks/signing',
+                    'code' => 'webhook-signing', 'name' => 'Webhook Signing Secrets', 'route' => '/outbound-webhooks/signing',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Signing Secrets'],
                         ['code' => 'rotate', 'name' => 'Rotate Signing Secret'],
@@ -2279,25 +2230,25 @@ return [
                         ['code' => 'update', 'name' => 'Update Invoice'],
                         ['code' => 'send', 'name' => 'Send Invoice'],
                         ['code' => 'void', 'name' => 'Void Invoice'],
-                        ['code' => 'mark_paid', 'name' => 'Mark Paid'],
-                        ['code' => 'download_pdf', 'name' => 'Download PDF'],
+                        ['code' => 'mark-paid', 'name' => 'Mark Paid'],
+                        ['code' => 'download-pdf', 'name' => 'Download PDF'],
                     ],
                 ],
                 [
-                    'code' => 'invoice_numbering', 'name' => 'Invoice Numbering', 'route' => '/invoicing/numbering',
+                    'code' => 'invoice-numbering', 'name' => 'Invoice Numbering', 'route' => '/invoicing/numbering',
                     'actions' => [
                         ['code' => 'manage', 'name' => 'Manage Numbering'],
                     ],
                 ],
                 [
-                    'code' => 'invoice_templates', 'name' => 'Invoice Templates', 'route' => '/invoicing/templates',
+                    'code' => 'invoice-templates', 'name' => 'Invoice Templates', 'route' => '/invoicing/templates',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Templates'],
                         ['code' => 'manage', 'name' => 'Manage Templates'],
                     ],
                 ],
                 [
-                    'code' => 'invoice_branding', 'name' => 'Invoice Branding', 'route' => '/invoicing/branding',
+                    'code' => 'invoice-branding', 'name' => 'Invoice Branding', 'route' => '/invoicing/branding',
                     'actions' => [
                         ['code' => 'manage', 'name' => 'Manage Branding'],
                     ],
@@ -2311,7 +2262,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'payment_methods',
+            'code' => 'payment-methods',
             'name' => 'Payment Methods',
             'description' => 'Card vault, ACH/SEPA, payment-method updates, 3DS/SCA handling, default selection',
             'icon' => 'CreditCardIcon',
@@ -2320,31 +2271,31 @@ return [
 
             'components' => [
                 [
-                    'code' => 'pm_list', 'name' => 'Payment Methods', 'route' => '/payment-methods',
+                    'code' => 'pm-list', 'name' => 'Payment Methods', 'route' => '/payment-methods',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Payment Methods'],
                         ['code' => 'add', 'name' => 'Add Payment Method'],
                         ['code' => 'update', 'name' => 'Update Payment Method'],
                         ['code' => 'remove', 'name' => 'Remove Payment Method'],
-                        ['code' => 'set_default', 'name' => 'Set Default'],
+                        ['code' => 'set-default', 'name' => 'Set Default'],
                     ],
                 ],
                 [
-                    'code' => 'card_vault', 'name' => 'Card Vault', 'route' => '/payment-methods/cards',
+                    'code' => 'card-vault', 'name' => 'Card Vault', 'route' => '/payment-methods/cards',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Cards'],
                         ['code' => 'tokenize', 'name' => 'Tokenize Card'],
                     ],
                 ],
                 [
-                    'code' => 'ach_sepa', 'name' => 'ACH / SEPA / Bank Debit', 'route' => '/payment-methods/bank-debit',
+                    'code' => 'ach-sepa', 'name' => 'ACH / SEPA / Bank Debit', 'route' => '/payment-methods/bank-debit',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Bank Debits'],
                         ['code' => 'authorize', 'name' => 'Authorize Mandate'],
                     ],
                 ],
                 [
-                    'code' => 'sca_3ds', 'name' => '3DS / SCA Authentication', 'route' => '/payment-methods/sca',
+                    'code' => 'sca-3ds', 'name' => '3DS / SCA Authentication', 'route' => '/payment-methods/sca',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View SCA Logs'],
                         ['code' => 'configure', 'name' => 'Configure 3DS Rules'],
@@ -2359,7 +2310,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'subscription_lifecycle',
+            'code' => 'subscription-lifecycle',
             'name' => 'Subscription Lifecycle',
             'description' => 'Trials, proration, upgrades/downgrades, pause/resume, mid-cycle changes',
             'icon' => 'ArrowPathIcon',
@@ -2383,14 +2334,14 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'plan_changes', 'name' => 'Plan Upgrades / Downgrades', 'route' => '/subscription-lifecycle/plan-changes',
+                    'code' => 'plan-changes', 'name' => 'Plan Upgrades / Downgrades', 'route' => '/subscription-lifecycle/plan-changes',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Plan Changes'],
                         ['code' => 'execute', 'name' => 'Execute Plan Change'],
                     ],
                 ],
                 [
-                    'code' => 'pause_resume', 'name' => 'Pause / Resume', 'route' => '/subscription-lifecycle/pause-resume',
+                    'code' => 'pause-resume', 'name' => 'Pause / Resume', 'route' => '/subscription-lifecycle/pause-resume',
                     'actions' => [
                         ['code' => 'pause', 'name' => 'Pause Subscription'],
                         ['code' => 'resume', 'name' => 'Resume Subscription'],
@@ -2441,7 +2392,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'logs_aggregation', 'name' => 'Logs Aggregation', 'route' => '/observability/logs',
+                    'code' => 'logs-aggregation', 'name' => 'Logs Aggregation', 'route' => '/observability/logs',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Logs'],
                         ['code' => 'search', 'name' => 'Search Logs'],
@@ -2464,7 +2415,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'disaster_recovery',
+            'code' => 'disaster-recovery',
             'name' => 'Disaster Recovery',
             'description' => 'Platform-wide DR runbooks, RTO/RPO tracking, failover, DR drills',
             'icon' => 'ShieldExclamationIcon',
@@ -2473,7 +2424,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'dr_runbooks', 'name' => 'DR Runbooks', 'route' => '/disaster-recovery/runbooks',
+                    'code' => 'dr-runbooks', 'name' => 'DR Runbooks', 'route' => '/disaster-recovery/runbooks',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Runbooks'],
                         ['code' => 'create', 'name' => 'Create Runbook'],
@@ -2481,7 +2432,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'rto_rpo', 'name' => 'RTO / RPO Tracking', 'route' => '/disaster-recovery/rto-rpo',
+                    'code' => 'rto-rpo', 'name' => 'RTO / RPO Tracking', 'route' => '/disaster-recovery/rto-rpo',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View RTO/RPO'],
                         ['code' => 'configure', 'name' => 'Configure Targets'],
@@ -2496,7 +2447,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'dr_drills', 'name' => 'DR Drills', 'route' => '/disaster-recovery/drills',
+                    'code' => 'dr-drills', 'name' => 'DR Drills', 'route' => '/disaster-recovery/drills',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Drills'],
                         ['code' => 'schedule', 'name' => 'Schedule Drill'],
@@ -2512,7 +2463,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'notification_center',
+            'code' => 'notifications',
             'name' => 'Notification Center (Landlord)',
             'description' => 'Landlord staff notification preferences, digest, escalation routing',
             'icon' => 'BellIcon',
@@ -2521,7 +2472,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'staff_preferences', 'name' => 'Staff Notification Preferences', 'route' => '/notification-center/preferences',
+                    'code' => 'staff-preferences', 'name' => 'Staff Notification Preferences', 'route' => '/notification-center/preferences',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Preferences'],
                         ['code' => 'update', 'name' => 'Update Preferences'],
@@ -2534,7 +2485,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'escalation_routing', 'name' => 'Escalation Routing', 'route' => '/notification-center/escalation',
+                    'code' => 'escalation-routing', 'name' => 'Escalation Routing', 'route' => '/notification-center/escalation',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Routing'],
                         ['code' => 'manage', 'name' => 'Manage Escalation'],
@@ -2549,7 +2500,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'enterprise_scim',
+            'code' => 'enterprise-scim',
             'name' => 'Enterprise SCIM Provisioning',
             'description' => 'SCIM 2.0 endpoints for enterprise tenants directory sync (Okta, Azure AD)',
             'icon' => 'UserGroupIcon',
@@ -2558,15 +2509,15 @@ return [
 
             'components' => [
                 [
-                    'code' => 'scim_endpoints', 'name' => 'SCIM Endpoints per Tenant', 'route' => '/enterprise-scim/endpoints',
+                    'code' => 'scim-endpoints', 'name' => 'SCIM Endpoints per Tenant', 'route' => '/enterprise-scim/endpoints',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Endpoints'],
                         ['code' => 'configure', 'name' => 'Configure Tenant SCIM'],
-                        ['code' => 'rotate_token', 'name' => 'Rotate SCIM Token'],
+                        ['code' => 'rotate-token', 'name' => 'Rotate SCIM Token'],
                     ],
                 ],
                 [
-                    'code' => 'scim_logs', 'name' => 'SCIM Sync Logs', 'route' => '/enterprise-scim/logs',
+                    'code' => 'scim-logs', 'name' => 'SCIM Sync Logs', 'route' => '/enterprise-scim/logs',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Sync Logs'],
                     ],
@@ -2580,7 +2531,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'contract_management',
+            'code' => 'contract-management',
             'name' => 'Contract Management',
             'description' => 'MSAs, order forms, custom enterprise contracts, e-signature, version control',
             'icon' => 'DocumentDuplicateIcon',
@@ -2598,7 +2549,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'order_forms', 'name' => 'Order Forms', 'route' => '/contracts/order-forms',
+                    'code' => 'order-forms', 'name' => 'Order Forms', 'route' => '/contracts/order-forms',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Order Forms'],
                         ['code' => 'create', 'name' => 'Create Order Form'],
@@ -2606,14 +2557,14 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'rate_cards', 'name' => 'Custom Rate Cards', 'route' => '/contracts/rate-cards',
+                    'code' => 'rate-cards', 'name' => 'Custom Rate Cards', 'route' => '/contracts/rate-cards',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Rate Cards'],
                         ['code' => 'manage', 'name' => 'Manage Rate Cards'],
                     ],
                 ],
                 [
-                    'code' => 'contract_versions', 'name' => 'Contract Versions', 'route' => '/contracts/versions',
+                    'code' => 'contract-versions', 'name' => 'Contract Versions', 'route' => '/contracts/versions',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Versions'],
                     ],
@@ -2627,7 +2578,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'app_marketplace',
+            'code' => 'app-marketplace',
             'name' => 'App Marketplace',
             'description' => 'Third-party app marketplace, app submission, reviews, install/uninstall',
             'icon' => 'CubeIcon',
@@ -2636,7 +2587,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'app_catalog', 'name' => 'App Catalog', 'route' => '/app-marketplace',
+                    'code' => 'app-catalog', 'name' => 'App Catalog', 'route' => '/app-marketplace',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Apps'],
                         ['code' => 'install', 'name' => 'Install App'],
@@ -2644,7 +2595,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'developer_apps', 'name' => 'Developer App Submissions', 'route' => '/app-marketplace/developers',
+                    'code' => 'developer-apps', 'name' => 'Developer App Submissions', 'route' => '/app-marketplace/developers',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Submissions'],
                         ['code' => 'approve', 'name' => 'Approve App'],
@@ -2652,14 +2603,14 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'app_reviews', 'name' => 'App Reviews', 'route' => '/app-marketplace/reviews',
+                    'code' => 'app-reviews', 'name' => 'App Reviews', 'route' => '/app-marketplace/reviews',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Reviews'],
                         ['code' => 'moderate', 'name' => 'Moderate Reviews'],
                     ],
                 ],
                 [
-                    'code' => 'app_revenue', 'name' => 'App Revenue Sharing', 'route' => '/app-marketplace/revenue',
+                    'code' => 'app-revenue', 'name' => 'App Revenue Sharing', 'route' => '/app-marketplace/revenue',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Revenue'],
                         ['code' => 'configure', 'name' => 'Configure Revenue Share'],
@@ -2674,7 +2625,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'release_management',
+            'code' => 'release-management',
             'name' => 'Release Management',
             'description' => 'Changelog, release notes, deployment tracking, rollback',
             'icon' => 'RocketLaunchIcon',
@@ -2700,7 +2651,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'deployment_tracking', 'name' => 'Deployment Tracking', 'route' => '/releases/deployments',
+                    'code' => 'deployment-tracking', 'name' => 'Deployment Tracking', 'route' => '/releases/deployments',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Deployments'],
                     ],
@@ -2714,7 +2665,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'migration_imports',
+            'code' => 'migration-imports',
             'name' => 'Migration & Imports',
             'description' => 'Import tenants from competitor platforms (CSV, Salesforce, HubSpot, etc.)',
             'icon' => 'ArrowDownTrayIcon',
@@ -2723,7 +2674,7 @@ return [
 
             'components' => [
                 [
-                    'code' => 'import_jobs', 'name' => 'Import Jobs', 'route' => '/migrations/imports',
+                    'code' => 'import-jobs', 'name' => 'Import Jobs', 'route' => '/migrations/imports',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Imports'],
                         ['code' => 'create', 'name' => 'Start Import'],
@@ -2739,7 +2690,7 @@ return [
                     ],
                 ],
                 [
-                    'code' => 'field_mapping', 'name' => 'Field Mapping', 'route' => '/migrations/mapping',
+                    'code' => 'field-mapping', 'name' => 'Field Mapping', 'route' => '/migrations/mapping',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Mappings'],
                         ['code' => 'manage', 'name' => 'Manage Mappings'],
@@ -2754,7 +2705,7 @@ return [
         |--------------------------------------------------------------------------
         */
         [
-            'code' => 'job_scheduler',
+            'code' => 'job-scheduler',
             'name' => 'Job Scheduler',
             'description' => 'Scheduled tasks management, cron monitoring, failed task retries',
             'icon' => 'ClockIcon',
@@ -2763,26 +2714,492 @@ return [
 
             'components' => [
                 [
-                    'code' => 'scheduled_tasks', 'name' => 'Scheduled Tasks', 'route' => '/job-scheduler/scheduled',
+                    'code' => 'scheduled-tasks', 'name' => 'Scheduled Tasks', 'route' => '/job-scheduler/scheduled',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Tasks'],
                         ['code' => 'create', 'name' => 'Create Task'],
                         ['code' => 'update', 'name' => 'Update Task'],
                         ['code' => 'pause', 'name' => 'Pause Task'],
-                        ['code' => 'run_now', 'name' => 'Run Now'],
+                        ['code' => 'run-now', 'name' => 'Run Now'],
                     ],
                 ],
                 [
-                    'code' => 'task_history', 'name' => 'Task Execution History', 'route' => '/job-scheduler/history',
+                    'code' => 'task-history', 'name' => 'Task Execution History', 'route' => '/job-scheduler/history',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View History'],
                         ['code' => 'retry', 'name' => 'Retry Failed Task'],
                     ],
                 ],
                 [
-                    'code' => 'cron_monitoring', 'name' => 'Cron Monitoring', 'route' => '/job-scheduler/cron',
+                    'code' => 'cron-monitoring', 'name' => 'Cron Monitoring', 'route' => '/job-scheduler/cron',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Cron Status'],
+                    ],
+                ],
+            ],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | License Management (Standalone / Self-Hosted)
+        |--------------------------------------------------------------------------
+        */
+        [
+            'code' => 'license-management',
+            'name' => 'License Management',
+            'description' => 'License key generation, validation, activation, offline/air-gapped installs',
+            'icon' => 'KeyIcon',
+            'route' => '/licenses',
+            'priority' => 52,
+            'components' => [
+                [
+                    'code' => 'license-keys',
+                    'name' => 'License Keys',
+                    'route' => '/licenses/keys',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Licenses'],
+                        ['code' => 'generate', 'name' => 'Generate License Key'],
+                        ['code' => 'revoke', 'name' => 'Revoke License'],
+                        ['code' => 'extend', 'name' => 'Extend License'],
+                    ],
+                ],
+                [
+                    'code' => 'activations',
+                    'name' => 'Activations',
+                    'route' => '/licenses/activations',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Activations'],
+                        ['code' => 'deactivate', 'name' => 'Deactivate Install'],
+                    ],
+                ],
+                [
+                    'code' => 'license-settings',
+                    'name' => 'License Settings',
+                    'route' => '/licenses/settings',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Settings'],
+                        ['code' => 'configure', 'name' => 'Configure License Model'],
+                    ],
+                ],
+            ],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | Platform Access Logs (distinct from activity audit)
+        |--------------------------------------------------------------------------
+        */
+        [
+            'code' => 'access-logs',
+            'name' => 'Access Logs',
+            'description' => 'PII field access log, sensitive data exposure log, admin access trail',
+            'icon' => 'EyeIcon',
+            'route' => '/access-logs',
+            'priority' => 53,
+            'components' => [
+                [
+                    'code' => 'access-log-list',
+                    'name' => 'All Access Events',
+                    'route' => '/access-logs',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Access Logs'],
+                        ['code' => 'export', 'name' => 'Export Logs'],
+                    ],
+                ],
+                [
+                    'code' => 'pii-access',
+                    'name' => 'PII Field Access',
+                    'route' => '/access-logs/pii',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View PII Access Events'],
+                        ['code' => 'export', 'name' => 'Export PII Access Report'],
+                    ],
+                ],
+            ],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | Product Analytics (Cohort, Funnel, Feature Usage)
+        |--------------------------------------------------------------------------
+        */
+        [
+            'code' => 'product-analytics',
+            'name' => 'Product Analytics',
+            'description' => 'Feature usage heatmaps, cohort retention, funnel analysis, adoption metrics',
+            'icon' => 'PresentationChartLineIcon',
+            'route' => '/product-analytics',
+            'priority' => 54,
+            'components' => [
+                [
+                    'code' => 'feature-usage',
+                    'name' => 'Feature Usage',
+                    'route' => '/product-analytics/features',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Feature Usage'],
+                        ['code' => 'export', 'name' => 'Export Report'],
+                    ],
+                ],
+                [
+                    'code' => 'cohort-analysis',
+                    'name' => 'Cohort Analysis',
+                    'route' => '/product-analytics/cohorts',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Cohorts'],
+                        ['code' => 'export', 'name' => 'Export Cohort Data'],
+                    ],
+                ],
+                [
+                    'code' => 'funnel-analysis',
+                    'name' => 'Funnel Analysis',
+                    'route' => '/product-analytics/funnels',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Funnels'],
+                        ['code' => 'manage', 'name' => 'Manage Funnel Definitions'],
+                    ],
+                ],
+                [
+                    'code' => 'adoption-metrics',
+                    'name' => 'Adoption Metrics',
+                    'route' => '/product-analytics/adoption',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Adoption Metrics'],
+                    ],
+                ],
+            ],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | P-10: White-Label
+        |--------------------------------------------------------------------------
+        */
+        [
+            'code' => 'white-label',
+            'name' => 'White-Label',
+            'description' => 'Custom domains, SSL provisioning, tenant branding, CSS, and email branding',
+            'icon' => 'PaintBrushIcon',
+            'route' => '/white-label',
+            'priority' => 30,
+
+            'components' => [
+                [
+                    'code' => 'custom-domains',
+                    'name' => 'Custom Domains',
+                    'route' => '/white-label/domains',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Custom Domains'],
+                        ['code' => 'add', 'name' => 'Add Domain'],
+                        ['code' => 'verify', 'name' => 'Verify Domain'],
+                        ['code' => 'remove', 'name' => 'Remove Domain'],
+                    ],
+                ],
+                [
+                    'code' => 'ssl-provisioning',
+                    'name' => 'SSL Provisioning',
+                    'route' => '/white-label/ssl',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View SSL Status'],
+                        ['code' => 'provision', 'name' => 'Provision SSL'],
+                        ['code' => 'renew', 'name' => 'Renew SSL'],
+                    ],
+                ],
+                [
+                    'code' => 'tenant-branding',
+                    'name' => 'Tenant Branding',
+                    'route' => '/white-label/branding',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Branding'],
+                        ['code' => 'manage', 'name' => 'Manage Branding'],
+                    ],
+                ],
+                [
+                    'code' => 'custom-css',
+                    'name' => 'Custom CSS',
+                    'route' => '/white-label/css',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Custom CSS'],
+                        ['code' => 'edit', 'name' => 'Edit Custom CSS'],
+                    ],
+                ],
+                [
+                    'code' => 'tenant-email-branding',
+                    'name' => 'Email Branding',
+                    'route' => '/white-label/email-branding',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Email Branding'],
+                        ['code' => 'configure', 'name' => 'Configure Email Branding'],
+                        ['code' => 'verify', 'name' => 'Verify DKIM'],
+                    ],
+                ],
+            ],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | P-10: Backup & Restore
+        |--------------------------------------------------------------------------
+        */
+        [
+            'code' => 'backup-restore',
+            'name' => 'Backup & Restore',
+            'description' => 'Backup schedules, manual backups, restore points, storage, and retention policies',
+            'icon' => 'CircleStackIcon',
+            'route' => '/backup',
+            'priority' => 31,
+
+            'components' => [
+                [
+                    'code' => 'backup-dashboard',
+                    'name' => 'Backup Dashboard',
+                    'route' => '/backup',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Backup Dashboard'],
+                    ],
+                ],
+                [
+                    'code' => 'backup-schedules',
+                    'name' => 'Backup Schedules',
+                    'route' => '/backup/schedules',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Schedules'],
+                        ['code' => 'create', 'name' => 'Create Schedule'],
+                        ['code' => 'update', 'name' => 'Update Schedule'],
+                        ['code' => 'delete', 'name' => 'Delete Schedule'],
+                    ],
+                ],
+                [
+                    'code' => 'manual-backups',
+                    'name' => 'Manual Backups',
+                    'route' => '/backup/manual',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Manual Backups'],
+                        ['code' => 'create', 'name' => 'Trigger Manual Backup'],
+                    ],
+                ],
+                [
+                    'code' => 'restore',
+                    'name' => 'Restore',
+                    'route' => '/backup/restore',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Restore Points'],
+                        ['code' => 'restore', 'name' => 'Restore Backup'],
+                        ['code' => 'pitr', 'name' => 'Point-In-Time Restore'],
+                    ],
+                ],
+                [
+                    'code' => 'backup-storage',
+                    'name' => 'Backup Storage',
+                    'route' => '/backup/storage',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Storage Config'],
+                        ['code' => 'configure', 'name' => 'Configure Storage'],
+                    ],
+                ],
+                [
+                    'code' => 'retention-policies',
+                    'name' => 'Retention Policies',
+                    'route' => '/backup/retention',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Retention Policies'],
+                        ['code' => 'manage', 'name' => 'Manage Retention Policies'],
+                    ],
+                ],
+            ],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | P-10: Status & Incidents
+        |--------------------------------------------------------------------------
+        */
+        [
+            'code' => 'status-incidents',
+            'name' => 'Status & Incidents',
+            'description' => 'Status page, service components, incidents, postmortems, SLA, uptime monitoring',
+            'icon' => 'SignalIcon',
+            'route' => '/status',
+            'priority' => 32,
+
+            'components' => [
+                [
+                    'code' => 'status-page',
+                    'name' => 'Status Page',
+                    'route' => '/status',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Status Page'],
+                        ['code' => 'configure', 'name' => 'Configure Status Page'],
+                    ],
+                ],
+                [
+                    'code' => 'service-components',
+                    'name' => 'Service Components',
+                    'route' => '/status/components',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Components'],
+                        ['code' => 'manage', 'name' => 'Manage Components'],
+                        ['code' => 'set-status', 'name' => 'Set Component Status'],
+                    ],
+                ],
+                [
+                    'code' => 'incidents',
+                    'name' => 'Incidents',
+                    'route' => '/status/incidents',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Incidents'],
+                        ['code' => 'create', 'name' => 'Create Incident'],
+                        ['code' => 'update', 'name' => 'Update Incident'],
+                        ['code' => 'resolve', 'name' => 'Resolve Incident'],
+                    ],
+                ],
+                [
+                    'code' => 'postmortems',
+                    'name' => 'Postmortems',
+                    'route' => '/status/postmortems',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Postmortems'],
+                        ['code' => 'create', 'name' => 'Create Postmortem'],
+                        ['code' => 'publish', 'name' => 'Publish Postmortem'],
+                    ],
+                ],
+                [
+                    'code' => 'sla-reporting',
+                    'name' => 'SLA Reporting',
+                    'route' => '/status/sla',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View SLA Report'],
+                        ['code' => 'export', 'name' => 'Export SLA Report'],
+                    ],
+                ],
+                [
+                    'code' => 'uptime-monitoring',
+                    'name' => 'Uptime Monitoring',
+                    'route' => '/status/uptime',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Uptime'],
+                        ['code' => 'configure', 'name' => 'Configure Uptime Monitoring'],
+                    ],
+                ],
+            ],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | P-10: Platform Security
+        |--------------------------------------------------------------------------
+        */
+        [
+            'code' => 'platform-security',
+            'name' => 'Platform Security',
+            'description' => 'Landlord roles, impersonation audit, staff MFA/SSO, IP allowlist',
+            'icon' => 'LockClosedIcon',
+            'route' => '/security',
+            'priority' => 33,
+
+            'components' => [
+                [
+                    'code' => 'landlord-roles',
+                    'name' => 'Landlord Roles',
+                    'route' => '/security/roles',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Roles'],
+                        ['code' => 'create', 'name' => 'Create Role'],
+                        ['code' => 'update', 'name' => 'Update Role'],
+                        ['code' => 'delete', 'name' => 'Delete Role'],
+                        ['code' => 'assign', 'name' => 'Assign Role'],
+                    ],
+                ],
+                [
+                    'code' => 'impersonation',
+                    'name' => 'Impersonation',
+                    'route' => '/security/impersonation',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Impersonation Log'],
+                        ['code' => 'start', 'name' => 'Start Impersonation'],
+                        ['code' => 'end', 'name' => 'End Impersonation'],
+                        ['code' => 'audit', 'name' => 'Audit Impersonation'],
+                    ],
+                ],
+                [
+                    'code' => 'staff-sessions',
+                    'name' => 'Staff Sessions',
+                    'route' => '/security/sessions',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Sessions'],
+                        ['code' => 'force-logout', 'name' => 'Force Logout'],
+                    ],
+                ],
+                [
+                    'code' => 'staff-mfa',
+                    'name' => 'Staff MFA',
+                    'route' => '/security/mfa',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View MFA Status'],
+                        ['code' => 'enforce', 'name' => 'Enforce MFA'],
+                        ['code' => 'reset', 'name' => 'Reset MFA'],
+                    ],
+                ],
+                [
+                    'code' => 'staff-sso',
+                    'name' => 'Staff SSO',
+                    'route' => '/security/sso',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View SSO Config'],
+                        ['code' => 'configure', 'name' => 'Configure SSO'],
+                    ],
+                ],
+                [
+                    'code' => 'ip-allowlist',
+                    'name' => 'IP Allowlist',
+                    'route' => '/security/ip-allowlist',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View IP Allowlist'],
+                        ['code' => 'manage', 'name' => 'Manage IP Allowlist'],
+                    ],
+                ],
+            ],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | P-10: Security Center
+        |--------------------------------------------------------------------------
+        */
+        [
+            'code' => 'security-center',
+            'name' => 'Security Center',
+            'description' => 'Security dashboard, incidents, pentest reports, bug bounty',
+            'icon' => 'ShieldExclamationIcon',
+            'route' => '/security-center',
+            'priority' => 34,
+
+            'components' => [
+                [
+                    'code' => 'security-dashboard',
+                    'name' => 'Security Dashboard',
+                    'route' => '/security-center',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Security Dashboard'],
+                    ],
+                ],
+                [
+                    'code' => 'security-incidents',
+                    'name' => 'Security Incidents',
+                    'route' => '/security-center/incidents',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Security Incidents'],
+                        ['code' => 'create', 'name' => 'Create Security Incident'],
+                        ['code' => 'notify', 'name' => 'Notify Tenants'],
+                    ],
+                ],
+                [
+                    'code' => 'pentest-reports',
+                    'name' => 'Pentest Reports',
+                    'route' => '/security-center/pentests',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Pentest Reports'],
+                        ['code' => 'upload', 'name' => 'Upload Report'],
+                        ['code' => 'share', 'name' => 'Share with Tenants'],
                     ],
                 ],
             ],
@@ -2804,13 +3221,13 @@ return [
     */
     'eam_integration' => [
         'provides' => [
-            'platform.tenants'           => 'tenant_management.tenant_list',
-            'platform.plans'             => 'plan_management.plan_list',
-            'platform.module_catalog'    => 'module_management.module_list',
+            'platform.tenants' => 'tenant_management.tenant_list',
+            'platform.plans' => 'plan_management.plan_list',
+            'platform.module_catalog' => 'module_management.module_list',
             'platform.quota_enforcement' => 'quota_management.quota_dashboard',
-            'platform.billing'           => 'billing_management.billing_dashboard',
-            'platform.api_keys'          => 'integrations.api_keys',
-            'platform.webhooks'          => 'integrations.webhooks',
+            'platform.billing' => 'billing_management.billing_dashboard',
+            'platform.api_keys' => 'integrations.api_keys',
+            'platform.webhooks' => 'integrations.webhooks',
         ],
         'consumes' => [],
     ],

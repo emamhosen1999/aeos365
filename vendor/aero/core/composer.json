@@ -2,6 +2,7 @@
     "name": "aero/core",
     "description": "Aero Core Package - Foundation for all Aero modules including User, Auth, Roles, Permissions, Modules, and Multi-tenancy",
     "type": "library",
+    "version": "1.0.0",
     "license": "MIT",
     "keywords": [
         "aero",
@@ -21,10 +22,8 @@
     ],
     "require": {
         "php": "^8.2",
-        "aero/i18n": "@dev",
-        "aero/notifications": "@dev",
+        "aero/contracts": "^1.0",
         "laravel/framework": "^11.0|^12.0",
-        "spatie/laravel-permission": "^6.20",
         "spatie/laravel-medialibrary": "^11.0",
         "spatie/laravel-backup": "^9.0",
         "inertiajs/inertia-laravel": "^2.0",

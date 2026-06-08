@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 
@@ -39,6 +40,11 @@ export default defineConfig({
     },
 
     server: {
+        // Serve over HTTPS to match Laragon's SSL setup
+        https: {
+            key: readFileSync('C:/laragon/etc/ssl/laragon.key'),
+            cert: readFileSync('C:/laragon/etc/ssl/laragon.crt'),
+        },
         // Allow the server to be accessible via the custom domain
         host: '0.0.0.0', 
         port: 5173,

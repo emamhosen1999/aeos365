@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Aero\Core\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -29,7 +31,7 @@ use Illuminate\Support\Facades\Auth;
  * @property-read User|null $creator
  * @property-read User|null $updater
  */
-class Onboarding extends Model
+class Onboarding extends TenantModel
 {
     use HasFactory, SoftDeletes;
 
@@ -58,7 +60,7 @@ class Onboarding extends Model
         'actual_completion_date' => 'date',
     ];
 
-    protected static function boot()
+    protected static function boot(): void
     {
         parent::boot();
         static::creating(function (self $model) {

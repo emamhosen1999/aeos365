@@ -2,14 +2,15 @@
 
 namespace Aero\Platform\Models;
 
+use Aero\Core\Encryption\EncryptedField;
 use Aero\Platform\Database\Factories\TenantFactory;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
@@ -143,8 +144,32 @@ class Tenant extends BaseTenant implements TenantWithDatabase
             'pm_type',
             'pm_last_four',
             'stripe_trial_ends_at',
+            // BYOC database credentials (encrypted)
+            'byoc_enabled',
+            'byoc_db_driver',
+            'byoc_db_host',
+            'byoc_db_port',
+            'byoc_db_name',
+            'byoc_db_username',
+            'byoc_db_password',
+            'byoc_db_ssl_mode',
+            'byoc_validated_at',
+            'encryption_key_id',
+            'encryption_driver',
+            // Lifecycle fields
+            'suspended_at',
+            'suspension_reason',
+            'archived_at',
+            'frozen_at',
         ];
     }
+
+    /**
+     * Hidden attributes — never expose raw DB credentials.
+     *
+     * @var array<string>
+     */
+    protected $hidden = ['byoc_db_username', 'byoc_db_password'];
 
     /**
      * The attributes that should be cast.
@@ -167,6 +192,17 @@ class Tenant extends BaseTenant implements TenantWithDatabase
             'company_phone_verified_at' => 'datetime',
             'company_email_verification_sent_at' => 'datetime',
             'company_phone_verification_sent_at' => 'datetime',
+            // BYOC
+            'byoc_enabled' => 'boolean',
+            'byoc_db_host' => EncryptedField::class,
+            'byoc_db_name' => EncryptedField::class,
+            'byoc_db_username' => EncryptedField::class,
+            'byoc_db_password' => EncryptedField::class,
+            'byoc_validated_at' => 'datetime',
+            // Lifecycle
+            'suspended_at' => 'datetime',
+            'archived_at' => 'datetime',
+            'frozen_at' => 'datetime',
         ];
     }
 
@@ -224,7 +260,7 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     /**
      * Get all module add-on subscriptions for this tenant.
      */
-    public function moduleSubscriptions(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    public function moduleSubscriptions(): MorphMany
     {
         return $this->morphMany(SubscriptionModule::class, 'billable');
     }
@@ -232,10 +268,21 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     /**
      * Get all invoices for this tenant (polymorphic billable).
      */
-    public function invoices(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    public function invoices(): MorphMany
     {
         return $this->morphMany(Invoice::class, 'billable')
             ->orderByDesc('created_at');
+    }
+
+    /**
+     * Get all product subscriptions for this tenant.
+     *
+     * ProductSubscription is the canonical access model — use this relationship
+     * for access gating instead of SubscriptionModule.
+     */
+    public function productSubscriptions(): HasMany
+    {
+        return $this->hasMany(ProductSubscription::class, 'tenant_id');
     }
 
     /**
@@ -252,7 +299,8 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     /**
      * Get active module codes for this tenant.
      *
-     * @return \Illuminate\Support\Collection
+     * @deprecated Use productSubscriptions() with hasAccess() scope instead.
+     *             This method will be removed in a future release.
      */
     public function getActiveModules(): Collection
     {
@@ -384,6 +432,47 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     }
 
     /**
+     * Module codes this tenant is currently entitled to.
+     *
+     * Returns the union of:
+     *   - hrmac baseline_modules config (always-on foundation packages)
+     *   - module_code from every active product_subscription
+     *
+     * "Active" follows ProductSubscription::scopeActive() — status=active AND
+     * not past ends_at. Trialing subscriptions also count (they grant runtime
+     * access). Per Audit D15.
+     *
+     * Used by SyncModuleHierarchy when --scope=tenant to filter the discovered
+     * modules to only those the tenant has paid for.
+     *
+     * @return array<int, string>
+     */
+    public function getSubscribedProductModulesAttribute(): array
+    {
+        $baseline = config('hrmac.baseline_modules', []);
+
+        $productCodes = ProductSubscription::query()
+            ->where('tenant_id', $this->id)
+            ->where(function ($q): void {
+                $q->where(function ($sub): void {
+                    $sub->where('status', 'active')
+                        ->where(function ($e): void {
+                            $e->whereNull('ends_at')->orWhere('ends_at', '>', now());
+                        });
+                })->orWhere(function ($sub): void {
+                    $sub->where('status', 'trialing')
+                        ->where('trial_ends_at', '>', now());
+                });
+            })
+            ->join('products', 'product_subscriptions.product_id', '=', 'products.id')
+            ->where('products.is_active', true)
+            ->pluck('products.module_code')
+            ->all();
+
+        return array_values(array_unique(array_merge($baseline, $productCodes)));
+    }
+
+    /**
      * Get the owner information from the data column.
      *
      * Owner info is stored in data JSON to avoid schema changes
@@ -465,37 +554,23 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     }
 
     /**
-     * Check if the tenant has an active module subscription for a specific module.
+     * Check if the tenant has an active product subscription granting access to a module.
      *
      * This is the core gating method used by CheckModuleAccess middleware.
-     * Plans and products/modules are separate concerns:
-     * - Plan subscription controls limits (users, storage).
-     * - Module access is determined by the tenant_module pivot and
-     *   independent module subscriptions (subscription_modules table).
+     * ProductSubscription is the canonical access model:
+     * - Plan subscription controls limits (users, storage, seats).
+     * - Module access is determined by ProductSubscription linked to a
+     *   Product whose module_code matches the requested module.
      *
      * @param  string  $moduleName  Module code e.g., 'hrm', 'crm'
      */
     public function hasActiveSubscription(string $moduleName): bool
     {
-        // Check 1: Active module in tenant_module pivot (covers manual grants + synced modules)
-        if ($this->modules()->where('code', $moduleName)->exists()) {
-            return true;
-        }
-
-        // Check 2: Active module subscription via subscription_modules table
-        $hasModuleSub = $this->moduleSubscriptions()
-            ->where('module_code', $moduleName)
-            ->where(function ($q) {
-                $q->where('status', SubscriptionModule::STATUS_ACTIVE)
-                    ->orWhere('status', SubscriptionModule::STATUS_TRIALING);
-            })
-            ->where(function ($q) {
-                $q->whereNull('ends_at')
-                    ->orWhere('ends_at', '>=', now());
-            })
+        return $this->productSubscriptions()
+            ->where('status', 'active')
+            ->where(fn ($q) => $q->whereNull('ends_at')->orWhere('ends_at', '>', now()))
+            ->whereHas('product', fn ($pq) => $pq->where('module_code', $moduleName))
             ->exists();
-
-        return $hasModuleSub;
     }
 
     /**
@@ -612,6 +687,22 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     public function billingAddress(): HasOne
     {
         return $this->hasOne(TenantBillingAddress::class, 'tenant_id');
+    }
+
+    /**
+     * Get all provisioning log entries for this tenant.
+     */
+    public function provisioningLogs(): HasMany
+    {
+        return $this->hasMany(TenantProvisioningLog::class);
+    }
+
+    /**
+     * Get all data export requests for this tenant.
+     */
+    public function exportRequests(): HasMany
+    {
+        return $this->hasMany(TenantExportRequest::class);
     }
 
     // =========================================================================

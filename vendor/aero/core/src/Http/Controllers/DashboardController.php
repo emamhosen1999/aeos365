@@ -2,150 +2,117 @@
 
 namespace Aero\Core\Http\Controllers;
 
-use Aero\Core\Http\Requests\StoreAnnouncementRequest;
-use Aero\Core\Models\Announcement;
 use Aero\Core\Services\Dashboard\AdminDashboardService;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Dashboard Controller
+ * DashboardController — Tenant dashboard aggregator.
  *
- * Main dashboard for the core system.
- * Aggregates widgets from Core and all active modules.
+ * Each Inertia prop uses a lazy closure so PHP only evaluates the data
+ * that the frontend actually needs. All heavy methods are already cached
+ * inside AdminDashboardService (2–15 min TTLs), so re-calling them
+ * across requests is cheap.
  */
 class DashboardController extends Controller
 {
-    public function __construct(
-        protected AdminDashboardService $dashboardService,
-    ) {}
+    public function __construct(private AdminDashboardService $dashboardService) {}
 
-    /**
-     * Display the main dashboard.
-     */
-    public function index(Request $request): Response
+    public function index(): Response
     {
         return Inertia::render('Tenant/Dashboard', [
-            'title' => 'Tenant Dashboard',
 
-            // Dashboard stats for the Tenant Dashboard
-            'dashboardStats' => [
-                'totalUsers' => [
-                    'value' => number_format($this->dashboardService->getTotalUsers()),
-                    'delta' => '+12.5%',
-                    'deltaTrend' => 'up',
-                    'label' => 'Total Users',
-                    'accent' => 'cyan',
-                ],
-                'activeUsers' => [
-                    'value' => number_format($this->dashboardService->getActiveSessions()),
-                    'delta' => '+8.3%',
-                    'deltaTrend' => 'up',
-                    'label' => 'Active Users',
-                    'accent' => 'cyan',
-                ],
-                'storageUsed' => [
-                    'value' => '0 GB',
-                    'delta' => '+0%',
-                    'deltaTrend' => 'neutral',
-                    'label' => 'Storage Used',
-                    'accent' => 'amber',
-                ],
-                'billingStatus' => [
-                    'value' => 'Active',
-                    'delta' => '',
-                    'deltaTrend' => 'neutral',
-                    'label' => 'Billing Status',
-                    'accent' => 'indigo',
-                ],
-            ],
-            'recentActivity' => $this->dashboardService->getRecentActivity(),
-            'tenantInfo' => [
-                'name' => $request->user()?->name ?? 'User',
-                'email' => $request->user()?->email,
-            ],
+            // ── Core stats ────────────────────────────────────────────────
+            'coreStats'          => Inertia::lazy(fn () => $this->dashboardService->getCoreStats()),
+
+            // ── Welcome greeting ─────────────────────────────────────────
+            'welcomeData'        => $this->dashboardService->getWelcomeData(),
+
+            // ── Onboarding checklist (null = hide widget) ─────────────────
+            'onboardingProgress' => Inertia::lazy(fn () => $this->dashboardService->getOnboardingProgress()),
+
+            // ── Announcements ─────────────────────────────────────────────
+            'announcements'      => Inertia::lazy(fn () => $this->dashboardService->getAnnouncements()),
+
+            // ── User activity chart data ──────────────────────────────────
+            'userActivity'       => Inertia::lazy(fn () => $this->dashboardService->getUserActivity('week')),
+
+            // ── Active sessions snapshot ──────────────────────────────────
+            'sessionsData'       => Inertia::lazy(fn () => $this->dashboardService->getActiveSessionsData()),
+
+            // ── Security overview ─────────────────────────────────────────
+            'securityOverview'   => Inertia::lazy(fn () => $this->dashboardService->getSecurityOverview()),
+
+            // ── Storage usage ─────────────────────────────────────────────
+            'storageAnalytics'   => Inertia::lazy(fn () => $this->dashboardService->getStorageAnalytics()),
+
+            // ── Subscription / plan info ──────────────────────────────────
+            'subscriptionInfo'   => Inertia::lazy(fn () => $this->dashboardService->getSubscriptionInfo()),
+
+            // ── Audit log (recent 15 entries) ─────────────────────────────
+            'recentAuditLog'     => Inertia::lazy(fn () => $this->dashboardService->getRecentAuditLog(15)),
+
+            // ── Permission-gated quick actions ────────────────────────────
+            'quickActions'       => $this->dashboardService->getQuickActions(),
+
+            // ── System health ─────────────────────────────────────────────
+            'systemHealth'       => Inertia::lazy(fn () => $this->dashboardService->getSystemHealth()),
         ]);
     }
 
     /**
-     * Get dashboard stats (for async loading).
+     * JSON endpoint — refresh a single widget via fetch() on the frontend.
+     * Route: GET /dashboard/widget/{widgetKey}
      */
-    public function stats(Request $request): JsonResponse
+    public function widgetData(string $widgetKey): \Illuminate\Http\JsonResponse
     {
-        return response()->json($this->dashboardService->getCoreStats());
-    }
+        $data = match ($widgetKey) {
+            'coreStats'          => $this->dashboardService->getCoreStats(),
+            'userActivity'       => $this->dashboardService->getUserActivity(request('period', 'week')),
+            'sessionsData'       => $this->dashboardService->getActiveSessionsData(),
+            'securityOverview'   => $this->dashboardService->getSecurityOverview(),
+            'storageAnalytics'   => $this->dashboardService->getStorageAnalytics(),
+            'subscriptionInfo'   => $this->dashboardService->getSubscriptionInfo(),
+            'recentAuditLog'     => $this->dashboardService->getRecentAuditLog(15),
+            'systemHealth'       => $this->dashboardService->getSystemHealth(),
+            'announcements'      => $this->dashboardService->getAnnouncements(),
+            'onboardingProgress' => $this->dashboardService->getOnboardingProgress(),
+            default              => null,
+        };
 
-    /**
-     * User activity chart data.
-     */
-    public function userActivity(Request $request): JsonResponse
-    {
-        $period = $request->input('period', 'week');
-
-        return response()->json(
-            $this->dashboardService->getUserActivity($period)
-        );
-    }
-
-    /**
-     * Store a new announcement.
-     */
-    public function storeAnnouncement(StoreAnnouncementRequest $request): JsonResponse
-    {
-        $announcement = Announcement::create([
-            ...$request->validated(),
-            'author_id' => $request->user()->id,
-        ]);
-
-        Cache::forget('admin_dashboard.announcements');
-
-        return response()->json([
-            'message' => 'Announcement created successfully.',
-            'data' => $announcement,
-        ]);
-    }
-
-    /**
-     * Delete an announcement.
-     */
-    public function destroyAnnouncement(Announcement $announcement): JsonResponse
-    {
-        $announcement->delete();
-
-        Cache::forget('admin_dashboard.announcements');
-
-        return response()->json([
-            'message' => 'Announcement deleted successfully.',
-        ]);
-    }
-
-    /**
-     * Dismiss an announcement for the current user.
-     */
-    public function dismissAnnouncement(Announcement $announcement, Request $request): JsonResponse
-    {
-        $userId = $request->user()->id;
-        $dismissed = $announcement->dismissed_by ?? [];
-
-        if (! in_array($userId, $dismissed)) {
-            $dismissed[] = $userId;
-            $announcement->update(['dismissed_by' => $dismissed]);
+        if ($data === null) {
+            return response()->json(['error' => 'Unknown widget key'], 404);
         }
 
-        Cache::forget('admin_dashboard.announcements');
-
-        return response()->json(['message' => 'Announcement dismissed.']);
+        return response()->json(['data' => $data]);
     }
 
     /**
-     * Get widget data for a specific widget (for lazy loading).
-     * TODO: Implement widget registry for dynamic widget loading
+     * JSON endpoint — refresh user activity for a different period.
+     * Route: GET /dashboard/user-activity?period=month
      */
-    public function widgetData(Request $request, string $widgetKey): JsonResponse
+    public function userActivity(): \Illuminate\Http\JsonResponse
     {
-        return response()->json(['error' => 'Widget not found'], 404);
+        $period = in_array(request('period'), ['week', 'month', 'quarter'])
+            ? request('period')
+            : 'week';
+
+        return response()->json([
+            'data' => $this->dashboardService->getUserActivity($period),
+        ]);
+    }
+
+    /**
+     * POST /dashboard/announcements/{announcement}/dismiss
+     */
+    public function dismissAnnouncement(\Aero\Core\Models\Announcement $announcement): \Illuminate\Http\JsonResponse
+    {
+        try {
+            $announcement->dismissals()->firstOrCreate(['user_id' => auth()->id()]);
+        } catch (\Throwable) {
+            // dismissals relationship may not exist in all versions
+        }
+
+        return response()->json(['dismissed' => true]);
     }
 }

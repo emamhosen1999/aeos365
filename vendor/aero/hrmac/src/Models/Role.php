@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Aero\HRMAC\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Aero\Core\Models\TenantModel;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
@@ -18,31 +18,32 @@ use Illuminate\Support\Collection;
  * @property int $id
  * @property string $name
  * @property string $guard_name
- * @property string|null $display_name
  * @property string|null $description
  * @property bool $is_protected
  * @property bool $is_active
  * @property string|null $scope
- * @property string|null $dashboard_route
+ * @property string|null $default_dashboard
+ * @property int $priority
  */
-class Role extends Model
+class Role extends HrmacModel
 {
     protected $table = 'roles';
 
     protected $fillable = [
         'name',
         'guard_name',
-        'display_name',
         'description',
         'is_protected',
         'is_active',
         'scope',
-        'dashboard_route',
+        'default_dashboard',
+        'priority',
     ];
 
     protected $casts = [
         'is_protected' => 'boolean',
         'is_active' => 'boolean',
+        'priority' => 'integer',
     ];
 
     protected $attributes = [
@@ -50,6 +51,14 @@ class Role extends Model
         'is_protected' => false,
         'is_active' => true,
     ];
+
+    /**
+     * Human-readable label for audit log subject lines (AuditService::log).
+     */
+    public function getAuditLabel(): string
+    {
+        return $this->name;
+    }
 
     /**
      * Boot the model.

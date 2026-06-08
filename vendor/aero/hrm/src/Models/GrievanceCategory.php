@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *
  * Categories for classifying employee grievances.
  */
-class GrievanceCategory extends Model
+class GrievanceCategory extends TenantModel
 {
     use HasFactory, SoftDeletes;
 

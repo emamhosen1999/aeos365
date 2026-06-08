@@ -15,13 +15,21 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Guard: table may not exist in platform-only test environments.
+        if (! Schema::hasTable('modules')) {
+            return;
+        }
+
         // Guard: core's create_modules_table already includes 'scope' column
         if (Schema::hasColumn('modules', 'scope')) {
             return;
         }
 
         Schema::table('modules', function (Blueprint $table) {
-            $table->enum('scope', ['platform', 'tenant'])->default('tenant')->after('code');
+            // string, not enum: module configs use additional scopes like
+            // 'infrastructure' (auth/core/etc) — a 2-value enum truncates them and
+            // aborts aero:sync-module. aero-core/aero-hrmac already use string.
+            $table->string('scope')->default('tenant')->after('code');
             $table->index('scope');
         });
     }

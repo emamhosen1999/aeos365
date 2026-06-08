@@ -2,10 +2,12 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class AttendanceSetting extends Model
+class AttendanceSetting extends TenantModel
 {
     use HasFactory;
 

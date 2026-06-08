@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Aero\Core\Tests\Feature;
 
-use Aero\Core\Contracts\TenantScopeInterface;
+use Aero\Contracts\TenantScopeInterface;
 use Aero\Core\Services\NavigationRegistry;
 use Tests\TestCase;
 

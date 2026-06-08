@@ -2,12 +2,14 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
-class BenefitOpenEnrollmentPeriod extends Model
+class BenefitOpenEnrollmentPeriod extends TenantModel
 {
     use HasFactory;
 

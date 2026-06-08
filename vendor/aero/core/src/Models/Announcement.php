@@ -2,54 +2,27 @@
 
 namespace Aero\Core\Models;
 
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
-/**
- * Announcement Model
- *
- * Tenant-wide announcements posted by admins and displayed on the dashboard.
- *
- * @property string $id
- * @property int $author_id
- * @property string $title
- * @property string $body
- * @property string $type
- * @property string $priority
- * @property Carbon|null $starts_at
- * @property Carbon|null $expires_at
- * @property bool $is_pinned
- * @property bool $is_dismissible
- * @property array|null $target_roles
- * @property array|null $target_departments
- * @property array $dismissed_by
- * @property Carbon $created_at
- * @property Carbon $updated_at
- */
-class Announcement extends Model
+class Announcement extends TenantModel
 {
-    use HasFactory;
-    use HasUuids;
-    use SoftDeletes;
+    // NOTE: the live `announcements` table (created by aero-hrm) has no
+    // `deleted_at` column, so SoftDeletes is not applicable here. This model
+    // also predates the current schema (fillable lists body/status/audience
+    // that no longer exist) — full consolidation with Aero\HRM\Models\Announcement
+    // is tracked as cross-package finding C-4.
 
     protected $fillable = [
-        'author_id',
         'title',
         'body',
         'type',
-        'priority',
-        'starts_at',
+        'status',
+        'published_at',
         'expires_at',
+        'audience',
         'is_pinned',
-        'is_dismissible',
-        'target_roles',
-        'target_departments',
-        'dismissed_by',
+        'created_by',
     ];
 
     /**
@@ -58,48 +31,43 @@ class Announcement extends Model
     protected function casts(): array
     {
         return [
-            'starts_at' => 'datetime',
+            'published_at' => 'datetime',
             'expires_at' => 'datetime',
             'is_pinned' => 'boolean',
-            'is_dismissible' => 'boolean',
-            'target_roles' => 'array',
-            'target_departments' => 'array',
-            'dismissed_by' => 'array',
         ];
     }
 
     public function author(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'author_id');
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     /**
-     * Scope to active announcements (started, not expired).
+     * Scope to published announcements that have not yet expired.
+     *
+     * @param  Builder  $query
+     * @return Builder
      */
-    public function scopeActive(Builder $query): Builder
+    public function scopePublished($query)
     {
-        return $query
-            ->where(function (Builder $q) {
-                $q->whereNull('starts_at')->orWhere('starts_at', '<=', now());
-            })
-            ->where(function (Builder $q) {
-                $q->whereNull('expires_at')->orWhere('expires_at', '>=', now());
+        // The live `announcements` table (created by aero-hrm) is published_at-
+        // based and has no `status` column. "Published" = has a publish date.
+        return $query->whereNotNull('published_at')
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
             });
     }
 
     /**
-     * Scope to announcements visible to a specific user.
+     * Scope to active announcements: published AND past their publish date.
+     *
+     * @param  Builder  $query
+     * @return Builder
      */
-    public function scopeForUser(Builder $query, ?User $user): Builder
+    public function scopeActive($query)
     {
-        if (! $user) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        return $query->where(function (Builder $q) use ($user) {
-            // Not dismissed by this user
-            $q->whereNull('dismissed_by')
-                ->orWhereJsonDoesntContain('dismissed_by', $user->id);
+        return $query->published()->where(function ($q) {
+            $q->whereNull('published_at')->orWhere('published_at', '<=', now());
         });
     }
 }

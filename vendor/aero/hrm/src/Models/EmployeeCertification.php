@@ -2,9 +2,10 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
 use Aero\Core\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Stores professional certifications for employees.
  * Has a 1:Many relationship with User model.
  */
-class EmployeeCertification extends Model
+class EmployeeCertification extends TenantModel
 {
     use HasFactory, SoftDeletes;
 
@@ -21,6 +22,7 @@ class EmployeeCertification extends Model
 
     protected $fillable = [
         'user_id',
+        'employee_id',
         'name',
         'issuing_organization',
         'credential_id',
@@ -47,12 +49,20 @@ class EmployeeCertification extends Model
     // RELATIONSHIPS
     // =========================================================================
 
-    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function verifier(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    /**
+     * Get the employee record associated with this certification (via employee_id).
+     */
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employee_id');
+    }
+
+    public function verifier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'verified_by');
     }

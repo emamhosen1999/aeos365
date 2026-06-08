@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * Defines reusable approval workflow configurations.
  */
-class ApprovalWorkflowTemplate extends Model
+class ApprovalWorkflowTemplate extends TenantModel
 {
     protected $fillable = [
         'name',

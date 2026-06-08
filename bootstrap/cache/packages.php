@@ -6,13 +6,6 @@
       0 => 'Aero\\Auth\\AeroAuthServiceProvider',
     ),
   ),
-  'aero/compliance' => 
-  array (
-    'providers' => 
-    array (
-      0 => 'Aero\\Compliance\\AeroComplianceServiceProvider',
-    ),
-  ),
   'aero/core' => 
   array (
     'providers' => 
@@ -74,39 +67,11 @@
       'AeroPlatform' => 'Aero\\Platform\\Facades\\Platform',
     ),
   ),
-  'aero/project' => 
-  array (
-    'providers' => 
-    array (
-      0 => 'Aero\\Project\\AeroProjectServiceProvider',
-    ),
-  ),
-  'aero/quality' => 
-  array (
-    'providers' => 
-    array (
-      0 => 'Aero\\Quality\\Providers\\QualityModuleProvider',
-    ),
-  ),
-  'aero/rfi' => 
-  array (
-    'providers' => 
-    array (
-      0 => 'Aero\\Rfi\\AeroRfiServiceProvider',
-    ),
-  ),
   'aero/ui' => 
   array (
     'providers' => 
     array (
       0 => 'Aero\\UI\\AeroUIServiceProvider',
-    ),
-  ),
-  'aero/workflow' => 
-  array (
-    'providers' => 
-    array (
-      0 => 'Aero\\Workflow\\Providers\\WorkflowServiceProvider',
     ),
   ),
   'barryvdh/laravel-dompdf' => 
@@ -220,11 +185,32 @@
       0 => 'Termwind\\Laravel\\TermwindServiceProvider',
     ),
   ),
+  'orchestra/canvas' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Orchestra\\Canvas\\LaravelServiceProvider',
+    ),
+  ),
+  'orchestra/canvas-core' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Orchestra\\Canvas\\Core\\LaravelServiceProvider',
+    ),
+  ),
   'spatie/laravel-activitylog' => 
   array (
     'providers' => 
     array (
       0 => 'Spatie\\Activitylog\\ActivitylogServiceProvider',
+    ),
+  ),
+  'spatie/laravel-backup' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Spatie\\Backup\\BackupServiceProvider',
     ),
   ),
   'spatie/laravel-medialibrary' => 
@@ -234,11 +220,15 @@
       0 => 'Spatie\\MediaLibrary\\MediaLibraryServiceProvider',
     ),
   ),
-  'spatie/laravel-permission' => 
+  'spatie/laravel-signal-aware-command' => 
   array (
+    'aliases' => 
+    array (
+      'Signal' => 'Spatie\\SignalAwareCommand\\Facades\\Signal',
+    ),
     'providers' => 
     array (
-      0 => 'Spatie\\Permission\\PermissionServiceProvider',
+      0 => 'Spatie\\SignalAwareCommand\\SignalAwareCommandServiceProvider',
     ),
   ),
   'stancl/tenancy' => 

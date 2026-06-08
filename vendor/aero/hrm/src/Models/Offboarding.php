@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Aero\Core\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -30,7 +32,7 @@ use Illuminate\Support\Facades\Auth;
  * @property-read User|null $creator
  * @property-read User|null $updater
  */
-class Offboarding extends Model
+class Offboarding extends TenantModel
 {
     use HasFactory, SoftDeletes;
 
@@ -71,7 +73,7 @@ class Offboarding extends Model
         'exit_interview_date' => 'date',
     ];
 
-    protected static function boot()
+    protected static function boot(): void
     {
         parent::boot();
         static::creating(function (self $model) {

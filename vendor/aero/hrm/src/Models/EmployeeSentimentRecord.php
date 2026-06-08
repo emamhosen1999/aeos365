@@ -2,6 +2,8 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -11,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Stores sentiment analysis results from various sources.
  * Supports continuous engagement monitoring.
  */
-class EmployeeSentimentRecord extends Model
+class EmployeeSentimentRecord extends TenantModel
 {
     protected $fillable = [
         'employee_id',

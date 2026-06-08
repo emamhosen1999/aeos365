@@ -2,9 +2,10 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
 use Aero\Core\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Stores emergency contacts for employees.
  * Has a 1:Many relationship with User model.
  */
-class EmergencyContact extends Model
+class EmergencyContact extends TenantModel
 {
     use HasFactory, SoftDeletes;
 
@@ -21,6 +22,7 @@ class EmergencyContact extends Model
 
     protected $fillable = [
         'user_id',
+        'employee_id',
         'name',
         'relationship',
         'phone',
@@ -44,9 +46,17 @@ class EmergencyContact extends Model
     // RELATIONSHIPS
     // =========================================================================
 
-    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the employee record associated with this emergency contact (via employee_id).
+     */
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employee_id');
     }
 
     // =========================================================================
@@ -67,7 +77,7 @@ class EmergencyContact extends Model
     // BOOT
     // =========================================================================
 
-    protected static function boot()
+    protected static function boot(): void
     {
         parent::boot();
 

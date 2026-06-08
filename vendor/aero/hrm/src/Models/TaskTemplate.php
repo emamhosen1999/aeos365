@@ -2,12 +2,14 @@
 
 namespace AeroHRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use AeroCore\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class TaskTemplate extends Model
+class TaskTemplate extends TenantModel
 {
     use HasFactory, SoftDeletes;
 

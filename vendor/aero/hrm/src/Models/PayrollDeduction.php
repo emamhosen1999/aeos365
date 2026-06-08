@@ -2,10 +2,12 @@
 
 namespace Aero\HRM\Models;
 
+use Aero\Contracts\Models\TenantModel;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class PayrollDeduction extends Model
+class PayrollDeduction extends TenantModel
 {
     use HasFactory;
 
