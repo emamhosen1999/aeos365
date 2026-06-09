@@ -157,6 +157,7 @@ return array(
     'Aero\\Notifications\\Database\\Factories\\' => array($vendorDir . '/aero/notifications/database/factories'),
     'Aero\\Notifications\\' => array($vendorDir . '/aero/notifications/src'),
     'Aero\\Installation\\' => array($vendorDir . '/aero/installation/src'),
+    'Aero\\Infrastructure\\' => array($vendorDir . '/aero/infrastructure/src'),
     'Aero\\I18n\\' => array($vendorDir . '/aero/i18n/src'),
     'Aero\\HRM\\Database\\Seeders\\' => array($vendorDir . '/aero/hrm/database/seeders'),
     'Aero\\HRM\\Database\\Factories\\' => array($vendorDir . '/aero/hrm/database/factories'),

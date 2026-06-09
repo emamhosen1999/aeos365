@@ -6,28 +6,20 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        if (Schema::hasTable('installation_progress')) {
-            return;
-        }
-
         Schema::create('installation_progress', function (Blueprint $table) {
             $table->string('session_id')->primary();
             $table->string('step');
             $table->string('status');
-            $table->text('error_message')->nullable();
-            $table->json('meta')->nullable();
-            $table->timestamps();
+            $table->integer('percentage')->default(0);
+            $table->text('error')->nullable();
+            $table->json('metadata')->nullable();
+            $table->timestamp('started_at')->nullable();
+            $table->timestamp('updated_at');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('installation_progress');

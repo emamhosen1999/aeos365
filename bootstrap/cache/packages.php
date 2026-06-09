@@ -42,6 +42,13 @@
       0 => 'Aero\\I18n\\AeroI18nServiceProvider',
     ),
   ),
+  'aero/infrastructure' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Aero\\Infrastructure\\Providers\\InfrastructureServiceProvider',
+    ),
+  ),
   'aero/installation' => 
   array (
     'providers' => 

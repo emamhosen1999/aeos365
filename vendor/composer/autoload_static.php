@@ -353,6 +353,7 @@ class ComposerStaticInit53b5d56b3b7e3cbac1713e68c8850f6c
             'Aero\\Notifications\\Database\\Factories\\' => 38,
             'Aero\\Notifications\\' => 19,
             'Aero\\Installation\\' => 18,
+            'Aero\\Infrastructure\\' => 20,
             'Aero\\I18n\\' => 10,
             'Aero\\HRM\\Database\\Seeders\\' => 26,
             'Aero\\HRM\\Database\\Factories\\' => 28,
@@ -982,6 +983,10 @@ class ComposerStaticInit53b5d56b3b7e3cbac1713e68c8850f6c
         'Aero\\Installation\\' => 
         array (
             0 => __DIR__ . '/..' . '/aero/installation/src',
+        ),
+        'Aero\\Infrastructure\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/aero/infrastructure/src',
         ),
         'Aero\\I18n\\' => 
         array (
@@ -2349,6 +2354,7 @@ class ComposerStaticInit53b5d56b3b7e3cbac1713e68c8850f6c
         'Aero\\I18n\\Services\\TranslationManagementService' => __DIR__ . '/..' . '/aero/i18n/src/Services/TranslationManagementService.php',
         'Aero\\I18n\\Services\\TranslationService' => __DIR__ . '/..' . '/aero/i18n/src/Services/TranslationService.php',
         'Aero\\I18n\\TranslationEngine' => __DIR__ . '/..' . '/aero/i18n/src/TranslationEngine.php',
+        'Aero\\Infrastructure\\Providers\\InfrastructureServiceProvider' => __DIR__ . '/..' . '/aero/infrastructure/src/Providers/InfrastructureServiceProvider.php',
         'Aero\\Installation\\Http\\Controllers\\Controller' => __DIR__ . '/..' . '/aero/installation/src/Http/Controllers/Controller.php',
         'Aero\\Installation\\Http\\Controllers\\UnifiedInstallationController' => __DIR__ . '/..' . '/aero/installation/src/Http/Controllers/UnifiedInstallationController.php',
         'Aero\\Installation\\Http\\Middleware\\HandleInertiaRequests' => __DIR__ . '/..' . '/aero/installation/src/Http/Middleware/HandleInertiaRequests.php',
@@ -2366,6 +2372,7 @@ class ComposerStaticInit53b5d56b3b7e3cbac1713e68c8850f6c
         'Aero\\Installation\\Installation\\Steps\\PlatformConfigurationStep' => __DIR__ . '/..' . '/aero/installation/src/Installation/Steps/PlatformConfigurationStep.php',
         'Aero\\Installation\\Installation\\Steps\\SeedingStep' => __DIR__ . '/..' . '/aero/installation/src/Installation/Steps/SeedingStep.php',
         'Aero\\Installation\\Installation\\Steps\\SettingsStep' => __DIR__ . '/..' . '/aero/installation/src/Installation/Steps/SettingsStep.php',
+        'Aero\\Installation\\Installation\\Steps\\TenantProvisioningStep' => __DIR__ . '/..' . '/aero/installation/src/Installation/Steps/TenantProvisioningStep.php',
         'Aero\\Installation\\Providers\\AeroInstallationServiceProvider' => __DIR__ . '/..' . '/aero/installation/src/Providers/AeroInstallationServiceProvider.php',
         'Aero\\Notifications\\AeroNotificationsServiceProvider' => __DIR__ . '/..' . '/aero/notifications/src/AeroNotificationsServiceProvider.php',
         'Aero\\Notifications\\Console\\Commands\\RetryFailedNotifications' => __DIR__ . '/..' . '/aero/notifications/src/Console/Commands/RetryFailedNotifications.php',
@@ -2603,7 +2610,6 @@ class ComposerStaticInit53b5d56b3b7e3cbac1713e68c8850f6c
         'Aero\\Platform\\Http\\Middleware\\EnforceTenantQuotas' => __DIR__ . '/..' . '/aero/platform/src/Http/Middleware/EnforceTenantQuotas.php',
         'Aero\\Platform\\Http\\Middleware\\EnhancedRateLimit' => __DIR__ . '/..' . '/aero/platform/src/Http/Middleware/EnhancedRateLimit.php',
         'Aero\\Platform\\Http\\Middleware\\EnsureAdminDomain' => __DIR__ . '/..' . '/aero/platform/src/Http/Middleware/EnsureAdminDomain.php',
-        'Aero\\Platform\\Http\\Middleware\\EnsureInstallationVerified' => __DIR__ . '/..' . '/aero/platform/src/Http/Middleware/EnsureInstallationVerified.php',
         'Aero\\Platform\\Http\\Middleware\\EnsurePlatformDomain' => __DIR__ . '/..' . '/aero/platform/src/Http/Middleware/EnsurePlatformDomain.php',
         'Aero\\Platform\\Http\\Middleware\\EnsureTenantIsActive' => __DIR__ . '/..' . '/aero/platform/src/Http/Middleware/EnsureTenantIsActive.php',
         'Aero\\Platform\\Http\\Middleware\\EnsureTenantIsSetup' => __DIR__ . '/..' . '/aero/platform/src/Http/Middleware/EnsureTenantIsSetup.php',
