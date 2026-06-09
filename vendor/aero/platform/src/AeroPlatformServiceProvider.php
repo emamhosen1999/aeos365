@@ -447,6 +447,23 @@ class AeroPlatformServiceProvider extends ServiceProvider
         // Register Platform dashboard widgets
         // These appear on the Admin Dashboard following the Core pattern
         $this->registerPlatformDashboardWidgets();
+
+        // In testing environment, if default database is sqlite, redirect mysql and central connection resolution to the default connection to share the same :memory: database
+        if ($this->app->environment('testing') && config('database.default') === 'sqlite') {
+            $this->app->booted(function () {
+                try {
+                    $db = $this->app->make('db');
+                    $db->extend('central', function ($config, $name) use ($db) {
+                        return $db->connection();
+                    });
+                    $db->extend('mysql', function ($config, $name) use ($db) {
+                        return $db->connection();
+                    });
+                } catch (\Throwable $e) {
+                    // Silently ignore if DB is not accessible yet
+                }
+            });
+        }
     }
 
     /**
@@ -800,24 +817,10 @@ class AeroPlatformServiceProvider extends ServiceProvider
         // Update the default mysql connection with resolved database
         Config::set('database.connections.mysql.database', $database);
 
-        // If in testing environment and default is sqlite, central connection should be sqlite
-        if (app()->environment('testing') && config('database.default') === 'sqlite') {
-            $sqliteConfig = config('database.connections.sqlite', []);
-            $dbPath = 'file::memory:?cache=shared';
-
-            // Point both mysql (fallback for some queries), sqlite, and central to the same shared in-memory sqlite DSN
-            Config::set('database.connections.sqlite.database', $dbPath);
-            Config::set('database.connections.mysql.database', $dbPath);
-            Config::set('database.connections.central', array_merge($sqliteConfig, [
-                'driver' => 'sqlite',
-                'database' => $dbPath,
-            ]));
-        } else {
-            // Add 'central' connection (same as default, but explicit for landlord models)
-            Config::set('database.connections.central', array_merge($mysqlConfig, [
-                'database' => $database,
-            ]));
-        }
+        // Add 'central' connection (same as default, but explicit for landlord models)
+        Config::set('database.connections.central', array_merge($mysqlConfig, [
+            'database' => $database,
+        ]));
     }
 
     /**
@@ -1197,12 +1200,26 @@ class AeroPlatformServiceProvider extends ServiceProvider
                         return false;
                     });
 
-                    // Deduplicate within the filtered set by operation name.
-                    // This removes any internal duplicates (e.g. create_notification_logs_table
-                    // exists in both aero-platform and as a copy from another path).
-                    return $platformFiles->unique(function ($path) {
-                        return preg_replace('/^\d{4}_\d{2}_\d{2}_\d{6}_/', '', basename($path, '.php'));
-                    })->all();
+                    // Determine the current connection the migrator is running on
+                    $currentConn = $this->connection ?: config('database.default');
+
+                    if ($currentConn === $this->centralDatabase) {
+                        // Deduplicate within the filtered set by operation name.
+                        // This removes any internal duplicates (e.g. create_notification_logs_table
+                        // exists in both aero-platform and as a copy from another path).
+                        return $platformFiles->unique(function ($path) {
+                            return preg_replace('/^\d{4}_\d{2}_\d{2}_\d{6}_/', '', basename($path, '.php'));
+                        })->all();
+                    } else {
+                        // If we are migrating the default connection in a testing environment,
+                        // exclude the platform/landlord migrations (as they are run on central connection)
+                        // to avoid duplicate column/table definition conflicts on shared sqlite files.
+                        if (app()->environment('testing')) {
+                            $platformPaths = $platformFiles->keys()->toArray();
+                            return collect($files)->except($platformPaths)->all();
+                        }
+                        return $files;
+                    }
                 }
             };
         });
