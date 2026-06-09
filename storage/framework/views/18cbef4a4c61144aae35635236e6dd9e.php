@@ -87,4 +87,4 @@
 </body>
 
 </html>
-<?php /**PATH C:\laragon\www\Aero-Enterprise-Suite-Saas\packages\aero-ui\src/../resources/views/app.blade.php ENDPATH**/ ?>
+<?php /**PATH C:\laragon\www\Aero-Enterprise-Suite-Saas\packages\aero-ui\resources\views\app.blade.php ENDPATH**/ ?>

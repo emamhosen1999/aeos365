@@ -419,8 +419,6 @@ class AeroPlatformServiceProvider extends ServiceProvider
         // Publish assets
         $this->registerPublishing();
 
-        // Register views (for email templates, etc.)
-        $this->loadViewsFrom(__DIR__.'/../resources/views', 'aero-platform');
 
         // NOTE: Vite configuration is handled by aero/ui package
         // All frontend code lives in aero/ui - this package is backend-only
