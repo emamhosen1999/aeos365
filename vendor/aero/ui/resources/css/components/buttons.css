@@ -1,0 +1,154 @@
+/* ══════════════════════════════════════════════════════════════
+   aeos365 — Button Styles (Phase 2)
+   Base + Primary, Ghost, Soft, Amber variants
+   Sizes: default, sm, lg, icon
+   Rules: radius ≤ 8px (--aeos-r-md). No pill-shaped buttons above sm.
+          Animate: transform/translateY, box-shadow, opacity ONLY.
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Base ────────────────────────────────────────────────────── */
+.aeos-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--aeos-gap-items);
+  font-family: var(--aeos-font-body);
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--aeos-r-md);
+  padding: var(--aeos-pad-btn-y) var(--aeos-pad-btn-x);
+  font-size: var(--aeos-text-sm);
+  line-height: var(--aeos-leading-none);
+  height: var(--aeos-h-btn);
+  text-decoration: none;
+  user-select: none;
+  white-space: nowrap;
+  transition:
+    transform      var(--aeos-dur-fast) var(--aeos-ease-out),
+    box-shadow     var(--aeos-dur-fast) var(--aeos-ease-out),
+    opacity        var(--aeos-dur-fast) var(--aeos-ease-out),
+    border-color   var(--aeos-dur-fast) var(--aeos-ease-out),
+    background     var(--aeos-dur-fast) var(--aeos-ease-out);
+}
+
+.aeos-btn:disabled,
+.aeos-btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ── Primary (cyan → indigo gradient, glow) ─────────────────── */
+.aeos-btn-primary {
+  background: var(--aeos-grad-cyan);
+  color: var(--aeos-bg-page);
+  box-shadow: var(--aeos-glow-cyan);
+}
+
+.aeos-btn-primary:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: var(--aeos-glow-cyan-l);
+}
+
+.aeos-btn-primary:active {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* ── Ghost (transparent + white hairline border) ────────────── */
+.aeos-btn-ghost {
+  background: transparent;
+  color: var(--aeos-text-primary);
+  border: var(--aeos-border-width) solid var(--aeos-border-strong);
+  font-weight: 500;
+  padding: calc(var(--aeos-pad-btn-y) - var(--aeos-border-width)) calc(var(--aeos-pad-btn-x) - var(--aeos-border-width));
+}
+
+.aeos-btn-ghost:hover {
+  background: var(--aeos-bg-hover);
+  border-color: var(--aeos-primary-border);
+}
+
+.aeos-btn-ghost:active {
+  background: var(--aeos-bg-active);
+}
+
+/* ── Soft (cyan tint fill + cyan border) ────────────────────── */
+.aeos-btn-soft {
+  background: var(--aeos-primary-tint);
+  border: var(--aeos-border-width) solid var(--aeos-primary-border);
+  color: var(--aeos-primary);
+  font-weight: 500;
+  padding: calc(var(--aeos-pad-btn-y) - var(--aeos-border-width)) calc(var(--aeos-pad-btn-x) - var(--aeos-border-width));
+}
+
+.aeos-btn-soft:hover {
+  background: var(--aeos-primary-hover);
+  border-color: var(--aeos-primary-border);
+}
+
+.aeos-btn-soft:active {
+  background: var(--aeos-primary-bg);
+}
+
+/* ── Amber (payroll, finance, secondary CTA) ────────────────── */
+.aeos-btn-amber {
+  background: var(--aeos-grad-amber);
+  color: var(--aeos-bg-page);
+  box-shadow: var(--aeos-glow-amber);
+}
+
+.aeos-btn-amber:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.aeos-btn-amber:active {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* ── Destructive (danger actions) ───────────────────────────── */
+.aeos-btn-danger {
+  background: var(--aeos-danger-bg);
+  border: var(--aeos-border-width) solid var(--aeos-danger-border);
+  color: var(--aeos-destructive);
+  font-weight: 500;
+  padding: calc(var(--aeos-pad-btn-y) - var(--aeos-border-width)) calc(var(--aeos-pad-btn-x) - var(--aeos-border-width));
+}
+
+.aeos-btn-danger:hover {
+  background: var(--aeos-danger-hover);
+  border-color: var(--aeos-danger-border);
+}
+
+/* ── Size Modifiers ─────────────────────────────────────────── */
+
+/* Small — radius can be r-sm (6px) */
+.aeos-btn-sm {
+  padding: var(--aeos-space-2) var(--aeos-space-4);
+  font-size: var(--aeos-text-xs);
+  border-radius: var(--aeos-r-sm);
+  height: auto;
+}
+
+/* Large */
+.aeos-btn-lg {
+  padding: var(--aeos-space-4) var(--aeos-space-10);
+  font-size: var(--aeos-text-base);
+  height: calc(var(--aeos-h-btn) * 1.2);
+}
+
+/* Icon-only square */
+.aeos-btn-icon {
+  padding: var(--aeos-pad-btn-y);
+  aspect-ratio: 1;
+  justify-content: center;
+}
+
+/* ── Focus Ring (accessibility) ─────────────────────────────── */
+.aeos-btn:focus-visible {
+  outline: 2px solid var(--aeos-primary);
+  outline-offset: var(--aeos-space-0-5);
+}

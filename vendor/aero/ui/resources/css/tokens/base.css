@@ -1,0 +1,406 @@
+/* ── Fonts ─────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* ── Design tokens ─────────────────────────────────────────────────────── */
+:root {
+  /* Brand */
+  --aeos-primary:       #00E5FF;
+  --aeos-primary-deep:  #00A3B8;
+  --aeos-secondary:     #FFB347;
+  --aeos-tertiary:      #6366F1;
+  --aeos-destructive:   #FF6B6B;
+
+  /* Status */
+  --aeos-success: #22C55E;
+  --aeos-warning: var(--aeos-secondary);
+  --aeos-danger:  var(--aeos-destructive);
+  --aeos-info:    var(--aeos-primary);
+
+  /* Surfaces */
+  --aeos-bg-page:     #03040A;
+  --aeos-bg-app:      #070B14;
+  --aeos-bg-card:     #0D1120;
+  --aeos-bg-elevated: #131829;
+  --aeos-bg-modal:    #1A1F33;
+
+  /* OLED surfaces */
+  --aeos-bg-oled:       #000000;
+  --aeos-bg-oled-card:  #0A0A0A;
+  --aeos-bg-oled-modal: #111111;
+
+  /* Text */
+  --aeos-text-primary:   #E8EDF5;
+  --aeos-text-secondary: #8892A4;
+  --aeos-text-tertiary:  #4A5468;
+
+  /* Legacy aliases */
+  --aeos-cyan:      var(--aeos-primary);
+  --aeos-cyan-deep: var(--aeos-primary-deep);
+  --aeos-amber:     var(--aeos-secondary);
+  --aeos-indigo:    var(--aeos-tertiary);
+  --aeos-coral:     var(--aeos-destructive);
+  --aeos-obsidian:  var(--aeos-bg-page);
+  --aeos-onyx:      var(--aeos-bg-app);
+  --aeos-slate:     var(--aeos-bg-card);
+  --aeos-graphite:  var(--aeos-bg-elevated);
+  --aeos-gunmetal:  var(--aeos-bg-modal);
+  --aeos-ink:       var(--aeos-text-primary);
+  --aeos-ink-muted: var(--aeos-text-secondary);
+  --aeos-ink-faint: var(--aeos-text-tertiary);
+
+  /* Light surfaces */
+  --aeos-bg-page-light:      #F8FAFC;
+  --aeos-bg-app-light:       #F1F5F9;
+  --aeos-bg-card-light:      #FFFFFF;
+  --aeos-bg-elevated-light:  #F8FAFC;
+  --aeos-bg-modal-light:     #FFFFFF;
+  --aeos-text-primary-light:   #0F172A;
+  --aeos-text-secondary-light: #64748B;
+  --aeos-text-tertiary-light:  #94A3B8;
+  --aeos-paper:      var(--aeos-bg-page-light);
+  --aeos-paper-2:    var(--aeos-bg-app-light);
+  --aeos-paper-3:    #E2E8F0;
+  --aeos-graphite-l: var(--aeos-text-secondary-light);
+  --aeos-onyx-l:     var(--aeos-text-primary-light);
+  --aeos-ink-l-muted:var(--aeos-text-secondary-light);
+
+  /* Glass */
+  --aeos-glass-bg:        rgba(13, 17, 32, 0.70);
+  --aeos-glass-bg-strong: rgba(7, 11, 20, 0.85);
+  --aeos-glass-border:    rgba(0, 229, 255, 0.12);
+  --aeos-glass-border-h:  rgba(0, 229, 255, 0.20);
+  --aeos-divider:         rgba(255, 255, 255, 0.06);
+  --aeos-divider-l:       rgba(15, 23, 42, 0.08);
+  --aeos-border:          rgba(255, 255, 255, 0.08);
+  --aeos-bg-input:        rgba(255, 255, 255, 0.05);
+
+  /* Gradients */
+  --aeos-grad-cyan:  linear-gradient(135deg, #00E5FF 0%, #6366F1 100%);
+  --aeos-grad-amber: linear-gradient(135deg, #FFB347 0%, #FF6B6B 100%);
+  --aeos-grad-full:  linear-gradient(135deg, #00E5FF 0%, #6366F1 50%, #FFB347 100%);
+  --aeos-grad-text:  linear-gradient(135deg, #ffffff 0%, #00E5FF 100%);
+  --aeos-grad-mesh:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,229,255,0.12), transparent 65%),
+    radial-gradient(ellipse 50% 50% at 85% 55%, rgba(255,179,71,0.08), transparent 55%),
+    radial-gradient(ellipse 40% 50% at 10% 70%, rgba(99,102,241,0.08), transparent 55%);
+
+  /* Glow / shadow */
+  --aeos-primary-glow:  rgba(0, 229, 255, 0.30);   /* Raw rgba for filter: drop-shadow() uses */
+  --aeos-glow-cyan:     0 0 24px rgba(0, 229, 255, 0.30);
+  --aeos-glow-cyan-l:   0 0 40px rgba(0, 229, 255, 0.50);
+  --aeos-glow-amber:    0 0 24px rgba(255, 179, 71, 0.25);
+  --aeos-shadow-card:   0 8px 32px rgba(0, 0, 0, 0.40);
+  --aeos-shadow-lift:   0 16px 48px rgba(0, 0, 0, 0.55);
+  --aeos-shadow-mockup: 0 0 0 1px rgba(0, 229, 255, 0.15),
+                        0 32px 80px rgba(0, 0, 0, 0.80),
+                        0 0 60px rgba(0, 229, 255, 0.08);
+  --aeos-shadow-xs:  0 1px 2px rgba(0, 0, 0, 0.06);
+  --aeos-shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.10), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --aeos-shadow-md:  0 4px 6px -1px rgba(0, 0, 0, 0.10), 0 2px 4px -2px rgba(0, 0, 0, 0.10);
+  --aeos-shadow-lg:  0 10px 15px -3px rgba(0, 0, 0, 0.10), 0 4px 6px -4px rgba(0, 0, 0, 0.10);
+  --aeos-shadow-xl:  0 20px 25px -5px rgba(0, 0, 0, 0.10), 0 8px 10px -6px rgba(0, 0, 0, 0.10);
+  --aeos-shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.40);
+
+  /* Typography */
+  --aeos-font-display: 'Syne', system-ui, sans-serif;
+  --aeos-font-body:    'DM Sans', system-ui, sans-serif;
+  --aeos-font-mono:    'JetBrains Mono', ui-monospace, monospace;
+  --aeos-font-scale:   1;
+
+  /* Legacy font-size token names (design system compatibility) */
+  --aeos-fs-display-hero: clamp(2.8rem, 7vw, 5.5rem);
+  --aeos-fs-display-sec:  clamp(2rem, 4vw, 3.2rem);
+  --aeos-fs-display-sm:   clamp(1.5rem, 2.5vw, 2.25rem);
+  --aeos-fs-h3:           1.5rem;
+  --aeos-fs-h4:           1.25rem;
+  --aeos-fs-body-lg:      1.125rem;
+  --aeos-fs-body:         1rem;
+  --aeos-fs-body-sm:      0.875rem;
+  --aeos-fs-label:        0.72rem;
+  --aeos-fs-micro:        0.6rem;
+
+  --aeos-text-2xs:  0.625rem;
+  --aeos-text-xs:   0.75rem;
+  --aeos-text-sm:   0.875rem;
+  --aeos-text-base: 1rem;
+  --aeos-text-lg:   1.125rem;
+  --aeos-text-xl:   1.25rem;
+  --aeos-text-2xl:  1.5rem;
+  --aeos-text-3xl:  1.875rem;
+  --aeos-text-4xl:  2.25rem;
+  --aeos-text-5xl:  3rem;
+
+  /* Line-height */
+  --aeos-leading-none:    1;
+  --aeos-leading-tight:   1.15;
+  --aeos-leading-snug:    1.3;
+  --aeos-leading-normal:  1.5;
+  --aeos-leading-relaxed: 1.6;
+  --aeos-leading-loose:   1.8;
+
+  /* Radii */
+  --aeos-radius-factor: 1;
+  --aeos-r-sm:   calc(6px  * var(--aeos-radius-factor));
+  --aeos-r-md:   calc(8px  * var(--aeos-radius-factor));
+  --aeos-r-lg:   calc(12px * var(--aeos-radius-factor));
+  --aeos-r-xl:   calc(16px * var(--aeos-radius-factor));
+  --aeos-r-2xl:  calc(24px * var(--aeos-radius-factor));
+  --aeos-r-full: 9999px;
+  --aeos-card-radius: var(--aeos-r-xl);
+
+  /* Spacing (4px grid) */
+  --aeos-space-0:    0px;
+  --aeos-space-px:   1px;
+  --aeos-space-0-5:  2px;
+  --aeos-space-1:    4px;
+  --aeos-space-1-5:  6px;
+  --aeos-space-2:    8px;
+  --aeos-space-3:    12px;
+  --aeos-space-4:    16px;
+  --aeos-space-5:    20px;
+  --aeos-space-6:    24px;
+  --aeos-space-7:    28px;
+  --aeos-space-8:    32px;
+  --aeos-space-10:   40px;
+  --aeos-space-11:   44px;
+  --aeos-space-12:   48px;
+  --aeos-space-16:   64px;
+  --aeos-space-20:   80px;
+  --aeos-space-24:   96px;
+  --aeos-space-32:   128px;
+
+  /* Density — all interactive spacing responds to density-factor */
+  --aeos-density-factor:  1;
+  --aeos-pad-card:        calc(24px * var(--aeos-density-factor));
+  --aeos-pad-cell:        calc(12px * var(--aeos-density-factor));
+  --aeos-pad-input-y:     calc(10px * var(--aeos-density-factor));
+  --aeos-pad-input-x:     calc(14px * var(--aeos-density-factor));
+  --aeos-pad-btn-y:       calc(12px * var(--aeos-density-factor));
+  --aeos-pad-btn-x:       calc(28px * var(--aeos-density-factor));
+  --aeos-pad-badge-y:     calc(4px  * var(--aeos-density-factor));
+  --aeos-pad-badge-x:     calc(10px * var(--aeos-density-factor));
+  --aeos-pad-nav-y:       calc(8px  * var(--aeos-density-factor));
+  --aeos-pad-nav-x:       calc(12px * var(--aeos-density-factor));
+  --aeos-pad-modal:       calc(24px * var(--aeos-density-factor));
+  --aeos-gap-card:        calc(16px * var(--aeos-density-factor));
+  --aeos-gap-items:       calc(8px  * var(--aeos-density-factor));
+  --aeos-gap-stack:       calc(20px * var(--aeos-density-factor));
+  --aeos-stack-gap:       var(--aeos-gap-stack);
+  --aeos-h-btn:           calc(40px * var(--aeos-density-factor));
+  --aeos-h-input:         calc(40px * var(--aeos-density-factor));
+  --aeos-h-topbar:        calc(48px * var(--aeos-density-factor));
+  --aeos-h-nav-item:      calc(36px * var(--aeos-density-factor));
+  --aeos-pad-section:     clamp(4rem, 8vw, 8rem);
+  --aeos-gap-section:     1.5rem;
+
+  /* Border weight */
+  --aeos-border-width: 1px;
+
+  /* Alpha / semantic surfaces (dark defaults — light themes override) */
+  --aeos-bg-subtle:       rgba(255, 255, 255, 0.03);
+  --aeos-bg-tint:         rgba(255, 255, 255, 0.04);
+  --aeos-bg-hover:        rgba(255, 255, 255, 0.06);
+  --aeos-bg-active:       rgba(255, 255, 255, 0.10);
+  --aeos-bg-wash:         rgba(255, 255, 255, 0.14);
+  --aeos-bg-overlay:      var(--aeos-bg-card);     /* Glow card background — light themes override */
+
+  /* Semantic borders */
+  --aeos-border-subtle:   rgba(255, 255, 255, 0.06);
+  --aeos-border-base:     rgba(255, 255, 255, 0.10);
+  --aeos-border-strong:   rgba(255, 255, 255, 0.16);
+
+  /* Primary (accent) semantic */
+  --aeos-primary-tint:    rgba(0, 229, 255, 0.08);
+  --aeos-primary-bg:      rgba(0, 229, 255, 0.12);
+  --aeos-primary-border:  rgba(0, 229, 255, 0.20);
+  --aeos-primary-hover:   rgba(0, 229, 255, 0.14);
+
+  /* Destructive semantic */
+  --aeos-danger-tint:     rgba(255, 107, 107, 0.10);
+  --aeos-danger-bg:       rgba(255, 107, 107, 0.14);
+  --aeos-danger-border:   rgba(255, 107, 107, 0.25);
+  --aeos-danger-hover:    rgba(255, 107, 107, 0.20);
+
+  /* Success semantic */
+  --aeos-success-tint:    rgba(34, 197, 94, 0.10);
+  --aeos-success-bg:      rgba(34, 197, 94, 0.14);
+  --aeos-success-border:  rgba(34, 197, 94, 0.25);
+
+  /* Warning semantic */
+  --aeos-warning-tint:    rgba(255, 179, 71, 0.08);
+  --aeos-warning-bg:      rgba(255, 179, 71, 0.12);
+  --aeos-warning-border:  rgba(255, 179, 71, 0.22);
+
+  /* Tertiary (indigo) semantic — replaces all bare rgba(99,102,241,*) uses */
+  --aeos-tertiary-tint:   rgba(99, 102, 241, 0.08);
+  --aeos-tertiary-bg:     rgba(99, 102, 241, 0.12);
+  --aeos-tertiary-border: rgba(99, 102, 241, 0.20);
+  --aeos-tertiary-hover:  rgba(99, 102, 241, 0.14);
+
+  /* Z-index layers */
+  --aeos-z-base:      0;
+  --aeos-z-sticky:    100;
+  --aeos-z-shell:     200;
+  --aeos-z-sidebar:   300;
+  --aeos-z-overlay:   500;
+  --aeos-z-modal:     600;
+  --aeos-z-popover:   700;
+  --aeos-z-tooltip:   800;
+  --aeos-z-toast:     900;
+  --aeos-z-max:       9999;
+
+  /* Icon sizes */
+  --aeos-icon-xs:   12px;
+  --aeos-icon-sm:   16px;
+  --aeos-icon-md:   20px;
+  --aeos-icon-lg:   24px;
+  --aeos-icon-xl:   32px;
+
+  /* Shell dimensions */
+  --aeos-shell-sidebar-w:     56px;
+  --aeos-shell-sidebar-w-exp: max-content;
+  --aeos-shell-topnav-h:      48px;
+
+  /* Shell chrome backgrounds (token-driven, overridden per theme)
+     Dark defaults — light themes override these in their own blocks. */
+  --aeos-shell-sidebar-bg:   rgba(0, 0, 0, 0.45);
+  --aeos-shell-topbar-bg:    rgba(0, 0, 0, 0.25);
+  --aeos-shell-panel-bg:     rgba(0, 0, 0, 0.15);
+  --aeos-shell-floating-bg:  rgba(13, 17, 32, 0.90);
+  --aeos-shell-bg:          var(--aeos-grad-mesh), var(--aeos-bg-page);
+  --aeos-overlay-backdrop:  rgba(0, 0, 0, 0.72);
+
+  /* Motion */
+  --aeos-ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
+  --aeos-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --aeos-dur-fast:    180ms;
+  --aeos-dur-base:    240ms;
+  --aeos-dur-slow:    400ms;
+
+  /* Status scale */
+  --aeos-success-50: #dcfce7; --aeos-success-100: #bbf7d0; --aeos-success-200: #86efac;
+  --aeos-success-300: #4ade80; --aeos-success-400: #22c55e; --aeos-success-500: #16a34a; --aeos-success-600: #15803d;
+  --aeos-warning-50: #fef9c3; --aeos-warning-100: #fef08a; --aeos-warning-200: #fde047;
+  --aeos-warning-300: #facc15; --aeos-warning-400: #eab308; --aeos-warning-500: #ca8a04; --aeos-warning-600: #a16207;
+  --aeos-danger-50: #fee2e2; --aeos-danger-100: #fecaca; --aeos-danger-200: #fca5a5;
+  --aeos-danger-300: #f87171; --aeos-danger-400: #ef4444; --aeos-danger-500: #dc2626; --aeos-danger-600: #b91c1c;
+  --aeos-cyan-50: #cffafe; --aeos-cyan-100: #a5f3fc; --aeos-cyan-200: #67e8f9;
+  --aeos-cyan-300: #22d3ee; --aeos-cyan-400: #06b6d4; --aeos-cyan-500: #0891b2; --aeos-cyan-600: #0e7490;
+  --aeos-amber-50: #fef3c7; --aeos-amber-100: #fde68a; --aeos-amber-200: #fcd34d;
+  --aeos-amber-300: #fbbf24; --aeos-amber-400: #f59e0b; --aeos-amber-500: #d97706; --aeos-amber-600: #b45309;
+}
+
+/* ── Light theme shell background overrides ───────────────────────────── */
+body.aeos--light,
+body[data-mode="light"] {
+  --aeos-shell-sidebar-bg:   rgba(255, 255, 255, 0.85);
+  --aeos-shell-topbar-bg:    rgba(241, 245, 249, 0.90);
+  --aeos-shell-panel-bg:     rgba(248, 250, 252, 0.80);
+  --aeos-shell-floating-bg:  rgba(255, 255, 255, 0.90);
+  --aeos-shell-bg: var(--aeos-bg-page);
+}
+
+/* ── Motion keyframes ──────────────────────────────────────────────────── */
+@keyframes aeos-pulse      { 0%,100%{opacity:1} 50%{opacity:.4} }
+@keyframes aeos-float      { 0%,100%{transform:translateY(0) rotate(0deg)} 33%{transform:translateY(-12px) rotate(.5deg)} 66%{transform:translateY(-6px) rotate(-.5deg)} }
+@keyframes aeos-shimmer    { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+@keyframes aeos-spin       { to{transform:rotate(360deg)} }
+@keyframes aeos-anim-slide-in-right { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+@keyframes aeos-anim-slide-in-left  { from{transform:translateX(-100%);opacity:0} to{transform:translateX(0);opacity:1} }
+@keyframes aeos-anim-fade-in  { from{opacity:0} to{opacity:1} }
+@keyframes aeos-anim-pop-in   { from{transform:scale(.95);opacity:0} to{transform:scale(1);opacity:1} }
+
+/* Additional design-system keyframes */
+@keyframes aeos-anim-scale-in        { from{transform:scale(0.96);opacity:0} to{transform:scale(1);opacity:1} }
+@keyframes aeos-anim-slide-out-right { from{transform:translateX(0);opacity:1} to{transform:translateX(100%);opacity:0} }
+@keyframes aeos-anim-marquee         { 0%{transform:translateX(0%)} 100%{transform:translateX(-50%)} }
+@keyframes aeos-pulse-glow           { 0%,100%{box-shadow:0 0 20px rgba(0,229,255,.30)} 50%{box-shadow:0 0 40px rgba(0,229,255,.60)} }
+@keyframes aeos-shake                { 0%{transform:translateX(-4px)} 50%{transform:translateX(2px)} 100%{transform:translateX(0)} }
+
+/* Additional design-system animation utility classes */
+.aeos-anim-pulse-glow { animation: aeos-pulse-glow 3s ease-in-out infinite; }
+.aeos-anim-float      { animation: aeos-float 7s ease-in-out infinite; }
+.aeos-anim-shimmer {
+  background: linear-gradient(105deg, rgba(255,255,255,.03) 40%, rgba(0,229,255,.08) 50%, rgba(255,255,255,.03) 60%);
+  background-size: 200% 100%;
+  animation: aeos-shimmer 2s linear infinite;
+}
+
+/* ── Density data attributes ───────────────────────────────────────────── */
+body[data-density="compact"]  { --aeos-density-factor: 0.85; }
+body[data-density="spacious"] { --aeos-density-factor: 1.15; }
+
+/* ── Radius scale data attributes ─────────────────────────────────────── */
+body[data-radius="sharp"] { --aeos-radius-factor: 0.5; }
+body[data-radius="soft"]  { --aeos-radius-factor: 1.5; }
+
+/* ── Border weight data attributes ────────────────────────────────────── */
+body[data-borders="hairline"] { --aeos-border-width: 0.5px; }
+body[data-borders="bold"]     { --aeos-border-width: 2px;   }
+
+/* ── System reduce-motion preference ─────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .aeos *, .aeos *::before, .aeos *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── JS-controlled performance overrides ─────────────────────────────────── */
+
+/* Reduce motion (JS writes this class on body) */
+.aeos--reduce-motion *,
+.aeos--reduce-motion *::before,
+.aeos--reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Motion preference driven by ThemeProvider data-motion attribute */
+body[data-motion="reduced"] .aeos *,
+body[data-motion="reduced"] .aeos *::before,
+body[data-motion="reduced"] .aeos *::after,
+body[data-motion="off"] .aeos *,
+body[data-motion="off"] .aeos *::before,
+body[data-motion="off"] .aeos *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* No blur — for low-GPU / battery-saver contexts */
+.aeos--no-blur .aeos-glass,
+.aeos--no-blur .aeos-glass-strong {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: var(--aeos-bg-card);
+}
+
+/* No glow — for OLED conservation or accessibility preference */
+.aeos--no-glow .aeos-glow-ring-cyan,
+.aeos--no-glow .aeos-glow-ring-amber,
+.aeos--no-glow [class*="aeos-card-glow"] {
+  box-shadow: none;
+}
+
+/* No gradient text — for readability / high-contrast assistive modes */
+.aeos--no-gradient-text .aeos-text-gradient-cyan,
+.aeos--no-gradient-text .aeos-text-gradient-amber,
+.aeos--no-gradient-text .aeos-text-gradient-full,
+.aeos--no-gradient-text .aeos-stat-number {
+  background: none;
+  -webkit-text-fill-color: var(--aeos-text-primary);
+  color: var(--aeos-text-primary);
+}
+
+/* No grid texture — for performance */
+.aeos--no-grid-texture .aeos-grid-bg {
+  background-image: none;
+}
+
+/* Animation utility classes */
+.aeos-anim-scale-in        { animation: aeos-anim-scale-in var(--aeos-dur-base) var(--aeos-ease-out) both; }
+.aeos-anim-slide-out-right { animation: aeos-anim-slide-out-right var(--aeos-dur-base) var(--aeos-ease-out) both; }
+.aeos-anim-marquee         { animation: aeos-anim-marquee 24s linear infinite; }

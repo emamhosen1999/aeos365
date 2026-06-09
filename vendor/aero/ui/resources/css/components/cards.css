@@ -1,0 +1,268 @@
+/* ══════════════════════════════════════════════════════════════
+   aeos365 — Card Styles (Phase 2)
+   10 variants: flat, elevated, glass, glass-strong, bento,
+                cta-glass, glow, gradient-border, outline, noise
+   + .aeos-card-auto (customizer-driven)
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Flat (baseline workhorse) ──────────────────────────────── */
+.aeos-card {
+  background: var(--aeos-bg-subtle);
+  border: var(--aeos-border-width) solid var(--aeos-border-subtle);
+  border-radius: var(--aeos-card-radius);
+  padding: var(--aeos-pad-card);
+}
+
+/* ── Elevated (graphite + warm shadow) ─────────────────────── */
+.aeos-card-elevated {
+  background: var(--aeos-bg-elevated);
+  border: var(--aeos-border-width) solid var(--aeos-primary-tint);
+  border-radius: var(--aeos-card-radius);
+  padding: var(--aeos-pad-card);
+  box-shadow: var(--aeos-shadow-card);
+}
+
+/* ── Glass (translucent slate, blur 16px) ───────────────────── */
+.aeos-glass {
+  background: var(--aeos-glass-bg);
+  border: var(--aeos-border-width) solid var(--aeos-glass-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: var(--aeos-card-radius);
+  padding: var(--aeos-pad-card);
+}
+
+/* ── Glass Strong (modals, blur 24px) ───────────────────────── */
+.aeos-glass-strong {
+  background: var(--aeos-glass-bg-strong);
+  border: var(--aeos-border-width) solid var(--aeos-primary-border);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: var(--aeos-card-radius);
+  padding: var(--aeos-pad-card);
+}
+
+/* ── Bento (cursor-tracked radial highlight) ────────────────── */
+.aeos-bento {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--aeos-card-radius);
+  background: var(--aeos-bg-card);
+  border: var(--aeos-border-width) solid var(--aeos-primary-tint);
+  transition: border-color var(--aeos-dur-base) var(--aeos-ease-out),
+              box-shadow var(--aeos-dur-base) var(--aeos-ease-out);
+  padding: var(--aeos-pad-card);
+}
+
+.aeos-bento::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--mx, 50%) var(--my, 50%),
+    var(--aeos-primary-tint) 0%,
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity var(--aeos-dur-base) var(--aeos-ease-out);
+  pointer-events: none;
+}
+
+.aeos-bento:hover {
+  border-color: var(--aeos-primary-border);
+  box-shadow: var(--aeos-shadow-lift),
+              inset 0 1px 0 var(--aeos-primary-tint);
+}
+
+.aeos-bento:hover::before {
+  opacity: 1;
+}
+
+/* ── CTA Glass (full-spectrum hero panel) ───────────────────── */
+.aeos-cta-glass {
+  background: linear-gradient(
+    135deg,
+    var(--aeos-primary-tint)              0%,
+    var(--aeos-tertiary-tint)             50%,
+    var(--aeos-warning-tint)              100%
+  );
+  border: var(--aeos-border-width) solid var(--aeos-primary-border);
+  border-radius: var(--aeos-card-radius);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow:
+    0 0 0 1px var(--aeos-primary-tint),
+    var(--aeos-shadow-lift),
+    inset 0 1px 0 var(--aeos-border);
+  padding: var(--aeos-pad-card);
+}
+
+/* ── Glow Border (cyan glow ring) ───────────────────────────── */
+.aeos-card-glow {
+  background: var(--aeos-bg-overlay);
+  border: var(--aeos-border-width) solid var(--aeos-primary);
+  border-radius: var(--aeos-card-radius);
+  padding: var(--aeos-pad-card);
+  box-shadow:
+    0 0 0 1px var(--aeos-primary),
+    var(--aeos-glow-cyan),
+    inset 0 1px 0 var(--aeos-primary-tint);
+}
+
+/* ── Gradient Border (CSS mask technique) ───────────────────── */
+.aeos-card-gradient-border {
+  background: var(--aeos-bg-card);
+  border-radius: var(--aeos-card-radius);
+  padding: var(--aeos-pad-card);
+  position: relative;
+  border: var(--aeos-border-width) solid transparent;
+  /* Dual-background trick: content box uses bg-card, border box uses the gradient */
+  background:
+    linear-gradient(var(--aeos-bg-card), var(--aeos-bg-card)) padding-box,
+    var(--aeos-grad-full) border-box;
+}
+
+/* Fallback ::before for browsers that don't support dual-background shorthand */
+.aeos-card-gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--aeos-card-radius);
+  padding: 1px;
+  background: var(--aeos-grad-full);
+  -webkit-mask:
+    linear-gradient(white 0 0) content-box,
+    linear-gradient(white 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ── Outline / Ghost ────────────────────────────────────────── */
+.aeos-card-outline {
+  background: transparent;
+  border: var(--aeos-border-width) solid var(--aeos-primary);
+  border-radius: var(--aeos-card-radius);
+  padding: var(--aeos-pad-card);
+}
+
+/* ── Noise Texture ──────────────────────────────────────────── */
+.aeos-card-noise {
+  background: var(--aeos-bg-elevated);
+  border: var(--aeos-border-width) solid var(--aeos-border-subtle);
+  border-radius: var(--aeos-card-radius);
+  padding: var(--aeos-pad-card);
+  position: relative;
+  overflow: hidden;
+}
+
+.aeos-card-noise::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   .aeos-card-auto — Customizer-driven variant switching
+   The JS customizer writes data-card-style on <body>.
+   These rules override the element's appearance accordingly.
+   ══════════════════════════════════════════════════════════════ */
+
+body[data-card-style="flat"] .aeos-card-auto {
+  all: revert;
+  background: var(--aeos-bg-subtle);
+  border: var(--aeos-border-width) solid var(--aeos-border-subtle);
+  border-radius: var(--aeos-card-radius);
+  padding: var(--aeos-pad-card);
+}
+
+body[data-card-style="glass"] .aeos-card-auto {
+  all: revert;
+  background: var(--aeos-glass-bg);
+  border: var(--aeos-border-width) solid var(--aeos-glass-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: var(--aeos-card-radius);
+  padding: var(--aeos-pad-card);
+}
+
+body[data-card-style="glow"] .aeos-card-auto {
+  all: revert;
+  background: var(--aeos-bg-overlay);
+  border: var(--aeos-border-width) solid var(--aeos-primary);
+  border-radius: var(--aeos-card-radius);
+  padding: var(--aeos-pad-card);
+  box-shadow:
+    0 0 0 1px var(--aeos-primary),
+    var(--aeos-glow-cyan),
+    inset 0 1px 0 var(--aeos-primary-tint);
+}
+
+body[data-card-style="gradient-border"] .aeos-card-auto {
+  all: revert;
+  border-radius: var(--aeos-card-radius);
+  padding: var(--aeos-pad-card);
+  position: relative;
+  border: var(--aeos-border-width) solid transparent;
+  background:
+    linear-gradient(var(--aeos-bg-card), var(--aeos-bg-card)) padding-box,
+    var(--aeos-grad-full) border-box;
+}
+
+body[data-card-style="outline"] .aeos-card-auto {
+  all: revert;
+  background: transparent;
+  border: 1.5px solid var(--aeos-primary);
+  border-radius: var(--aeos-card-radius);
+  padding: var(--aeos-pad-card);
+}
+
+body[data-card-style="noise"] .aeos-card-auto {
+  all: revert;
+  background: var(--aeos-bg-elevated);
+  border: var(--aeos-border-width) solid var(--aeos-border-subtle);
+  border-radius: var(--aeos-card-radius);
+  padding: var(--aeos-pad-card);
+  position: relative;
+  overflow: hidden;
+}
+
+body[data-card-style="noise"] .aeos-card-auto::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* D-08 — Elevated (was missing from auto block) */
+body[data-card-style="elevated"] .aeos-card-auto {
+  all: revert;
+  background: var(--aeos-bg-elevated);
+  border: var(--aeos-border-width) solid var(--aeos-primary-tint);
+  border-radius: var(--aeos-card-radius);
+  padding: var(--aeos-pad-card);
+  box-shadow: var(--aeos-shadow-card);
+}
+
+/* D-12 — Glass-strong (was missing from auto block) */
+body[data-card-style="glass-strong"] .aeos-card-auto {
+  all: revert;
+  background: var(--aeos-glass-bg-strong);
+  border: var(--aeos-border-width) solid var(--aeos-primary-border);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: var(--aeos-card-radius);
+  padding: var(--aeos-pad-card);
+}
+
+/* D-04 — all:revert inside body[data-card-style] .aeos-card-auto (specificity 0,2,1)
+   restores browser link/button defaults (color:blue, text-decoration:underline) when
+   Card is rendered as <a> or <button>. This rule (specificity 0,2,2) re-suppresses them. */
+body[data-card-style] a.aeos-card-auto,
+body[data-card-style] button.aeos-card-auto {
+  color: inherit;
+  text-decoration: none;
+}

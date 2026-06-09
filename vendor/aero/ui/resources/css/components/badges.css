@@ -1,0 +1,133 @@
+/* ══════════════════════════════════════════════════════════════
+   aeos365 — Badge Styles (Phase 2)
+   Color variants: cyan, amber, indigo, success, danger
+   Special: mono (uppercase JetBrains Mono labels)
+   Dot pulse: .aeos-badge-dot (animated status indicator)
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Base ────────────────────────────────────────────────────── */
+.aeos-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--aeos-space-1);
+  padding: var(--aeos-pad-badge-y) var(--aeos-pad-badge-x);
+  border-radius: var(--aeos-r-full);
+  font-family: var(--aeos-font-body);
+  font-size: var(--aeos-text-xs);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  border: var(--aeos-border-width) solid;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+/* Badge icon span (left icon slot) */
+.aeos-badge-icon { font-size:var(--aeos-icon-xs); line-height:1; display:inline-flex; align-items:center; }
+
+/* ── Cyan (primary — links, highlights, active state) ────────── */
+.aeos-badge-cyan {
+  background: var(--aeos-primary-tint);
+  border-color: var(--aeos-primary-border);
+  color: var(--aeos-primary);
+}
+
+/* ── Amber (money, payroll, finance, warnings) ───────────────── */
+.aeos-badge-amber {
+  background: var(--aeos-warning-tint);
+  border-color: var(--aeos-warning-border);
+  color: var(--aeos-secondary);
+}
+
+/* ── Indigo (analytics, depth, chart series 2) ───────────────── */
+.aeos-badge-indigo {
+  background: var(--aeos-tertiary-tint);
+  border-color: var(--aeos-tertiary-border);
+  color: var(--aeos-tertiary);
+}
+
+/* ── Success ─────────────────────────────────────────────────── */
+.aeos-badge-success {
+  background: var(--aeos-success-tint);
+  border-color: var(--aeos-success-border);
+  color: var(--aeos-success);
+}
+
+/* ── Danger / Destructive ────────────────────────────────────── */
+.aeos-badge-danger {
+  background: var(--aeos-danger-tint);
+  border-color: var(--aeos-danger-border);
+  color: var(--aeos-destructive);
+}
+
+/* ── Warning (amber alias — keeps semantic clarity) ──────────── */
+.aeos-badge-warning {
+  background: var(--aeos-warning-tint);
+  border-color: var(--aeos-warning-border);
+  color: var(--aeos-secondary);
+}
+
+/* ── Neutral / Muted (secondary labels) ─────────────────────── */
+.aeos-badge-neutral {
+  background: var(--aeos-bg-tint);
+  border-color: var(--aeos-border-base);
+  color: var(--aeos-text-secondary);
+}
+
+/* ── Mono (uppercase label — use for system statuses, env tags) ─ */
+.aeos-badge-mono {
+  font-family: var(--aeos-font-mono);
+  font-size: var(--aeos-text-2xs);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  background: var(--aeos-primary-tint);
+  border-color: var(--aeos-primary-border);
+  color: var(--aeos-primary);
+}
+
+/* Mono variant applied alongside a color variant */
+.aeos-badge-amber.aeos-badge-mono {
+  background: var(--aeos-warning-tint);
+  border-color: var(--aeos-warning-border);
+  color: var(--aeos-secondary);
+}
+
+.aeos-badge-indigo.aeos-badge-mono {
+  background: var(--aeos-tertiary-tint);
+  border-color: var(--aeos-tertiary-border);
+  color: var(--aeos-tertiary);
+}
+
+.aeos-badge-success.aeos-badge-mono {
+  background: var(--aeos-success-tint);
+  border-color: var(--aeos-success-border);
+  color: var(--aeos-success);
+}
+
+.aeos-badge-danger.aeos-badge-mono {
+  background: var(--aeos-danger-tint);
+  border-color: var(--aeos-danger-border);
+  color: var(--aeos-destructive);
+}
+
+/* ── Dot (pulsing live-status indicator) ─────────────────────── */
+.aeos-badge-dot::before {
+  content: '';
+  width: var(--aeos-space-1-5);
+  height: var(--aeos-space-1-5);
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 var(--aeos-space-1-5) currentColor;
+  flex-shrink: 0;
+  animation: aeos-pulse 2s ease-in-out infinite;
+}
+
+/* ── Size Modifiers ─────────────────────────────────────────── */
+.aeos-badge-sm {
+  font-size: var(--aeos-text-2xs);
+  padding: var(--aeos-space-0-5) var(--aeos-space-2);
+}
+
+.aeos-badge-lg {
+  font-size: var(--aeos-text-xs);
+  padding: var(--aeos-space-1) var(--aeos-space-3);
+}

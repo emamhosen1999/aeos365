@@ -1,0 +1,161 @@
+import { useForm, router } from '@inertiajs/react';
+import {
+  FormPageLayout,
+  Input,
+  Button,
+  HStack,
+  VStack,
+  Text,
+  Card,
+  CardContent,
+  useToast,
+  Checkbox,
+  useHRMAC,
+} from '@aero/ui';
+import App from '@/Pages/App.jsx';
+
+export default function UsersEdit({ user, roles }) {
+  const toast   = useToast();
+  const canEdit = useHRMAC('core.user_management.users.edit');
+
+  const form = useForm({
+    name:                  user.name              || '',
+    email:                 user.email             || '',
+    user_name:             user.user_name         || '',
+    phone:                 user.phone             || '',
+    password:              '',
+    password_confirmation: '',
+    roles:                 user.roles?.map(r => r.name) || [],
+    active:                user.active ?? true,
+  });
+
+  const handleSubmit = e => {
+    e.preventDefault();
+    form.put(route('core.users.update', user.id), {
+      onSuccess: () => {
+        toast.success('User updated successfully.');
+        router.visit(route('core.users.index'));
+      },
+      onError: errors => {
+        const first = Object.values(errors)[0];
+        toast.error(first || 'Failed to update user.');
+      },
+    });
+  };
+
+  const toggleRole = name => {
+    const current = form.data.roles;
+    form.setData('roles',
+      current.includes(name) ? current.filter(r => r !== name) : [...current, name]
+    );
+  };
+
+  return (
+    <FormPageLayout
+      title="Edit User"
+      breadcrumb={[
+        { label: 'Dashboard', href: route('core.dashboard') },
+        { label: 'Users',     href: route('core.users.index') },
+        { label: user.name },
+      ]}
+      description="Update user account details and roles."
+    >
+      <form onSubmit={handleSubmit}>
+        <VStack gap={4} className="max-w-2xl">
+          <Input
+            label="Full Name *"
+            value={form.data.name}
+            onChange={e => form.setData('name', e.target.value)}
+            error={form.errors.name}
+            required
+          />
+
+          <Input
+            label="Email Address *"
+            type="email"
+            value={form.data.email}
+            onChange={e => form.setData('email', e.target.value)}
+            error={form.errors.email}
+            required
+          />
+
+          <Input
+            label="Username"
+            value={form.data.user_name}
+            onChange={e => form.setData('user_name', e.target.value)}
+            error={form.errors.user_name}
+          />
+
+          <Input
+            label="Phone"
+            type="tel"
+            value={form.data.phone}
+            onChange={e => form.setData('phone', e.target.value)}
+            error={form.errors.phone}
+          />
+
+          <Input
+            label="New Password"
+            type="password"
+            value={form.data.password}
+            onChange={e => form.setData('password', e.target.value)}
+            error={form.errors.password}
+            placeholder="Leave blank to keep current password"
+          />
+
+          {form.data.password && (
+            <Input
+              label="Confirm New Password"
+              type="password"
+              value={form.data.password_confirmation}
+              onChange={e => form.setData('password_confirmation', e.target.value)}
+              error={form.errors.password_confirmation}
+            />
+          )}
+
+          <VStack gap={2}>
+            <Text size="sm">Roles</Text>
+            <Card>
+              <CardContent>
+                <HStack gap={3} wrap>
+                  {(roles ?? []).map(r => (
+                    <Checkbox
+                      key={r.id ?? r.name}
+                      label={r.name}
+                      checked={form.data.roles.includes(r.name)}
+                      onChange={() => toggleRole(r.name)}
+                    />
+                  ))}
+                </HStack>
+              </CardContent>
+            </Card>
+            {form.errors.roles && (
+              <Text tone="secondary" size="sm">{form.errors.roles}</Text>
+            )}
+          </VStack>
+
+          <Checkbox
+            label="Active"
+            checked={form.data.active}
+            onChange={e => form.setData('active', e.target.checked)}
+          />
+
+          <HStack gap={3} className="pt-4">
+            {canEdit && (
+              <Button type="submit" intent="primary" disabled={form.processing}>
+                {form.processing ? 'Saving…' : 'Save Changes'}
+              </Button>
+            )}
+            <Button intent="soft" onClick={() => router.visit(route('core.users.index'))}>
+              Cancel
+            </Button>
+          </HStack>
+        </VStack>
+      </form>
+    </FormPageLayout>
+  );
+}
+
+UsersEdit.layout = page => (
+  <App title="Edit User">{page}</App>
+);

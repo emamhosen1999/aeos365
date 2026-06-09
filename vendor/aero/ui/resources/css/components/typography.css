@@ -1,0 +1,159 @@
+/* Headings */
+.aeos-heading { margin: 0; line-height: var(--aeos-leading-snug); }
+.aeos-h1 { font-family:var(--aeos-font-display); font-size:clamp(2rem,4vw,2.75rem); font-weight:700; line-height:var(--aeos-leading-tight); letter-spacing:-.02em; color:var(--aeos-text-primary); margin:0; }
+.aeos-h2 { font-family:var(--aeos-font-display); font-size:clamp(1.5rem,2.6vw,2rem);  font-weight:600; line-height:var(--aeos-leading-tight); letter-spacing:-.015em; color:var(--aeos-text-primary); margin:0; }
+.aeos-h3 { font-family:var(--aeos-font-body);    font-size:var(--aeos-text-xl);   font-weight:600; line-height:var(--aeos-leading-snug); color:var(--aeos-text-primary); margin:0; }
+.aeos-h4 { font-family:var(--aeos-font-body);    font-size:var(--aeos-text-lg);   font-weight:600; line-height:var(--aeos-leading-snug); color:var(--aeos-text-primary); margin:0; }
+.aeos-h5 { font-family:var(--aeos-font-body);    font-size:var(--aeos-text-base); font-weight:600; line-height:var(--aeos-leading-snug); color:var(--aeos-text-primary); margin:0; }
+.aeos-h6 { font-family:var(--aeos-font-body);    font-size:var(--aeos-text-sm);   font-weight:600; line-height:var(--aeos-leading-snug); color:var(--aeos-text-primary); margin:0; }
+
+/* Text sizes */
+.aeos-text-xs   { font-size:var(--aeos-text-xs);   line-height:var(--aeos-leading-normal); color:var(--aeos-text-primary); margin:0; }
+.aeos-text-sm   { font-size:var(--aeos-text-sm);   line-height:var(--aeos-leading-normal); color:var(--aeos-text-primary); margin:0; }
+.aeos-text-base { font-size:var(--aeos-text-base); line-height:var(--aeos-leading-relaxed); color:var(--aeos-text-primary); margin:0; }
+.aeos-text-lg   { font-size:var(--aeos-text-lg);   line-height:var(--aeos-leading-relaxed); color:var(--aeos-text-primary); margin:0; }
+
+/* Text tones */
+.aeos-text-primary   { color:var(--aeos-text-primary); }
+.aeos-text-secondary { color:var(--aeos-text-secondary); }
+.aeos-text-tertiary  { color:var(--aeos-text-tertiary); }
+.aeos-text-muted     { color:var(--aeos-text-tertiary); }
+.aeos-text-success   { color:var(--aeos-success); }
+.aeos-text-danger    { color:var(--aeos-destructive); }
+.aeos-text-warning   { color:var(--aeos-secondary); }
+
+/* Weights */
+.aeos-fw-500 { font-weight:500; }
+.aeos-fw-600 { font-weight:600; }
+.aeos-fw-700 { font-weight:700; }
+
+/* Mono */
+.aeos-text-mono { font-family:var(--aeos-font-mono); font-size:0.875em; }
+
+/* Gradient text */
+.aeos-text-grad {
+  background:var(--aeos-grad-cyan);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+
+/* Eyebrow */
+.aeos-eyebrow {
+  font-family:var(--aeos-font-mono);
+  font-size:var(--aeos-text-2xs); letter-spacing:0.18em; text-transform:uppercase;
+  color:var(--aeos-text-secondary); margin-bottom:var(--aeos-space-1-5); display:block;
+}
+.aeos-eyebrow-primary { color:var(--aeos-primary); }
+.aeos-eyebrow-amber   { color:var(--aeos-secondary); }
+.aeos-eyebrow-indigo  { color:var(--aeos-tertiary); }
+
+/* Divider */
+.aeos-divider-horizontal {
+  display:block; width:100%; height:1px;
+  background:var(--aeos-divider); border:none;
+  margin:var(--aeos-space-4) 0;
+}
+.aeos-divider-vertical {
+  display:inline-block; width:1px; height:1em;
+  background:var(--aeos-divider); border:none;
+  margin:0 var(--aeos-space-3); vertical-align:middle;
+}
+.aeos-divider-label {
+  display:flex; align-items:center; gap:var(--aeos-space-3);
+  margin:var(--aeos-space-4) 0;
+}
+.aeos-divider-line { flex:1; height:1px; background:var(--aeos-divider); }
+.aeos-divider-text { font-family:var(--aeos-font-mono); font-size:var(--aeos-text-2xs); letter-spacing:0.1em; color:var(--aeos-text-tertiary); white-space:nowrap; }
+
+/* Link */
+.aeos-link { display:inline-flex; align-items:center; gap:var(--aeos-space-1); text-decoration:none; transition:color var(--aeos-dur-fast) var(--aeos-ease-out); }
+.aeos-link-primary { color:var(--aeos-primary); }
+.aeos-link-muted   { color:var(--aeos-text-secondary); }
+.aeos-link-underline-hover:hover  { text-decoration:underline; text-underline-offset:3px; }
+.aeos-link-underline-always       { text-decoration:underline; text-underline-offset:3px; }
+.aeos-link-underline-none         { text-decoration:none; }
+.aeos-link-icon          { font-size:var(--aeos-icon-sm); line-height:1; display:inline-flex; align-items:center; }
+.aeos-link-icon-external { font-size:var(--aeos-icon-xs); }
+
+/* ── Display Headings (design system scale) ─────────────────────── */
+.aeos-display-hero {
+  font-family: var(--aeos-font-display);
+  font-size: var(--aeos-fs-display-hero);
+  font-weight: 800;
+  line-height: var(--aeos-leading-tight);
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+  color: var(--aeos-text-primary);
+}
+
+.aeos-display-section {
+  font-family: var(--aeos-font-display);
+  font-size: var(--aeos-fs-display-sec);
+  font-weight: 700;
+  line-height: var(--aeos-leading-tight);
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+  color: var(--aeos-text-primary);
+}
+
+.aeos-display-sm {
+  font-family: var(--aeos-font-display);
+  font-size: var(--aeos-fs-display-sm);
+  font-weight: 700;
+  line-height: var(--aeos-leading-tight);
+  letter-spacing: -0.02em;
+  color: var(--aeos-text-primary);
+}
+
+/* ── Body Text ──────────────────────────────────────────────────── */
+.aeos-body {
+  font-family: var(--aeos-font-body);
+  font-size: var(--aeos-fs-body);
+  line-height: var(--aeos-leading-relaxed);
+  color: var(--aeos-text-primary);
+}
+
+.aeos-body-lg {
+  font-family: var(--aeos-font-body);
+  font-size: var(--aeos-fs-body-lg);
+  line-height: var(--aeos-leading-relaxed);
+  color: var(--aeos-ink-muted);
+}
+
+/* ── Label / Mono Helpers ────────────────────────────────────────── */
+.aeos-label-mono {
+  font-family: var(--aeos-font-mono);
+  font-size: var(--aeos-fs-label);
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--aeos-ink-muted);
+}
+
+.aeos-mono-num {
+  font-family: var(--aeos-font-mono);
+  font-feature-settings: "tnum";
+  letter-spacing: -0.01em;
+}
+
+/* ── Gradient Text (design system variants) ──────────────────────── */
+.aeos-text-gradient-cyan {
+  background: var(--aeos-grad-cyan);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.aeos-text-gradient-amber {
+  background: var(--aeos-grad-amber);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.aeos-text-gradient-full {
+  background: var(--aeos-grad-full);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+

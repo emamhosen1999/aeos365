@@ -1,0 +1,411 @@
+
+> dev
+> vite
+
+
+  [32m[1mVITE[22m v7.3.2[39m  [2mready in [0m[1m659[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.0.48:[1m5173[22m/[39m
+
+  [31m[1mLARAVEL[22m v12.58.0[39m  [2mplugin[22m [1mv2.1.0[22m
+
+  [32m➜[39m  [1mAPP_URL[22m: [36mhttp://aeos365.test[39m
+[2m8:31:13 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\components\SavedViews.jsx[22m
+[2m8:31:13 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/components/SavedViews.jsx[22m
+[2m8:31:13 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\components\SavedViews.jsx[22m
+[2m8:31:13 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/components/SavedViews.jsx[22m
+[2m8:37:57 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\components\SystemHealth\HealthCard.jsx[22m
+[2m8:37:57 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/components/SystemHealth/HealthCard.jsx[22m
+[2m8:38:07 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\components\SystemHealth\HealthCard.jsx[22m
+[2m8:38:07 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/components/SystemHealth/HealthCard.jsx[22m
+[2m8:40:45 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\index.js[22m
+[2m8:40:45 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/Pages/App.jsx, /vendor/aero/ui/resources/js/Pages/Core/Notifications/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/PasswordPolicy.jsx, /vendor/aero/ui/resources/js/Pages/Core/Tags/Trashed.jsx, /vendor/aero/ui/resources/js/Pages/Core/Activity/Index.jsx, /vendor/aero/ui/resources/js/Pages/Auth/VerifyEmail.jsx, /vendor/aero/ui/resources/js/Pages/Core/Forms/Edit.jsx, /vendor/aero/ui/resources/js/Pages/Auth/AcceptInvitation.jsx, /vendor/aero/ui/resources/js/Pages/Core/Users/Create.jsx, /vendor/aero/ui/resources/js/Pages/Core/Backup/Config.jsx, /vendor/aero/ui/resources/js/Pages/Core/Users/Edit.jsx, /vendor/aero/ui/resources/js/Pages/Core/Users/Show.jsx, /vendor/aero/ui/resources/js/Pages/Auth/InvitationInvalid.jsx, /vendor/aero/ui/resources/js/Pages/Core/ExportImport/Imports/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Activity/Show.jsx, /vendor/aero/ui/resources/js/Pages/Auth/Devices.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/Mail.jsx, /vendor/aero/ui/resources/js/Pages/Core/RetentionPolicies/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Forms/Submissions.jsx, /vendor/aero/ui/resources/js/Pages/Core/Search/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Search/IndexManagement.jsx, /vendor/aero/ui/resources/js/Pages/Core/FileManager/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/UserPreferences/AccessibilityPreferences.jsx, /vendor/aero/ui/resources/js/Pages/Core/UserPreferences/ThemePreferences.jsx, /vendor/aero/ui/resources/js/Pages/Core/UserPreferences/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Mentions/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/Security.jsx, /vendor/aero/ui/resources/js/Pages/Core/Workflows/Templates/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Tags/Index.jsx, /vendor/aero/ui/resources/js/Pages/Auth/Sessions.jsx, /vendor/aero/ui/resources/js/Pages/Core/Forms/Create.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/Localization.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/SystemSettings.jsx, /vendor/aero/ui/resources/js/Pages/Auth/ForgotPassword.jsx, /vendor/aero/ui/resources/js/Pages/Core/AuditLogs/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/IpWhitelist.jsx, /vendor/aero/ui/resources/js/Pages/Core/Profile/Security.jsx, /vendor/aero/ui/resources/js/Pages/Core/ActivityFeed/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/UserPreferences/NotificationPreferences.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/LegalSecurity.jsx, /vendor/aero/ui/resources/js/Pages/Core/Workflows/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Roles/Index.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Complete.jsx, /vendor/aero/ui/resources/js/Pages/Auth/TwoFactor/Challenge.jsx, /vendor/aero/ui/resources/js/Pages/Auth/Login.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Database.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Requirements.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/Branding.jsx, /vendor/aero/ui/resources/js/Pages/Core/SystemHealth/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Modules/Index.jsx, /vendor/aero/ui/resources/js/Pages/Auth/TwoFactor/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Forms/Index.jsx, /vendor/aero/ui/resources/js/Pages/Shared/Auth/Login.jsx, /vendor/aero/ui/resources/js/Pages/Core/UserPreferences/LocalePreferences.jsx, /vendor/aero/ui/resources/js/Pages/Core/Users/Index.jsx, /vendor/aero/ui/resources/js/Pages/I18n/Editor/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/ExportImport/Exports/Index.jsx, /vendor/aero/ui/resources/js/Pages/Installation/InstallLayout.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepPayment.jsx, /vendor/aero/ui/resources/js/Pages/Core/Organization/Profile.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Admin.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepVerifyEmail.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Welcome.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Settings.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepDetails.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepSuccess.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Pricing.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Enterprise.jsx, /vendor/aero/ui/resources/js/Pages/Shared/Auth/AdminSetup.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/RegistrationLayout.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepProvisioning.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepPlan.jsx, /vendor/aero/ui/resources/js/Pages/Admin/UserDevices.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/DocsApi.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/LegalTerms.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/LegalPrivacy.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Blog.jsx, /vendor/aero/ui/resources/js/Pages/Installation/License.jsx, /vendor/aero/ui/resources/js/Pages/Installation/AlreadyInstalled.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Layout/PublicLayout.jsx, /vendor/aero/ui/resources/js/Pages/Core/Trash/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Restore/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/SavedViews/Index.jsx, /vendor/aero/ui/resources/js/Pages/Tenant/Dashboard.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepVerifyPhone.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Processing.jsx, /vendor/aero/ui/resources/js/Pages/Core/CustomFields/Index.jsx, /vendor/aero/ui/resources/js/Pages/I18n/Languages/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Workflows/Approvals/Index.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/About.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Review.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Docs.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepBYOC.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Features.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepAccount.jsx, /vendor/aero/ui/resources/js/Pages/Auth/ResetPassword.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/LegalCookies.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Home.jsx, /vendor/aero/ui/resources/js/Pages/Core/Backup/Index.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Contact.jsx, /vendor/aero/ui/resources/js/components/SearchOverlay.jsx, /vendor/aero/ui/resources/js/components/SystemHealth/HealthCard.jsx, /vendor/aero/ui/resources/js/Pages/app.jsx[22m
+[2m8:44:46 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\index.js[22m
+[2m8:44:46 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/Pages/App.jsx, /vendor/aero/ui/resources/js/Pages/Core/Notifications/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/PasswordPolicy.jsx, /vendor/aero/ui/resources/js/Pages/Core/Tags/Trashed.jsx, /vendor/aero/ui/resources/js/Pages/Core/Activity/Index.jsx, /vendor/aero/ui/resources/js/Pages/Auth/VerifyEmail.jsx, /vendor/aero/ui/resources/js/Pages/Core/Forms/Edit.jsx, /vendor/aero/ui/resources/js/Pages/Auth/AcceptInvitation.jsx, /vendor/aero/ui/resources/js/Pages/Core/Users/Create.jsx, /vendor/aero/ui/resources/js/Pages/Core/Backup/Config.jsx, /vendor/aero/ui/resources/js/Pages/Core/Users/Edit.jsx, /vendor/aero/ui/resources/js/Pages/Core/Users/Show.jsx, /vendor/aero/ui/resources/js/Pages/Auth/InvitationInvalid.jsx, /vendor/aero/ui/resources/js/Pages/Core/ExportImport/Imports/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Activity/Show.jsx, /vendor/aero/ui/resources/js/Pages/Auth/Devices.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/Mail.jsx, /vendor/aero/ui/resources/js/Pages/Core/RetentionPolicies/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Forms/Submissions.jsx, /vendor/aero/ui/resources/js/Pages/Core/Search/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Search/IndexManagement.jsx, /vendor/aero/ui/resources/js/Pages/Core/FileManager/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/UserPreferences/AccessibilityPreferences.jsx, /vendor/aero/ui/resources/js/Pages/Core/UserPreferences/ThemePreferences.jsx, /vendor/aero/ui/resources/js/Pages/Core/UserPreferences/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Mentions/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/Security.jsx, /vendor/aero/ui/resources/js/Pages/Core/Workflows/Templates/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Tags/Index.jsx, /vendor/aero/ui/resources/js/Pages/Auth/Sessions.jsx, /vendor/aero/ui/resources/js/Pages/Core/Forms/Create.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/Localization.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/SystemSettings.jsx, /vendor/aero/ui/resources/js/Pages/Auth/ForgotPassword.jsx, /vendor/aero/ui/resources/js/Pages/Core/AuditLogs/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/IpWhitelist.jsx, /vendor/aero/ui/resources/js/Pages/Core/Profile/Security.jsx, /vendor/aero/ui/resources/js/Pages/Core/ActivityFeed/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/UserPreferences/NotificationPreferences.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/LegalSecurity.jsx, /vendor/aero/ui/resources/js/Pages/Core/Workflows/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Roles/Index.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Complete.jsx, /vendor/aero/ui/resources/js/Pages/Auth/TwoFactor/Challenge.jsx, /vendor/aero/ui/resources/js/Pages/Auth/Login.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Database.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Requirements.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/Branding.jsx, /vendor/aero/ui/resources/js/Pages/Core/SystemHealth/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Modules/Index.jsx, /vendor/aero/ui/resources/js/Pages/Auth/TwoFactor/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Forms/Index.jsx, /vendor/aero/ui/resources/js/Pages/Shared/Auth/Login.jsx, /vendor/aero/ui/resources/js/Pages/Core/UserPreferences/LocalePreferences.jsx, /vendor/aero/ui/resources/js/Pages/Core/Users/Index.jsx, /vendor/aero/ui/resources/js/Pages/I18n/Editor/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/ExportImport/Exports/Index.jsx, /vendor/aero/ui/resources/js/Pages/Installation/InstallLayout.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepPayment.jsx, /vendor/aero/ui/resources/js/Pages/Core/Organization/Profile.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Admin.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepVerifyEmail.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Welcome.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Settings.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepDetails.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepSuccess.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Pricing.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Enterprise.jsx, /vendor/aero/ui/resources/js/Pages/Shared/Auth/AdminSetup.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/RegistrationLayout.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepProvisioning.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepPlan.jsx, /vendor/aero/ui/resources/js/Pages/Admin/UserDevices.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/DocsApi.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/LegalTerms.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/LegalPrivacy.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Blog.jsx, /vendor/aero/ui/resources/js/Pages/Installation/License.jsx, /vendor/aero/ui/resources/js/Pages/Installation/AlreadyInstalled.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Layout/PublicLayout.jsx, /vendor/aero/ui/resources/js/Pages/Core/Trash/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Restore/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/SavedViews/Index.jsx, /vendor/aero/ui/resources/js/Pages/Tenant/Dashboard.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepVerifyPhone.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Processing.jsx, /vendor/aero/ui/resources/js/Pages/Core/CustomFields/Index.jsx, /vendor/aero/ui/resources/js/Pages/I18n/Languages/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Workflows/Approvals/Index.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/About.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Review.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Docs.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepBYOC.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Features.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepAccount.jsx, /vendor/aero/ui/resources/js/Pages/Auth/ResetPassword.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/LegalCookies.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Home.jsx, /vendor/aero/ui/resources/js/Pages/Core/Backup/Index.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Contact.jsx, /vendor/aero/ui/resources/js/components/SearchOverlay.jsx, /vendor/aero/ui/resources/js/components/SystemHealth/HealthCard.jsx, /vendor/aero/ui/resources/js/Pages/app.jsx[22m
+[2m8:46:16 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\index.js[22m
+[2m8:46:16 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/Pages/App.jsx, /vendor/aero/ui/resources/js/Pages/Core/Notifications/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/PasswordPolicy.jsx, /vendor/aero/ui/resources/js/Pages/Core/Tags/Trashed.jsx, /vendor/aero/ui/resources/js/Pages/Core/Activity/Index.jsx, /vendor/aero/ui/resources/js/Pages/Auth/VerifyEmail.jsx, /vendor/aero/ui/resources/js/Pages/Core/Forms/Edit.jsx, /vendor/aero/ui/resources/js/Pages/Auth/AcceptInvitation.jsx, /vendor/aero/ui/resources/js/Pages/Core/Users/Create.jsx, /vendor/aero/ui/resources/js/Pages/Core/Backup/Config.jsx, /vendor/aero/ui/resources/js/Pages/Core/Users/Edit.jsx, /vendor/aero/ui/resources/js/Pages/Core/Users/Show.jsx, /vendor/aero/ui/resources/js/Pages/Auth/InvitationInvalid.jsx, /vendor/aero/ui/resources/js/Pages/Core/ExportImport/Imports/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Activity/Show.jsx, /vendor/aero/ui/resources/js/Pages/Auth/Devices.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/Mail.jsx, /vendor/aero/ui/resources/js/Pages/Core/RetentionPolicies/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Forms/Submissions.jsx, /vendor/aero/ui/resources/js/Pages/Core/Search/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Search/IndexManagement.jsx, /vendor/aero/ui/resources/js/Pages/Core/FileManager/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/UserPreferences/AccessibilityPreferences.jsx, /vendor/aero/ui/resources/js/Pages/Core/UserPreferences/ThemePreferences.jsx, /vendor/aero/ui/resources/js/Pages/Core/UserPreferences/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Mentions/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/Security.jsx, /vendor/aero/ui/resources/js/Pages/Core/Workflows/Templates/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Tags/Index.jsx, /vendor/aero/ui/resources/js/Pages/Auth/Sessions.jsx, /vendor/aero/ui/resources/js/Pages/Core/Forms/Create.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/Localization.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/SystemSettings.jsx, /vendor/aero/ui/resources/js/Pages/Auth/ForgotPassword.jsx, /vendor/aero/ui/resources/js/Pages/Core/AuditLogs/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/IpWhitelist.jsx, /vendor/aero/ui/resources/js/Pages/Core/Profile/Security.jsx, /vendor/aero/ui/resources/js/Pages/Core/ActivityFeed/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/UserPreferences/NotificationPreferences.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/LegalSecurity.jsx, /vendor/aero/ui/resources/js/Pages/Core/Workflows/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Roles/Index.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Complete.jsx, /vendor/aero/ui/resources/js/Pages/Auth/TwoFactor/Challenge.jsx, /vendor/aero/ui/resources/js/Pages/Auth/Login.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Database.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Requirements.jsx, /vendor/aero/ui/resources/js/Pages/Core/Settings/Branding.jsx, /vendor/aero/ui/resources/js/Pages/Core/SystemHealth/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Modules/Index.jsx, /vendor/aero/ui/resources/js/Pages/Auth/TwoFactor/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Forms/Index.jsx, /vendor/aero/ui/resources/js/Pages/Shared/Auth/Login.jsx, /vendor/aero/ui/resources/js/Pages/Core/UserPreferences/LocalePreferences.jsx, /vendor/aero/ui/resources/js/Pages/Core/Users/Index.jsx, /vendor/aero/ui/resources/js/Pages/I18n/Editor/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/ExportImport/Exports/Index.jsx, /vendor/aero/ui/resources/js/Pages/Installation/InstallLayout.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepPayment.jsx, /vendor/aero/ui/resources/js/Pages/Core/Organization/Profile.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Admin.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepVerifyEmail.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Welcome.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Settings.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepDetails.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepSuccess.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Pricing.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Enterprise.jsx, /vendor/aero/ui/resources/js/Pages/Shared/Auth/AdminSetup.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/RegistrationLayout.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepProvisioning.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepPlan.jsx, /vendor/aero/ui/resources/js/Pages/Admin/UserDevices.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/DocsApi.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/LegalTerms.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/LegalPrivacy.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Blog.jsx, /vendor/aero/ui/resources/js/Pages/Installation/License.jsx, /vendor/aero/ui/resources/js/Pages/Installation/AlreadyInstalled.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Layout/PublicLayout.jsx, /vendor/aero/ui/resources/js/Pages/Core/Trash/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Restore/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/SavedViews/Index.jsx, /vendor/aero/ui/resources/js/Pages/Tenant/Dashboard.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepVerifyPhone.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Processing.jsx, /vendor/aero/ui/resources/js/Pages/Core/CustomFields/Index.jsx, /vendor/aero/ui/resources/js/Pages/I18n/Languages/Index.jsx, /vendor/aero/ui/resources/js/Pages/Core/Workflows/Approvals/Index.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/About.jsx, /vendor/aero/ui/resources/js/Pages/Installation/Review.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Docs.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepBYOC.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Features.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Register/steps/StepAccount.jsx, /vendor/aero/ui/resources/js/Pages/Auth/ResetPassword.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/LegalCookies.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Home.jsx, /vendor/aero/ui/resources/js/Pages/Core/Backup/Index.jsx, /vendor/aero/ui/resources/js/Pages/Platform/Public/Contact.jsx, /vendor/aero/ui/resources/js/components/SearchOverlay.jsx, /vendor/aero/ui/resources/js/components/SystemHealth/HealthCard.jsx, /vendor/aero/ui/resources/js/Pages/app.jsx[22m
+[2m8:47:52 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\Core\CustomFields\Index.jsx[22m
+[2m8:47:52 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/Pages/Core/CustomFields/Index.jsx[22m
+[2m1:14:55 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Employees\Index.jsx[22m
+[2m1:14:55 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m1:15:21 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Employees\_form.jsx[22m
+[2m1:15:21 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m1:15:33 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Employees\Create.jsx[22m
+[2m1:15:33 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m1:15:43 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Employees\Edit.jsx[22m
+[2m1:15:43 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m1:16:09 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Employees\Show.jsx[22m
+[2m1:16:09 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:49:14 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\OrgStructure\Departments\Index.jsx[22m
+[2m8:49:14 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:49:28 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\OrgStructure\Departments\Create.jsx[22m
+[2m8:49:28 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:49:48 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\OrgStructure\Departments\Edit.jsx[22m
+[2m8:49:48 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:50:05 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\OrgStructure\Departments\OrgChart.jsx[22m
+[2m8:50:05 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:50:28 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\OrgStructure\Designations\Index.jsx[22m
+[2m8:50:28 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:50:47 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\OrgStructure\Grades\Index.jsx[22m
+[2m8:50:47 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:51:10 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\OrgStructure\WorkLocations\Index.jsx[22m
+[2m8:51:10 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:29:04 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Leave\Types\Index.jsx[22m
+[2m12:29:04 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:29:25 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Leave\Applications\Index.jsx[22m
+[2m12:29:25 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:29:42 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Leave\Applications\Create.jsx[22m
+[2m12:29:42 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:30:03 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Leave\Applications\Show.jsx[22m
+[2m12:30:03 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:31:19 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Leave\Applications\Create.jsx[22m
+[2m12:31:22 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Leave\Applications\Create.jsx[22m
+[2m12:32:28 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Leave\Balance\Index.jsx[22m
+[2m12:32:28 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:32:56 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Leave\Calendar\Index.jsx[22m
+[2m12:32:56 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:33:15 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Leave\Settings\Index.jsx[22m
+[2m12:33:15 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m9:06:00 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Attendance\ClockIn.jsx[22m
+[2m9:06:00 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m9:06:18 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Attendance\Admin\Daily.jsx[22m
+[2m9:06:18 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m9:06:41 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Attendance\Admin\Monthly.jsx[22m
+[2m9:06:41 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m9:07:07 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Attendance\Overtime\Index.jsx[22m
+[2m9:07:07 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m9:07:24 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Attendance\Overtime\Create.jsx[22m
+[2m9:07:24 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m9:07:55 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Attendance\Timesheets\Index.jsx[22m
+[2m9:07:55 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m9:08:22 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Attendance\Shifts\Marketplace.jsx[22m
+[2m9:08:22 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m9:57:40 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Structures\Index.jsx[22m
+[2m9:57:40 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m9:58:00 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Structures\Create.jsx[22m
+[2m9:58:00 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m9:58:30 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Components\Index.jsx[22m
+[2m9:58:30 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m9:58:48 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Runs\Index.jsx[22m
+[2m9:58:48 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m9:59:12 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Runs\Create.jsx[22m
+[2m9:59:12 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m9:59:38 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Runs\Show.jsx[22m
+[2m9:59:38 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m10:00:09 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Payslips\Show.jsx[22m
+[2m10:00:09 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m10:00:33 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Settings\Tax.jsx[22m
+[2m10:00:33 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m2:10:56 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Structures\Create.jsx[22m
+[2m2:11:00 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Structures\Create.jsx[22m
+[2m2:11:14 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Structures\Create.jsx[22m
+[2m2:11:31 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\css\components\payroll.css[22m
+[2m2:11:36 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\css\app.css[22m
+[2m2:11:36 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/css/app.css?direct, /vendor/aero/ui/resources/css/app.css[22m
+[2m2:11:41 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Structures\Create.jsx[22m
+[2m2:11:44 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\css\components\payroll.css[22m
+[2m2:11:47 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Structures\Create.jsx[22m
+[2m2:11:51 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Structures\Create.jsx[22m
+[2m2:11:55 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Structures\Create.jsx[22m
+[2m2:12:00 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Runs\Create.jsx[22m
+[2m2:12:04 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Runs\Create.jsx[22m
+[2m2:12:07 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Runs\Create.jsx[22m
+[2m2:12:12 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Payslips\Show.jsx[22m
+[2m2:12:16 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Payslips\Show.jsx[22m
+[2m2:12:19 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\css\components\payroll.css[22m
+[2m2:12:23 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Payslips\Show.jsx[22m
+[2m2:12:27 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Payslips\Show.jsx[22m
+[2m2:12:31 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Payslips\Show.jsx[22m
+[2m2:12:34 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Payslips\Show.jsx[22m
+[2m2:12:37 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Payslips\Show.jsx[22m
+[2m2:12:40 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Payslips\Show.jsx[22m
+[2m2:12:44 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Payslips\Show.jsx[22m
+[2m2:12:47 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Payslips\Show.jsx[22m
+[2m2:14:59 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Runs\Show.jsx[22m
+[2m2:15:03 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Runs\Show.jsx[22m
+[2m2:15:09 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Runs\Show.jsx[22m
+[2m3:00:13 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Cycles\Index.jsx[22m
+[2m3:00:13 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m3:00:32 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Cycles\Create.jsx[22m
+[2m3:00:32 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m3:00:49 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Reviews\Index.jsx[22m
+[2m3:00:49 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m3:01:26 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Reviews\Show.jsx[22m
+[2m3:01:26 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m3:01:43 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Goals\Index.jsx[22m
+[2m3:01:43 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m3:02:01 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Goals\Create.jsx[22m
+[2m3:02:01 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m3:02:26 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Feedback360\Index.jsx[22m
+[2m3:02:26 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m3:02:57 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Calibration\Index.jsx[22m
+[2m3:02:57 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m3:03:16 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Skills\Matrix.jsx[22m
+[2m3:03:16 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m3:03:31 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\PIP\Index.jsx[22m
+[2m3:03:31 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m3:03:48 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\PIP\Create.jsx[22m
+[2m3:03:48 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m3:05:22 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Reviews\Index.jsx[22m
+[2m3:05:24 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Calibration\Index.jsx[22m
+[2m3:05:29 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Calibration\Index.jsx[22m
+[2m3:05:30 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Calibration\Index.jsx[22m
+[2m3:05:32 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Skills\Matrix.jsx[22m
+[2m3:05:35 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Skills\Matrix.jsx[22m
+[2m3:05:42 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Skills\Matrix.jsx[22m
+[2m3:06:12 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Calibration\Index.jsx[22m
+[2m3:06:21 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Skills\Matrix.jsx[22m
+[2m7:13:18 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Jobs\Index.jsx[22m
+[2m7:13:18 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m7:13:41 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Jobs\Create.jsx[22m
+[2m7:13:41 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m7:14:14 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Jobs\Show.jsx[22m
+[2m7:14:14 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m7:14:52 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Applications\Show.jsx[22m
+[2m7:14:52 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m7:15:14 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Interviews\Index.jsx[22m
+[2m7:15:14 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m7:15:35 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Interviews\Create.jsx[22m
+[2m7:15:35 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m7:15:57 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Offers\Create.jsx[22m
+[2m7:15:57 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m7:16:38 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Onboarding\Create.jsx[22m
+[2m7:16:38 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m7:20:18 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Jobs\Show.jsx[22m
+[2m7:20:23 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Jobs\Show.jsx[22m
+[2m7:20:29 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Jobs\Show.jsx[22m
+[2m7:20:32 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Jobs\Show.jsx[22m
+[2m7:20:36 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Jobs\Show.jsx[22m
+[2m7:20:40 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Jobs\Show.jsx[22m
+[2m7:39:25 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Training\Categories\Index.jsx[22m
+[2m7:39:25 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m7:39:50 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Training\Courses\Index.jsx[22m
+[2m7:39:50 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m7:40:17 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Training\Courses\Create.jsx[22m
+[2m7:40:17 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m7:40:49 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Training\Courses\Show.jsx[22m
+[2m7:40:49 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m7:41:08 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Training\Sessions\Create.jsx[22m
+[2m7:41:08 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m7:41:35 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Training\Enrollments\Index.jsx[22m
+[2m7:41:35 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m7:41:54 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Training\Enrollments\Index.jsx[22m
+[2m7:42:17 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Training\Feedback\Create.jsx[22m
+[2m7:42:17 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m7:44:04 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Training\Categories\Index.jsx[22m
+[2m7:44:05 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Training\Categories\Index.jsx[22m
+[2m7:44:09 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Training\Courses\Show.jsx[22m
+[2m7:44:10 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Training\Courses\Show.jsx[22m
+[2m7:44:12 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Training\Courses\Show.jsx[22m
+[2m12:26:44 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\components\SelfServiceSidebar.jsx[22m
+[2m12:26:44 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:27:05 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Dashboard.jsx[22m
+[2m12:27:05 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:27:29 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Profile.jsx[22m
+[2m12:27:29 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:28:04 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Leaves.jsx[22m
+[2m12:28:04 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:28:21 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Payslips.jsx[22m
+[2m12:28:21 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:28:43 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\PayslipShow.jsx[22m
+[2m12:28:43 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:28:56 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Benefits.jsx[22m
+[2m12:28:56 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:29:14 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Training.jsx[22m
+[2m12:29:14 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:29:33 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Performance.jsx[22m
+[2m12:29:33 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:29:50 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\CareerPath.jsx[22m
+[2m12:29:50 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:29:57 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\NoProfile.jsx[22m
+[2m12:29:57 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:33:47 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\components\SelfServiceSidebar.jsx[22m
+[2m12:34:10 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Dashboard.jsx[22m
+[2m12:34:29 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Profile.jsx[22m
+[2m12:35:06 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Leaves.jsx[22m
+[2m12:35:19 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Payslips.jsx[22m
+[2m12:35:37 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\PayslipShow.jsx[22m
+[2m12:35:46 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Benefits.jsx[22m
+[2m12:35:59 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Training.jsx[22m
+[2m12:36:15 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Performance.jsx[22m
+[2m12:36:22 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\CareerPath.jsx[22m
+[2m12:36:29 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\NoProfile.jsx[22m
+[2m12:48:33 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Analytics\Dashboard.jsx[22m
+[2m12:48:33 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:48:52 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Analytics\Attrition.jsx[22m
+[2m12:48:52 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:48:56 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Analytics\Attrition.jsx[22m
+[2m12:49:11 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Analytics\DEI.jsx[22m
+[2m12:49:11 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:49:28 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Analytics\PulseSurveys\Index.jsx[22m
+[2m12:49:28 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:49:50 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Analytics\PulseSurveys\Create.jsx[22m
+[2m12:49:50 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:49:55 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Analytics\PulseSurveys\Create.jsx[22m
+[2m12:50:17 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Analytics\PulseSurveys\Results.jsx[22m
+[2m12:50:17 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m12:50:38 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Analytics\WorkforcePlanning.jsx[22m
+[2m12:50:38 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:34:12 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\Catalog\Index.jsx[22m
+[2m8:34:12 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:34:36 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\Catalog\Create.jsx[22m
+[2m8:34:36 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:34:55 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\EnrollmentPeriods\Index.jsx[22m
+[2m8:34:55 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:35:17 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\EnrollmentPeriods\Create.jsx[22m
+[2m8:35:17 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:35:49 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\EnrollmentPeriods\Show.jsx[22m
+[2m8:35:49 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:36:16 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\OpenEnrollment\Index.jsx[22m
+[2m8:36:16 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:36:34 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\Enrollments\Index.jsx[22m
+[2m8:36:34 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:40:31 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\Enrollments\Index.jsx[22m
+[2m8:40:32 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\Catalog\Create.jsx[22m
+[2m8:40:34 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\EnrollmentPeriods\Create.jsx[22m
+[2m8:40:40 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\Enrollments\Index.jsx[22m
+[2m8:40:41 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\Catalog\Create.jsx[22m
+[2m8:40:43 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\EnrollmentPeriods\Create.jsx[22m
+[2m8:43:30 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\Catalog\Index.jsx[22m
+[2m8:43:44 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\Catalog\Create.jsx[22m
+[2m8:43:49 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\Catalog\Create.jsx[22m
+[2m8:43:56 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\Catalog\Create.jsx[22m
+[2m8:44:05 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\EnrollmentPeriods\Create.jsx[22m
+[2m8:44:13 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\EnrollmentPeriods\Create.jsx[22m
+[2m8:44:28 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\Enrollments\Index.jsx[22m
+[2m8:44:33 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\Enrollments\Index.jsx[22m
+[2m8:52:19 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\ActionTypes\Index.jsx[22m
+[2m8:52:19 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:52:39 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\Cases\Index.jsx[22m
+[2m8:52:39 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:53:00 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\Cases\Create.jsx[22m
+[2m8:53:00 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:53:30 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\Cases\Show.jsx[22m
+[2m8:53:30 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:53:58 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\Warnings\Index.jsx[22m
+[2m8:53:58 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:54:13 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\Warnings\Create.jsx[22m
+[2m8:54:13 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:54:35 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\ExitInterviews\Index.jsx[22m
+[2m8:54:35 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:54:48 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\ExitInterviews\Create.jsx[22m
+[2m8:54:48 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:55:11 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\ExitInterviews\Show.jsx[22m
+[2m8:55:11 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:55:36 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\Grievances\Index.jsx[22m
+[2m8:55:36 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:55:53 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\Grievances\Create.jsx[22m
+[2m8:55:53 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m8:56:21 AM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\Grievances\Show.jsx[22m
+[2m8:56:21 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/vendor/aero/ui/resources/js/app.jsx, /vendor/aero/ui/resources/js/App.jsx[22m
+[2m1:35:12 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Analytics\Attrition.jsx[22m
+[2m1:35:12 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Analytics\Dashboard.jsx[22m
+[2m1:35:13 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Analytics\DEI.jsx[22m
+[2m1:35:17 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Analytics\PulseSurveys\Create.jsx[22m
+[2m1:35:17 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Analytics\PulseSurveys\Index.jsx[22m
+[2m1:35:17 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Analytics\PulseSurveys\Results.jsx[22m
+[2m1:35:44 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Analytics\WorkforcePlanning.jsx[22m
+[2m1:35:45 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Attendance\Admin\Daily.jsx[22m
+[2m1:35:45 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Attendance\Admin\Monthly.jsx[22m
+[2m1:35:56 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Attendance\ClockIn.jsx[22m
+[2m1:39:38 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Attendance\Overtime\Create.jsx[22m
+[2m1:39:39 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Attendance\Overtime\Index.jsx[22m
+[2m1:39:39 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Attendance\Shifts\Marketplace.jsx[22m
+[2m1:39:40 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Attendance\Timesheets\Index.jsx[22m
+[2m1:39:40 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\Catalog\Create.jsx[22m
+[2m1:39:41 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\Catalog\Index.jsx[22m
+[2m1:39:54 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\EnrollmentPeriods\Create.jsx[22m
+[2m1:40:10 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\EnrollmentPeriods\Index.jsx[22m
+[2m1:40:18 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\EnrollmentPeriods\Show.jsx[22m
+[2m1:40:19 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\Enrollments\Index.jsx[22m
+[2m1:40:20 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Benefits\OpenEnrollment\Index.jsx[22m
+[2m1:40:20 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\ActionTypes\Index.jsx[22m
+[2m1:40:39 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\Cases\Create.jsx[22m
+[2m1:40:39 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\Cases\Index.jsx[22m
+[2m1:40:40 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\Cases\Show.jsx[22m
+[2m1:40:41 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\ExitInterviews\Create.jsx[22m
+[2m1:40:42 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\ExitInterviews\Index.jsx[22m
+[2m1:40:43 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\ExitInterviews\Show.jsx[22m
+[2m1:40:43 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\Grievances\Create.jsx[22m
+[2m1:40:44 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\Grievances\Index.jsx[22m
+[2m1:40:45 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\Grievances\Show.jsx[22m
+[2m1:40:46 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\Warnings\Create.jsx[22m
+[2m1:40:47 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Disciplinary\Warnings\Index.jsx[22m
+[2m1:40:47 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Employees\Create.jsx[22m
+[2m1:40:48 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Employees\Edit.jsx[22m
+[2m1:40:48 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Employees\Index.jsx[22m
+[2m1:40:48 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Employees\Show.jsx[22m
+[2m1:40:48 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Employees\_form.jsx[22m
+[2m1:40:48 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Leave\Applications\Create.jsx[22m
+[2m1:40:49 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Leave\Applications\Index.jsx[22m
+[2m1:40:49 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Leave\Applications\Show.jsx[22m
+[2m1:40:52 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Leave\Balance\Index.jsx[22m
+[2m1:40:52 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Leave\Calendar\Index.jsx[22m
+[2m1:40:53 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Leave\Settings\Index.jsx[22m
+[2m1:40:53 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Leave\Types\Index.jsx[22m
+[2m1:40:53 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\OrgStructure\Departments\Create.jsx[22m
+[2m1:40:54 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\OrgStructure\Departments\Edit.jsx[22m
+[2m1:40:54 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\OrgStructure\Departments\Index.jsx[22m
+[2m1:40:54 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\OrgStructure\Departments\OrgChart.jsx[22m
+[2m1:40:57 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\OrgStructure\Designations\Index.jsx[22m
+[2m1:40:57 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\OrgStructure\Grades\Index.jsx[22m
+[2m1:40:57 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\OrgStructure\WorkLocations\Index.jsx[22m
+[2m1:40:58 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Components\Index.jsx[22m
+[2m1:41:03 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Payslips\Show.jsx[22m
+[2m1:41:04 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Runs\Create.jsx[22m
+[2m1:41:05 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Runs\Index.jsx[22m
+[2m1:41:06 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Runs\Show.jsx[22m
+[2m1:41:07 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Settings\Tax.jsx[22m
+[2m1:41:09 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Structures\Create.jsx[22m
+[2m1:41:10 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Payroll\Structures\Index.jsx[22m
+[2m1:41:10 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Calibration\Index.jsx[22m
+[2m1:41:31 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Cycles\Create.jsx[22m
+[2m1:41:44 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Cycles\Index.jsx[22m
+[2m1:41:46 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Feedback360\Index.jsx[22m
+[2m1:41:47 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Goals\Create.jsx[22m
+[2m1:41:48 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Goals\Index.jsx[22m
+[2m1:41:51 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\PIP\Create.jsx[22m
+[2m1:41:54 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\PIP\Index.jsx[22m
+[2m1:41:54 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Reviews\Index.jsx[22m
+[2m1:41:54 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Reviews\Show.jsx[22m
+[2m1:41:55 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Performance\Skills\Matrix.jsx[22m
+[2m1:41:55 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Applications\Show.jsx[22m
+[2m1:42:08 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Interviews\Create.jsx[22m
+[2m1:42:10 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Interviews\Index.jsx[22m
+[2m1:42:11 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Jobs\Create.jsx[22m
+[2m1:42:12 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Jobs\Index.jsx[22m
+[2m1:42:14 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Jobs\Show.jsx[22m
+[2m1:42:14 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Offers\Create.jsx[22m
+[2m1:42:15 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Recruitment\Onboarding\Create.jsx[22m
+[2m1:42:16 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Benefits.jsx[22m
+[2m1:42:17 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\CareerPath.jsx[22m
+[2m1:42:20 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Dashboard.jsx[22m
+[2m1:42:22 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Leaves.jsx[22m
+[2m1:42:23 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\NoProfile.jsx[22m
+[2m1:42:24 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Payslips.jsx[22m
+[2m1:42:25 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\PayslipShow.jsx[22m
+[2m1:42:27 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Performance.jsx[22m
+[2m1:42:27 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Profile.jsx[22m
+[2m1:42:28 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\Training.jsx[22m
+[2m1:42:29 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\SelfService\components\SelfServiceSidebar.jsx[22m
+[2m1:42:29 PM[22m [36m[1m[vite][22m[39m [32mfull reload[39m [2mvendor\aero\ui\resources\js\Pages\HRM\Training\Categories\Index.jsx[22m
+node:events:487
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: UNKNOWN: unknown error, scandir 'C:\laragon\www\aeos365\vendor\aero\ui\resources\js\Pages\HRM\Training'
+Emitted 'error' event on FSWatcher instance at:
+    at FSWatcher._handleError (file:///C:/laragon/www/aeos365/node_modules/vite/dist/node/chunks/config.js:14117:148)
+    at NodeFsHandler$1._boundHandleError (file:///C:/laragon/www/aeos365/node_modules/vite/dist/node/chunks/config.js:13075:46)
+    at ReaddirpStream.emit (node:events:509:28)
+    at emitErrorNT (node:internal/streams/destroy:170:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  errno: -4094,
+  code: 'UNKNOWN',
+  syscall: 'scandir',
+  path: 'C:\\laragon\\www\\aeos365\\vendor\\aero\\ui\\resources\\js\\Pages\\HRM\\Training'
+}
+
+Node.js v24.15.0
