@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "06388f629e1a313b7a845f1c23fc429d",
+    "content-hash": "c0dbe1622a072003376893e36bd985b5",
     "packages": [
         {
             "name": "aero/auth",
@@ -131,10 +131,11 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-core",
-                "reference": "8973b632f51472f0c1c705e7ad5d6c99055d74aa"
+                "reference": "94ee36ae295a8b9d2731d1c854951762ddfd1883"
             },
             "require": {
                 "aero/contracts": "^1.0",
+                "aero/infrastructure": "self.version",
                 "inertiajs/inertia-laravel": "^2.0",
                 "jenssegers/agent": "^2.6|^3.0",
                 "laravel/framework": "^11.0|^12.0",
@@ -397,6 +398,41 @@
             }
         },
         {
+            "name": "aero/infrastructure",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-infrastructure",
+                "reference": "a77c5c1112f442c492b96fcdf4336394e336c8b9"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Aero\\Infrastructure\\Providers\\InfrastructureServiceProvider"
+                    ]
+                },
+                "aero": {
+                    "package": "infrastructure",
+                    "category": "foundation",
+                    "description": "Shared database infrastructure for aero-core and aero-platform"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Aero\\Infrastructure\\": "src/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "description": "Aero Infrastructure Package - shared database tables used by both core and platform",
+            "transport-options": {
+                "symlink": true,
+                "relative": false
+            }
+        },
+        {
             "name": "aero/installation",
             "version": "dev-feature/core-admin-ca1-ca7",
             "dist": {
@@ -543,16 +579,17 @@
         },
         {
             "name": "aero/platform",
-            "version": "dev-feature/core-admin-ca1-ca7",
+            "version": "1.0.0",
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-platform",
-                "reference": "ebbe7186f8af26429aa2b206492e988f23c1ce51"
+                "reference": "9d98d47a004e03d99a42e08cc34ef543b0bd94d5"
             },
             "require": {
                 "aero/auth": "*",
                 "aero/contracts": "^1.0",
                 "aero/core": "^1.0",
+                "aero/infrastructure": "self.version",
                 "aero/notifications": "@dev",
                 "inertiajs/inertia-laravel": "^2.0",
                 "laravel/cashier": "^15.0",
@@ -13646,6 +13683,7 @@
         "aero/hrm": 20,
         "aero/hrmac": 20,
         "aero/i18n": 20,
+        "aero/infrastructure": 20,
         "aero/installation": 20,
         "aero/notifications": 20,
         "aero/platform": 20,

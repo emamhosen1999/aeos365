@@ -24,6 +24,7 @@
         "aero/hrm": "@dev",
         "aero/hrmac": "@dev",
         "aero/i18n": "@dev",
+        "aero/infrastructure": "@dev",
         "aero/installation": "@dev",
         "aero/notifications": "@dev",
         "aero/platform": "@dev",
