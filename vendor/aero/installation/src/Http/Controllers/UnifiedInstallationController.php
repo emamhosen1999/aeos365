@@ -1615,9 +1615,6 @@ class UnifiedInstallationController extends Controller
         ]);
     }
 
-    /**
-     * Cleanup failed installation (POST endpoint)
-     */
     public function cleanup()
     {
         try {
@@ -1641,6 +1638,23 @@ class UnifiedInstallationController extends Controller
             // Clear installation cache
             Cache::forget('installation_in_progress');
             Cache::forget('installation_orchestrator_'.session()->getId());
+            Cache::store('file')->forget('aeos.installed');
+
+            // Wipe database tables and views
+            try {
+                Schema::dropAllTables();
+                Schema::dropAllViews();
+            } catch (\Throwable $e) {
+                Log::warning('Failed to drop database tables/views during cleanup: ' . $e->getMessage());
+            }
+
+            // Delete configuration file
+            $this->clearPersistedConfig();
+
+            // Clear framework configuration, route, and view caches
+            $this->clearConfigCache();
+            $this->clearRouteCache();
+            $this->clearViewCache();
 
             Log::info('Installation cleanup completed');
 

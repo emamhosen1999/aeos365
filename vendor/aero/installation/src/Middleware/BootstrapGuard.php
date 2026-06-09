@@ -35,8 +35,18 @@ class BootstrapGuard
         // hitting /install after deploy can re-enter the wizard, which
         // (per Plan 09 T3 dirty-schema guard) at worst aborts but at
         // best is just confusing.
-        if ($request->is('install*') && $this->installed()) {
-            abort(404);
+        if ($request->is('install*')) {
+            // If the lock file exists, installation is fully complete and we block all install routes.
+            if (file_exists(storage_path('app/aeos.installed'))) {
+                abort(404);
+            }
+
+            // If the lock file does not exist, but isInstalled() returns true (e.g. database has tables from a failed run),
+            // we allow access to '/install/cleanup' so the user can reset the failed installation.
+            // Other install routes are blocked if they are considered installed, EXCEPT cleanup.
+            if ($this->installed() && ! $request->is('install/cleanup*')) {
+                abort(404);
+            }
         }
 
         // Skip check if already on install routes (not yet installed)
