@@ -803,14 +803,9 @@ class AeroPlatformServiceProvider extends ServiceProvider
         // If in testing environment and default is sqlite, central connection should be sqlite
         if (app()->environment('testing') && config('database.default') === 'sqlite') {
             $sqliteConfig = config('database.connections.sqlite', []);
-            $dbPath = database_path('testing.sqlite');
-            
-            // Ensure the sqlite file exists
-            if (! file_exists($dbPath)) {
-                @touch($dbPath);
-            }
+            $dbPath = 'file::memory:?cache=shared';
 
-            // Point both mysql (fallback for some queries), sqlite, and central to the same sqlite file
+            // Point both mysql (fallback for some queries), sqlite, and central to the same shared in-memory sqlite DSN
             Config::set('database.connections.sqlite.database', $dbPath);
             Config::set('database.connections.mysql.database', $dbPath);
             Config::set('database.connections.central', array_merge($sqliteConfig, [
