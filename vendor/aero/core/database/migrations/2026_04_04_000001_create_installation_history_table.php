@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('installation_history')) {
+            return;
+        }
+
         Schema::create('installation_history', function (Blueprint $table) {
             $table->id();
             $table->string('step_name')->index()->comment('Step identifier: e.g., config, database, migration, seeding, admin, modules, settings, cache, license, finalize');

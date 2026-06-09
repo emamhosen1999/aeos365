@@ -532,7 +532,7 @@ class UnifiedInstallationController extends Controller
             'connection', 'host', 'port', 'database', 'username', 'password',
         ]));
 
-        return redirect()->back();
+        return response()->json(['success' => true]);
     }
 
     /**
@@ -583,7 +583,7 @@ class UnifiedInstallationController extends Controller
 
         $this->persistConfig('settings', $request->all());
 
-        return redirect()->back();
+        return response()->json(['success' => true]);
     }
 
     /**
@@ -600,7 +600,7 @@ class UnifiedInstallationController extends Controller
 
         $this->persistConfig('settings', $request->all());
 
-        return redirect()->back();
+        return response()->json(['success' => true]);
     }
 
     /**
@@ -648,7 +648,7 @@ class UnifiedInstallationController extends Controller
             'password_hash' => Hash::make($request->password),
         ]);
 
-        return redirect()->back();
+        return response()->json(['success' => true]);
     }
 
     /**
@@ -1321,6 +1321,14 @@ class UnifiedInstallationController extends Controller
 
         $email = $adminConfig['email'] ?? 'admin@example.com';
 
+        $passwordHash = $adminConfig['password_hash'] ?? null;
+        if (!$passwordHash && env('ADMIN_PASSWORD')) {
+            $passwordHash = Hash::make(env('ADMIN_PASSWORD'));
+        }
+        if (!$passwordHash) {
+            throw new \Exception('Admin password/hash not configured.');
+        }
+
         // Handle soft-deleted users: check with trashed first, restore or create
         $user = $userClass::withTrashed()->where('email', $email)->first();
 
@@ -1333,7 +1341,7 @@ class UnifiedInstallationController extends Controller
             $user->update([
                 'name' => ($adminConfig['first_name'] ?? 'Admin').' '.($adminConfig['last_name'] ?? 'User'),
                 'user_name' => strtolower(str_replace(' ', '_', ($adminConfig['first_name'] ?? 'admin').'_'.($adminConfig['last_name'] ?? 'user'))),
-                'password' => $adminConfig['password_hash'] ?? Hash::make('password'),
+                'password' => $passwordHash,
                 'email_verified_at' => now(),
             ]);
         } else {
@@ -1342,7 +1350,7 @@ class UnifiedInstallationController extends Controller
                 'email' => $email,
                 'name' => ($adminConfig['first_name'] ?? 'Admin').' '.($adminConfig['last_name'] ?? 'User'),
                 'user_name' => strtolower(str_replace(' ', '_', ($adminConfig['first_name'] ?? 'admin').'_'.($adminConfig['last_name'] ?? 'user'))),
-                'password' => $adminConfig['password_hash'] ?? Hash::make('password'),
+                'password' => $passwordHash,
                 'email_verified_at' => now(),
             ]);
         }
@@ -1615,6 +1623,9 @@ class UnifiedInstallationController extends Controller
         ]);
     }
 
+    /**
+     * Cleanup failed installation (POST endpoint)
+     */
     public function cleanup()
     {
         try {
@@ -1638,23 +1649,6 @@ class UnifiedInstallationController extends Controller
             // Clear installation cache
             Cache::forget('installation_in_progress');
             Cache::forget('installation_orchestrator_'.session()->getId());
-            Cache::store('file')->forget('aeos.installed');
-
-            // Wipe database tables and views
-            try {
-                Schema::dropAllTables();
-                Schema::dropAllViews();
-            } catch (\Throwable $e) {
-                Log::warning('Failed to drop database tables/views during cleanup: ' . $e->getMessage());
-            }
-
-            // Delete configuration file
-            $this->clearPersistedConfig();
-
-            // Clear framework configuration, route, and view caches
-            $this->clearConfigCache();
-            $this->clearRouteCache();
-            $this->clearViewCache();
 
             Log::info('Installation cleanup completed');
 

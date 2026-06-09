@@ -11,16 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('installation_progress')) {
+            return;
+        }
+
         Schema::create('installation_progress', function (Blueprint $table) {
             $table->id();
-            $table->string('session_id')->unique();
-            $table->string('step')->nullable();
-            $table->string('status')->default('pending'); // pending, running, completed, failed
-            $table->integer('percentage')->default(0);
-            $table->text('error')->nullable();
-            $table->json('metadata')->nullable();
-            $table->timestamp('started_at')->nullable();
-            $table->timestamp('completed_at')->nullable();
+            $table->string('session_id')->nullable();
+            $table->json('payload')->nullable();
+            $table->string('latest_error')->nullable();
+            $table->string('status')->default('pending');
             $table->timestamps();
 
             $table->index('session_id');
