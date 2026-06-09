@@ -800,38 +800,82 @@ class AeroPlatformServiceProvider extends ServiceProvider
         // Update the default mysql connection with resolved database
         Config::set('database.connections.mysql.database', $database);
 
-        // Add 'central' connection (same as default, but explicit for landlord models)
-        Config::set('database.connections.central', array_merge($mysqlConfig, [
-            'database' => $database,
-        ]));
+        // If in testing environment and default is sqlite, central connection should be sqlite
+        if (app()->environment('testing') && config('database.default') === 'sqlite') {
+            $sqliteConfig = config('database.connections.sqlite', []);
+            $dbPath = database_path('testing.sqlite');
+            
+            // Ensure the sqlite file exists
+            if (! file_exists($dbPath)) {
+                @touch($dbPath);
+            }
+
+            // Point both mysql (fallback for some queries), sqlite, and central to the same sqlite file
+            Config::set('database.connections.sqlite.database', $dbPath);
+            Config::set('database.connections.mysql.database', $dbPath);
+            Config::set('database.connections.central', array_merge($sqliteConfig, [
+                'driver' => 'sqlite',
+                'database' => $dbPath,
+            ]));
+        } else {
+            // Add 'central' connection (same as default, but explicit for landlord models)
+            Config::set('database.connections.central', array_merge($mysqlConfig, [
+                'database' => $database,
+            ]));
+        }
     }
 
     /**
      * Resolve the database name from available sources.
      *
      * Priority:
-     * 1. .env DB_DATABASE (if set and non-empty)
-     * 2. installation_db_config.json (installation wizard stored config)
-     * 3. Fallback to 'eos365'
+     * 1. Config mysql database or .env DB_DATABASE (if set and non-empty)
+     * 2. framework/installation_config.json (new unified config file)
+     * 3. installation_db_config.json (legacy flat config file)
+     * 4. Fallback to 'aeos365'
      */
     protected function resolveDatabase(): string
     {
-        // Priority 1: Check .env
+        // Priority 1: Check config mysql database (handles cached config)
+        $configDatabase = config('database.connections.mysql.database');
+        if (! empty($configDatabase) && ! in_array($configDatabase, ['forge', 'laravel', 'database', 'eos365'])) {
+            return $configDatabase;
+        }
+
+        // Priority 1b: Check .env directly
         $envDatabase = env('DB_DATABASE');
         if (! empty($envDatabase)) {
             return $envDatabase;
         }
 
-        // Priority 2: Check installation config file
-        $configPath = storage_path('installation_db_config.json');
-        if (file_exists($configPath)) {
+        // Priority 2: Check new unified installation config file
+        $newConfigPath = storage_path('framework/installation_config.json');
+        if (file_exists($newConfigPath)) {
             try {
-                $config = json_decode(file_get_contents($configPath), true);
-                if (! empty($config['db_database'])) {
-                    // Also update host/port/user/pass from installation config
+                $config = json_decode(file_get_contents($newConfigPath), true);
+                if (isset($config['database']) && is_array($config['database'])) {
+                    $dbName = $config['database']['db_database'] ?? $config['database']['database'] ?? null;
+                    if (! empty($dbName)) {
+                        $this->applyInstallationDbConfig($config);
+
+                        return $dbName;
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Silently ignore parse errors
+            }
+        }
+
+        // Priority 2b: Check legacy installation config file
+        $legacyConfigPath = storage_path('installation_db_config.json');
+        if (file_exists($legacyConfigPath)) {
+            try {
+                $config = json_decode(file_get_contents($legacyConfigPath), true);
+                $dbName = $config['db_database'] ?? $config['database'] ?? null;
+                if (! empty($dbName)) {
                     $this->applyInstallationDbConfig($config);
 
-                    return $config['db_database'];
+                    return $dbName;
                 }
             } catch (\Throwable $e) {
                 // Silently ignore parse errors
@@ -839,7 +883,7 @@ class AeroPlatformServiceProvider extends ServiceProvider
         }
 
         // Priority 3: Fallback
-        return 'eos365';
+        return '';
     }
 
     /**
@@ -847,21 +891,32 @@ class AeroPlatformServiceProvider extends ServiceProvider
      */
     protected function applyInstallationDbConfig(array $config): void
     {
-        $mysqlConfig = config('database.connections.mysql', []);
+        // Support both old flat format (db_host, etc.) and new unified format (nested under 'database')
+        $dbConfig = $config;
+        if (isset($config['database']) && is_array($config['database'])) {
+            $dbConfig = $config['database'];
+        }
 
-        if (! empty($config['db_host'])) {
-            Config::set('database.connections.mysql.host', $config['db_host']);
+        $host = $dbConfig['db_host'] ?? $dbConfig['host'] ?? null;
+        if (! empty($host)) {
+            Config::set('database.connections.mysql.host', $host);
         }
-        if (! empty($config['db_port'])) {
-            Config::set('database.connections.mysql.port', $config['db_port']);
+
+        $port = $dbConfig['db_port'] ?? $dbConfig['port'] ?? null;
+        if (! empty($port)) {
+            Config::set('database.connections.mysql.port', $port);
         }
-        if (! empty($config['db_username'])) {
-            Config::set('database.connections.mysql.username', $config['db_username']);
+
+        $username = $dbConfig['db_username'] ?? $dbConfig['username'] ?? null;
+        if (! empty($username)) {
+            Config::set('database.connections.mysql.username', $username);
         }
-        if (isset($config['db_password'])) {
-            $password = $config['db_password'];
-            // Decrypt if encrypted
-            if (! empty($config['db_password_encrypted']) && ! empty($password)) {
+
+        $password = $dbConfig['db_password'] ?? $dbConfig['password'] ?? null;
+        if ($password !== null) {
+            // Decrypt if encrypted (only old format had db_password_encrypted, but handle it just in case)
+            $isEncrypted = ! empty($dbConfig['db_password_encrypted']) || ! empty($config['db_password_encrypted']);
+            if ($isEncrypted && ! empty($password)) {
                 try {
                     $password = Crypt::decryptString($password);
                 } catch (\Throwable $e) {
