@@ -142,6 +142,9 @@
 }
 
 /* Body content */
+.aeos-stat-body {
+  min-width: 0; /* allow the 1fr column to shrink so the metric column never clips */
+}
 .aeos-stat-body h3 {
   margin: 0 0 var(--aeos-space-1);
   font-family: var(--aeos-font-body);
@@ -172,6 +175,7 @@
   font-weight: 600;
   color: var(--aeos-primary);
   line-height: 1;
+  white-space: nowrap;
 }
 
 .aeos-stat-unit {
@@ -179,6 +183,23 @@
   font-size: var(--aeos-text-2xs);
   letter-spacing: 0.08em;
   color: var(--aeos-text-secondary);
+}
+
+/* Narrow cards (mobile 2-col KPI grid): the icon|body|meta row squeezes the
+   title into a 2-line wrap that collides with the metric. Restack to
+   [icon] [value] on the first row and the title full-width below. */
+@media (max-width: 640px) {
+  .aeos-stat-card {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "icon meta"
+      "body body";
+    align-items: center;
+    row-gap: var(--aeos-space-2);
+  }
+  .aeos-stat-icon { grid-area: icon; }
+  .aeos-stat-meta { grid-area: meta; align-items: flex-end; }
+  .aeos-stat-body { grid-area: body; }
 }
 
 /* ── Progress Bar ─────────────────────────────────────────────── */
@@ -233,6 +254,16 @@
 }
 
 /* ── Data Table Helpers ──────────────────────────────────────── */
+/* Wrapper is the horizontal scroll container: wide tables scroll instead of
+   clipping (the enclosing .aeos-table-section is overflow:hidden for rounded
+   corners, so the scroll must live on the inner wrap). */
+.aeos-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .aeos-table {
   width: 100%;
   border-collapse: collapse;
@@ -294,3 +325,44 @@
   border-color: var(--aeos-warning-border);
   color: var(--aeos-secondary);
 }
+
+/* ── Table bulk-action bar (resource-management standard) ──────────────────── */
+.aeos-table-bulkbar {
+  padding: var(--aeos-space-2) var(--aeos-space-3);
+  background: var(--aeos-primary-tint);
+  border: var(--aeos-border-width) solid var(--aeos-primary-border);
+  border-radius: var(--aeos-r-md);
+}
+
+/* ── RBAC module-access tree (Roles & Access drawer) ───────────────────────────
+   Token-only; indentation/guides compound naturally through nested .rbac-children
+   so the hierarchy reads without inline styles or raw utility classes. */
+.rbac-tree { width: 100%; }
+.rbac-node { width: 100%; }
+.rbac-row {
+  padding: var(--aeos-space-2);
+  border-radius: var(--aeos-r-sm);
+}
+.rbac-row:hover { background: var(--aeos-bg-hover); }
+.rbac-row--mod { background: var(--aeos-bg-subtle); }
+.rbac-grow { flex: 1 1 auto; min-width: 0; }
+.rbac-children {
+  padding-left: var(--aeos-space-3);
+  margin-left: var(--aeos-space-3);
+  border-left: var(--aeos-border-width) solid var(--aeos-border-subtle);
+}
+.rbac-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--aeos-space-5);
+  height: var(--aeos-space-5);
+  flex-shrink: 0;
+  color: var(--aeos-text-tertiary);
+  border-radius: var(--aeos-r-sm);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.rbac-chevron:hover { background: var(--aeos-bg-hover); color: var(--aeos-text-primary); }
+.rbac-empty { padding: var(--aeos-space-1) var(--aeos-space-2); }

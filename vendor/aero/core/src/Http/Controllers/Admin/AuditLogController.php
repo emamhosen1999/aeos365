@@ -25,10 +25,23 @@ class AuditLogController extends Controller
         $dateFrom = $request->get('date_from');
         $dateTo = $request->get('date_to');
 
-        [$logs, $meta] = match ($tab) {
-            'business' => $this->getBusinessLogs($perPage, $search, $actorId, $eventType, $dateFrom, $dateTo),
+        // The route gates only activity_logs.view (page load). The Security/Queue
+        // tabs are stricter sub-views — re-check their own HRMAC component here so a
+        // crafted ?tab= cannot read data the user lacks access to (defense in depth;
+        // the frontend already hides the tabs).
+        $access = app(\Aero\Core\Services\ModuleAccessService::class);
+        if ($tab === 'security') {
+            abort_unless($access->canAccessComponent($request->user(), 'core', 'audit_logs', 'security_logs')['allowed'] ?? false, 403);
+        }
+        if ($tab === 'queues') {
+            abort_unless($access->canAccessComponent($request->user(), 'core', 'audit_logs', 'queue_monitor')['allowed'] ?? false, 403);
+        }
+
+        $logs = match ($tab) {
             'model' => $this->getModelActivityLogs($perPage, $search, $actorId, $dateFrom, $dateTo),
             'access' => $this->getAccessLogs($perPage, $search, $actorId, $dateFrom, $dateTo),
+            'security' => $this->getSecurityLogs($perPage, $search, $eventType, $dateFrom, $dateTo),
+            'queues' => $this->getQueueJobs($perPage),
             default => $this->getBusinessLogs($perPage, $search, $actorId, $eventType, $dateFrom, $dateTo),
         };
 
@@ -37,14 +50,13 @@ class AuditLogController extends Controller
             'stats' => $this->getStats(),
             'tab' => $tab,
             'logs' => $logs,
-            'meta' => $meta,
             'filters' => $request->only(['search', 'actor_id', 'event_type', 'date_from', 'date_to']),
         ]);
     }
 
     public function activityLogs(Request $request): JsonResponse
     {
-        [$logs, $meta] = $this->getBusinessLogs(
+        [$logs, $meta] = $this->getBusinessLogsLegacy(
             (int) $request->get('per_page', 20),
             (string) $request->get('search', ''),
             $request->get('actor_id'),
@@ -62,72 +74,19 @@ class AuditLogController extends Controller
     }
 
     /**
-     * CA-3: Security log Inertia view (auth.* / security.* events).
+     * CA-3: Security log — now redirects to the unified index with ?tab=security.
      */
-    public function security(Request $request): Response
+    public function security(Request $request): RedirectResponse
     {
-        $perPage = (int) $request->get('per_page', 30);
-        $search = (string) $request->get('search', '');
-
-        $logs = [];
-        $meta = $this->emptyMeta($perPage);
-
-        if ($this->tableExists('audit_logs')) {
-            $q = DB::table('audit_logs')
-                ->where(function ($q) {
-                    $q->where('event_type', 'like', 'auth.%')
-                        ->orWhere('event_type', 'like', 'security.%');
-                })
-                ->when($search, fn ($q) => $q->where('actor_name', 'like', "%{$search}%"))
-                ->orderByDesc('created_at')
-                ->paginate($perPage)
-                ->withQueryString();
-
-            $logs = $q->items();
-            $meta = [
-                'current_page' => $q->currentPage(),
-                'last_page' => $q->lastPage(),
-                'per_page' => $q->perPage(),
-                'total' => $q->total(),
-            ];
-        }
-
-        return Inertia::render('Core/AuditLogs/Security', [
-            'title' => 'Security Logs',
-            'logs' => $logs,
-            'meta' => $meta,
-            'filters' => $request->only('search'),
-        ]);
+        return redirect()->route('core.audit-logs.index', ['tab' => 'security']);
     }
 
     /**
-     * CA-3: Failed-jobs / queue monitor.
+     * CA-3: Queue monitor — now redirects to the unified index with ?tab=queues.
      */
-    public function queues(Request $request): Response
+    public function queues(Request $request): RedirectResponse
     {
-        $perPage = (int) $request->get('per_page', 30);
-        $jobs = [];
-        $meta = $this->emptyMeta($perPage);
-
-        if ($this->tableExists('failed_jobs')) {
-            $q = DB::table('failed_jobs')
-                ->orderByDesc('failed_at')
-                ->paginate($perPage)
-                ->withQueryString();
-            $jobs = $q->items();
-            $meta = [
-                'current_page' => $q->currentPage(),
-                'last_page' => $q->lastPage(),
-                'per_page' => $q->perPage(),
-                'total' => $q->total(),
-            ];
-        }
-
-        return Inertia::render('Core/AuditLogs/Queues', [
-            'title' => 'Queue Monitor',
-            'failed_jobs' => $jobs,
-            'meta' => $meta,
-        ]);
+        return redirect()->route('core.audit-logs.index', ['tab' => 'queues']);
     }
 
     /**
@@ -266,13 +225,13 @@ class AuditLogController extends Controller
         }, $filename, ['Content-Type' => 'text/csv']);
     }
 
-    private function getBusinessLogs(int $perPage, string $search, ?string $actorId, ?string $eventType, ?string $dateFrom, ?string $dateTo): array
+    private function getBusinessLogs(int $perPage, string $search, ?string $actorId, ?string $eventType, ?string $dateFrom, ?string $dateTo): \Illuminate\Pagination\LengthAwarePaginator
     {
         if (! $this->tableExists('audit_logs')) {
-            return [[], $this->emptyMeta($perPage)];
+            return $this->emptyPaginator($perPage);
         }
 
-        $query = DB::table('audit_logs')
+        return DB::table('audit_logs')
             ->when($search, fn ($q) => $q->where(function ($q) use ($search) {
                 $q->where('description', 'like', "%{$search}%")
                     ->orWhere('actor_name', 'like', "%{$search}%")
@@ -283,26 +242,17 @@ class AuditLogController extends Controller
             ->when($dateFrom, fn ($q) => $q->whereDate('created_at', '>=', $dateFrom))
             ->when($dateTo, fn ($q) => $q->whereDate('created_at', '<=', $dateTo))
             ->orderByDesc('created_at')
-            ->paginate($perPage);
-
-        return [
-            $query->items(),
-            [
-                'current_page' => $query->currentPage(),
-                'last_page' => $query->lastPage(),
-                'per_page' => $query->perPage(),
-                'total' => $query->total(),
-            ],
-        ];
+            ->paginate($perPage)
+            ->withQueryString();
     }
 
-    private function getModelActivityLogs(int $perPage, string $search, ?string $actorId, ?string $dateFrom, ?string $dateTo): array
+    private function getModelActivityLogs(int $perPage, string $search, ?string $actorId, ?string $dateFrom, ?string $dateTo): \Illuminate\Pagination\LengthAwarePaginator
     {
         if (! $this->tableExists('activity_log')) {
-            return [[], $this->emptyMeta($perPage)];
+            return $this->emptyPaginator($perPage);
         }
 
-        $query = DB::table('activity_log')
+        return DB::table('activity_log')
             ->leftJoin('users', 'activity_log.causer_id', '=', 'users.id')
             ->select([
                 'activity_log.id',
@@ -323,26 +273,17 @@ class AuditLogController extends Controller
             ->when($dateFrom, fn ($q) => $q->whereDate('activity_log.created_at', '>=', $dateFrom))
             ->when($dateTo, fn ($q) => $q->whereDate('activity_log.created_at', '<=', $dateTo))
             ->orderByDesc('activity_log.created_at')
-            ->paginate($perPage);
-
-        return [
-            $query->items(),
-            [
-                'current_page' => $query->currentPage(),
-                'last_page' => $query->lastPage(),
-                'per_page' => $query->perPage(),
-                'total' => $query->total(),
-            ],
-        ];
+            ->paginate($perPage)
+            ->withQueryString();
     }
 
-    private function getAccessLogs(int $perPage, string $search, ?string $actorId, ?string $dateFrom, ?string $dateTo): array
+    private function getAccessLogs(int $perPage, string $search, ?string $actorId, ?string $dateFrom, ?string $dateTo): \Illuminate\Pagination\LengthAwarePaginator
     {
         if (! $this->tableExists('access_logs')) {
-            return [[], $this->emptyMeta($perPage)];
+            return $this->emptyPaginator($perPage);
         }
 
-        $query = DB::table('access_logs')
+        return DB::table('access_logs')
             ->when($search, fn ($q) => $q->where(function ($q) use ($search) {
                 $q->where('resource_type', 'like', "%{$search}%")
                     ->orWhere('accessor_name', 'like', "%{$search}%")
@@ -352,17 +293,50 @@ class AuditLogController extends Controller
             ->when($dateFrom, fn ($q) => $q->whereDate('created_at', '>=', $dateFrom))
             ->when($dateTo, fn ($q) => $q->whereDate('created_at', '<=', $dateTo))
             ->orderByDesc('created_at')
-            ->paginate($perPage);
+            ->paginate($perPage)
+            ->withQueryString();
+    }
 
-        return [
-            $query->items(),
-            [
-                'current_page' => $query->currentPage(),
-                'last_page' => $query->lastPage(),
-                'per_page' => $query->perPage(),
-                'total' => $query->total(),
-            ],
-        ];
+    private function getSecurityLogs(int $perPage, string $search, ?string $eventType, ?string $dateFrom, ?string $dateTo): \Illuminate\Pagination\LengthAwarePaginator
+    {
+        if (! $this->tableExists('audit_logs')) {
+            return $this->emptyPaginator($perPage);
+        }
+
+        return DB::table('audit_logs')
+            ->where(function ($q) {
+                $q->where('event_type', 'like', 'auth.%')
+                    ->orWhere('event_type', 'like', 'security.%');
+            })
+            ->when($search, fn ($q) => $q->where(function ($q) use ($search) {
+                $q->where('actor_name', 'like', "%{$search}%")
+                    ->orWhere('actor_email', 'like', "%{$search}%");
+            }))
+            ->when($eventType, fn ($q) => $q->where('event_type', $eventType))
+            ->when($dateFrom, fn ($q) => $q->whereDate('created_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->whereDate('created_at', '<=', $dateTo))
+            ->orderByDesc('created_at')
+            ->paginate($perPage)
+            ->withQueryString();
+    }
+
+    private function getQueueJobs(int $perPage): \Illuminate\Pagination\LengthAwarePaginator
+    {
+        if (! $this->tableExists('failed_jobs')) {
+            return $this->emptyPaginator($perPage);
+        }
+
+        return DB::table('failed_jobs')
+            ->orderByDesc('failed_at')
+            ->paginate($perPage)
+            ->withQueryString();
+    }
+
+    private function emptyPaginator(int $perPage): \Illuminate\Pagination\LengthAwarePaginator
+    {
+        return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage, 1, [
+            'path' => \Illuminate\Pagination\Paginator::resolveCurrentPath(),
+        ]);
     }
 
     private function getStats(): array
@@ -389,5 +363,39 @@ class AuditLogController extends Controller
     private function tableExists(string $table): bool
     {
         return DB::getSchemaBuilder()->hasTable($table);
+    }
+
+    /**
+     * Legacy helper used only by activityLogs() JSON endpoint — returns [items, meta] array.
+     */
+    private function getBusinessLogsLegacy(int $perPage, string $search, ?string $actorId, ?string $eventType, ?string $dateFrom, ?string $dateTo): array
+    {
+        if (! $this->tableExists('audit_logs')) {
+            return [[], $this->emptyMeta($perPage)];
+        }
+
+        $query = DB::table('audit_logs')
+            ->when($search, fn ($q) => $q->where(function ($q) use ($search) {
+                $q->where('description', 'like', "%{$search}%")
+                    ->orWhere('actor_name', 'like', "%{$search}%")
+                    ->orWhere('subject_label', 'like', "%{$search}%");
+            }))
+            ->when($actorId, fn ($q) => $q->where('actor_id', $actorId))
+            ->when($eventType, fn ($q) => $q->where('event_type', $eventType))
+            ->when($dateFrom, fn ($q) => $q->whereDate('created_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->whereDate('created_at', '<=', $dateTo))
+            ->orderByDesc('created_at')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return [
+            $query->items(),
+            [
+                'current_page' => $query->currentPage(),
+                'last_page' => $query->lastPage(),
+                'per_page' => $query->perPage(),
+                'total' => $query->total(),
+            ],
+        ];
     }
 }

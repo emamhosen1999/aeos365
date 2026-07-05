@@ -76,7 +76,6 @@ use Aero\Platform\Http\Controllers\ErrorLogController;
 use Aero\Platform\Http\Controllers\Integrations\WebhookController;
 use Aero\Platform\Http\Controllers\ModuleAnalyticsController;
 use Aero\Platform\Http\Controllers\PlanController;
-use Aero\Platform\Http\Controllers\PlanModuleController;
 use Aero\Platform\Http\Controllers\TenantController;
 use Aero\Platform\Http\Middleware\IdentifyDomainContext;
 use Aero\Platform\Models\Enterprise\Region;
@@ -290,7 +289,7 @@ Route::middleware('admin.domain')->group(function () {
 
             // View Plan Details Page
             Route::get('/{plan}', function (Plan $plan) {
-                $plan->load(['modules', 'subscriptions.tenant']);
+                $plan->load(['subscriptions.tenant']);
 
                 return Inertia::render('Platform/Admin/Plans/PlanShow', [
                     'plan' => $plan,
@@ -304,7 +303,6 @@ Route::middleware('admin.domain')->group(function () {
 
             // Edit Plan Page
             Route::get('/{plan}/edit', function (Plan $plan) {
-                $plan->load(['modules']);
 
                 return Inertia::render('Platform/Admin/Plans/PlanForm', [
                     'plan' => $plan,
@@ -323,7 +321,6 @@ Route::middleware('admin.domain')->group(function () {
 
             // Clone Plan Page (pre-fill form with existing plan data)
             Route::get('/{plan}/clone', function (Plan $plan) {
-                $plan->load(['modules']);
                 $cloneData = $plan->replicate();
                 $cloneData->name = $plan->name.' (Copy)';
                 $cloneData->slug = $plan->slug.'-copy';
@@ -358,22 +355,8 @@ Route::middleware('admin.domain')->group(function () {
                 ->middleware(['hrmac:subscriptions.plans.plan-list.update'])
                 ->name('archive');
 
-            // Plan-Module Management API
-            Route::get('/{plan}/modules', [PlanModuleController::class, 'getPlanModules'])
-                ->middleware(['hrmac:subscriptions.plans.plan-list.view'])
-                ->name('modules.index');
-            Route::post('/{plan}/modules', [PlanModuleController::class, 'attachModules'])
-                ->middleware(['hrmac:subscriptions.plans.plan-list.update'])
-                ->name('modules.attach');
-            Route::delete('/{plan}/modules', [PlanModuleController::class, 'detachModules'])
-                ->middleware(['hrmac:subscriptions.plans.plan-list.update'])
-                ->name('modules.detach');
-            Route::put('/{plan}/modules/sync', [PlanModuleController::class, 'syncModules'])
-                ->middleware(['hrmac:subscriptions.plans.plan-list.update'])
-                ->name('modules.sync');
-            Route::put('/{plan}/modules/{module}', [PlanModuleController::class, 'updateModuleConfig'])
-                ->middleware(['hrmac:subscriptions.plans.plan-list.update'])
-                ->name('modules.update');
+            // Plan-Module Management API removed: plans no longer carry modules
+            // (modules are sold via products — see plan/product subscription split).
 
             // Plan Statistics API
             Route::get('/{plan}/stats', [PlanController::class, 'stats'])
@@ -1392,16 +1375,18 @@ Route::middleware('admin.domain')->group(function () {
         Route::prefix('users')->name('platform.admin.users.')->group(function () {
             Route::middleware('hrmac:platform-users.landlord-user-list.view')->group(function () {
                 Route::get('/', [LandlordUserController::class, 'index'])->name('index');
-                Route::get('/{user}', [LandlordUserController::class, 'show'])->name('show');
+                // withTrashed(): active/inactive is managed via SoftDeletes, so these
+                // actions must resolve inactive (soft-deleted) users too.
+                Route::get('/{user}', [LandlordUserController::class, 'show'])->name('show')->withTrashed();
             });
             Route::middleware('hrmac:platform-users.landlord-user-list.create')
                 ->post('/', [LandlordUserController::class, 'store'])->name('store');
             Route::middleware('hrmac:platform-users.landlord-user-list.edit')->group(function () {
-                Route::put('/{user}', [LandlordUserController::class, 'update'])->name('update');
-                Route::patch('/{user}/toggle-status', [LandlordUserController::class, 'toggleStatus'])->name('toggle-status');
+                Route::put('/{user}', [LandlordUserController::class, 'update'])->name('update')->withTrashed();
+                Route::patch('/{user}/toggle-status', [LandlordUserController::class, 'toggleStatus'])->name('toggle-status')->withTrashed();
             });
             Route::middleware('hrmac:platform-users.landlord-user-list.delete')
-                ->delete('/{user}', [LandlordUserController::class, 'destroy'])->name('destroy');
+                ->delete('/{user}', [LandlordUserController::class, 'destroy'])->name('destroy')->withTrashed();
         });
 
         // Platform roles — the SAME HRMAC RoleController the tenant side uses

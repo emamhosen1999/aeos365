@@ -145,7 +145,7 @@ class AdminDashboardService
         try {
             return [
                 'total_users' => User::count(),
-                'active_users' => User::where('is_active', true)->count(),
+                'active_users' => User::active()->count(),
                 'total_roles' => \Aero\HRMAC\Models\Role::count(),
                 'modules_enabled' => Module::where('is_active', true)->count(),
             ];
@@ -163,10 +163,10 @@ class AdminDashboardService
 
     public function getCoreStats(): array
     {
-        return TenantCache::remember('admin_dashboard.core_stats', 300, function () {
+        $stats = TenantCache::remember('admin_dashboard.core_stats', 300, function () {
             try {
                 $totalUsers = User::count();
-                $activeUsers = User::where('active', true)->count();
+                $activeUsers = User::active()->count();
                 $newThisMonth = User::whereMonth('created_at', now()->month)
                     ->whereYear('created_at', now()->year)
                     ->count();
@@ -179,7 +179,7 @@ class AdminDashboardService
                     ? round((($newThisMonth - $lastMonthUsers) / $lastMonthUsers) * 100, 1)
                     : ($newThisMonth > 0 ? 100 : 0);
 
-                $onlineUsers = UserSession::where('last_activity', '>=', now()->subMinutes(5))->count();
+                $onlineUsers = UserSession::where('last_active_at', '>=', now()->subMinutes(5))->count();
 
                 return [
                     'totalUsers' => $totalUsers,
@@ -206,6 +206,16 @@ class AdminDashboardService
                 ];
             }
         });
+
+        // Online-now is a real-time metric — recompute fresh so the 5-minute cache
+        // above can never make an actively-browsing user appear offline.
+        try {
+            $stats['onlineUsers'] = UserSession::where('last_active_at', '>=', now()->subMinutes(5))->count();
+        } catch (\Throwable $e) {
+            $stats['onlineUsers'] = 0;
+        }
+
+        return $stats;
     }
 
     /**
@@ -226,11 +236,13 @@ class AdminDashboardService
                     default => 7,
                 };
 
-                $startDate = now()->subDays($days)->startOfDay();
+                // subDays($days - 1) so the window is the last N days INCLUDING today
+                // (the loop below emits exactly $days points ending today).
+                $startDate = now()->subDays($days - 1)->startOfDay();
 
                 $logins = AuditLog::where('action', 'login')
                     ->where('created_at', '>=', $startDate)
-                    ->selectRaw('DATE(created_at) as date, COUNT(DISTINCT user_id) as active_users, COUNT(*) as logins')
+                    ->selectRaw('DATE(created_at) as date, COUNT(DISTINCT actor_id) as active_users, COUNT(*) as logins')
                     ->groupByRaw('DATE(created_at)')
                     ->orderBy('date')
                     ->get();
@@ -281,7 +293,7 @@ class AdminDashboardService
      */
     public function getSecurityOverview(): array
     {
-        return TenantCache::remember('admin_dashboard.security_overview', 120, function () {
+        $overview = TenantCache::remember('admin_dashboard.security_overview', 120, function () {
             try {
                 $failedLoginsToday = AuditLog::where('action', 'failed_login')
                     ->whereDate('created_at', today())
@@ -291,7 +303,7 @@ class AdminDashboardService
                     ->where('created_at', '>=', now()->subWeek())
                     ->count();
 
-                $activeSessions = UserSession::where('last_activity', '>=', now()->subMinutes(30))->count();
+                $activeSessions = UserSession::where('last_active_at', '>=', now()->subMinutes(30))->count();
 
                 $recentDevices = UserDevice::with('user:id,name')
                     ->orderByDesc('last_used_at')
@@ -300,14 +312,14 @@ class AdminDashboardService
                     ->toArray();
 
                 $totalUsersWithMfa = User::whereNotNull('two_factor_secret')->count();
-                $totalActiveUsers = User::where('active', true)->count();
+                $totalActiveUsers = User::active()->count();
                 $mfaAdoptionRate = $totalActiveUsers > 0
                     ? round(($totalUsersWithMfa / $totalActiveUsers) * 100, 1)
                     : 0;
 
                 $lastSecurityEvent = AuditLog::whereIn('action', ['failed_login', 'suspicious', 'password_reset', 'account_locked'])
                     ->latest()
-                    ->first(['action', 'description', 'created_at', 'user_name']);
+                    ->first(['action', 'description', 'created_at', 'actor_name']);
 
                 return [
                     'failedLoginsLast24h' => $failedLoginsToday,
@@ -334,6 +346,16 @@ class AdminDashboardService
                 ];
             }
         });
+
+        // Active sessions is real-time — recompute fresh so the 2-minute cache can't
+        // make a live session disappear from the security posture.
+        try {
+            $overview['activeSessions'] = UserSession::where('last_active_at', '>=', now()->subMinutes(30))->count();
+        } catch (\Throwable $e) {
+            // keep the cached value on failure
+        }
+
+        return $overview;
     }
 
     /**
@@ -352,8 +374,15 @@ class AdminDashboardService
                     $totalUsed = $this->getDirectorySize($storagePath);
                 }
 
-                // Plan storage limit (from tenant subscription)
-                $totalLimit = $this->getPlanQuota('storage_limit_gb', 5) * 1024 * 1024 * 1024;
+                // Plan storage limit (from tenant subscription). Key is `max_storage_gb`
+                // in the plan `limits` column — the old `storage_limit_gb` key never
+                // matched, so this always fell back to the 5 GB default.
+                // Standalone has no plan: use the deployment's configured cap, or 0 to
+                // signal "no cap" (the widget renders that as unlimited).
+                $limitGb = aero_mode() === 'standalone'
+                    ? (float) config('aero.standalone_storage_limit_gb', 0)
+                    : $this->getPlanQuota('max_storage_gb', 5);
+                $totalLimit = $limitGb * 1024 * 1024 * 1024;
                 $usagePercentage = $totalLimit > 0 ? round(($totalUsed / $totalLimit) * 100, 1) : 0;
 
                 return [
@@ -386,30 +415,48 @@ class AdminDashboardService
     {
         return TenantCache::remember('admin_dashboard.subscription_info', 900, function () {
             try {
+                // Standalone (self-hosted) has no tenant/subscription — presenting the
+                // SaaS "Free plan" defaults there is wrong (dual-mode rule). Surface a
+                // licensed self-hosted identity instead; quotas are uncapped unless the
+                // deployment configures them.
+                if (aero_mode() === 'standalone') {
+                    return [
+                        'plan' => ['name' => 'Self-hosted', 'slug' => 'self-hosted'],
+                        'status' => 'licensed',
+                        'isOnTrial' => false,
+                        'trialEndsAt' => null,
+                        'expiresAt' => null,
+                        'daysRemaining' => null,
+                        'quotaUsage' => $this->getQuotaUsage(),
+                    ];
+                }
+
                 $tenant = tenant();
                 if (! $tenant) {
                     return $this->defaultSubscriptionInfo();
                 }
 
-                $plan = null;
-                $subscription = null;
+                // Authoritative source: the tenant's current (active OR trialing)
+                // subscription — the same one the Subscription & Billing page reads.
+                // Reading `$tenant->plan`/`subscription('default')` was unreliable
+                // (attribute vs method, and a trial-only tenant resolved to null),
+                // which showed "Free" on the dashboard while billing showed the plan.
+                $subscription = $tenant->currentSubscription;
+                $plan = $subscription?->plan;
 
-                if (method_exists($tenant, 'subscription')) {
-                    $subscription = $tenant->subscription;
-                }
-                if (method_exists($tenant, 'plan')) {
-                    $plan = $tenant->plan;
-                }
-
-                $isOnTrial = false;
-                $trialEndsAt = null;
-                if (method_exists($tenant, 'onTrial')) {
-                    $isOnTrial = $tenant->onTrial();
-                }
-                $trialEndsAt = $tenant->subscription('default')?->trial_ends_at;
+                $trialEndsAt = $subscription?->trial_ends_at;
+                // Derive trial state from the subscription we already have — the model
+                // method is isOnTrial() (not onTrial), so the old method_exists('onTrial')
+                // guard was always false and the dashboard never showed the trial state.
+                $isOnTrial = $subscription
+                    && ($subscription->status === 'trialing' || ($trialEndsAt?->isFuture() ?? false));
 
                 $expiresAt = $subscription?->ends_at ?? $trialEndsAt;
-                $daysRemaining = $expiresAt ? now()->diffInDays(Carbon::parse($expiresAt), false) : null;
+                // Whole days (diffInDays returns a float, e.g. 13.9) so the widget
+                // renders "13 days remaining", not "13.913914… days remaining".
+                $daysRemaining = $expiresAt
+                    ? max(0, (int) floor(now()->diffInDays(Carbon::parse($expiresAt), false)))
+                    : null;
 
                 return [
                     'plan' => $plan ? [
@@ -468,17 +515,16 @@ class AdminDashboardService
     {
         return TenantCache::remember('admin_dashboard.recent_audit_log', 120, function () use ($limit) {
             try {
-                return AuditLog::with('user:id,name')
-                    ->latest()
+                return AuditLog::latest()
                     ->limit($limit)
-                    ->get(['id', 'user_id', 'user_name', 'action', 'description', 'auditable_type', 'created_at', 'metadata'])
+                    ->get(['id', 'actor_id', 'actor_name', 'action', 'description', 'subject_type', 'created_at', 'metadata'])
                     ->map(function ($log) {
                         return [
                             'id' => $log->id,
-                            'user' => $log->user_name ?? $log->user?->name ?? 'System',
+                            'user' => $log->actor_name ?? 'System',
                             'action' => $log->action,
                             'description' => $log->description,
-                            'auditableType' => class_basename($log->auditable_type ?? ''),
+                            'auditableType' => class_basename($log->subject_type ?? ''),
                             'createdAt' => $log->created_at->toISOString(),
                             'timeAgo' => $log->created_at->diffForHumans(),
                         ];
@@ -792,20 +838,20 @@ class AdminDashboardService
     {
         return TenantCache::remember('admin_dashboard.active_sessions', 60, function () {
             try {
-                $onlineNow = UserSession::where('last_activity', '>=', now()->subMinutes(5))->count();
-                $activeToday = UserSession::whereDate('last_activity', today())->count();
-                $activeThisWeek = UserSession::where('last_activity', '>=', now()->startOfWeek())->count();
+                $onlineNow = UserSession::where('last_active_at', '>=', now()->subMinutes(5))->count();
+                $activeToday = UserSession::whereDate('last_active_at', today())->count();
+                $activeThisWeek = UserSession::where('last_active_at', '>=', now()->startOfWeek())->count();
 
                 // Recent sessions
                 $recentSessions = UserSession::with('user:id,name')
-                    ->orderByDesc('last_activity')
+                    ->orderByDesc('last_active_at')
                     ->limit(6)
-                    ->get(['id', 'user_id', 'ip_address', 'last_activity', 'user_agent'])
+                    ->get(['id', 'user_id', 'ip_address', 'last_active_at', 'user_agent'])
                     ->map(fn ($s) => [
                         'user' => $s->user?->name ?? 'Unknown',
                         'ip' => $s->ip_address ?? '—',
-                        'timeAgo' => \Carbon\Carbon::createFromTimestamp($s->last_activity)->diffForHumans(),
-                        'isOnline' => $s->last_activity >= now()->subMinutes(5)->timestamp,
+                        'timeAgo' => $s->last_active_at ? \Carbon\Carbon::parse($s->last_active_at)->diffForHumans() : '—',
+                        'isOnline' => $s->last_active_at && \Carbon\Carbon::parse($s->last_active_at)->greaterThanOrEqualTo(now()->subMinutes(5)),
                     ])
                     ->toArray();
 
@@ -865,10 +911,17 @@ class AdminDashboardService
     protected function getPlanQuota(string $key, mixed $default = null): mixed
     {
         try {
-            $tenant = tenant();
-            if ($tenant && method_exists($tenant, 'plan')) {
-                $plan = $tenant->plan;
-                if ($plan && isset($plan->features[$key])) {
+            // `plan` is a magic attribute (getPlanAttribute → currentSubscription->plan),
+            // NOT a method — method_exists() is always false and silently dropped the
+            // plan's quota, defaulting every limit to "unlimited"/free values.
+            // Quota caps live in the `limits` column (max_users, max_storage_gb);
+            // `features` holds capability flags. Check limits first, then features.
+            $plan = tenant()?->plan;
+            if ($plan) {
+                if (isset($plan->limits[$key])) {
+                    return $plan->limits[$key];
+                }
+                if (isset($plan->features[$key])) {
                     return $plan->features[$key];
                 }
             }
@@ -885,16 +938,21 @@ class AdminDashboardService
      */
     protected function getQuotaUsage(): array
     {
+        $usersUsed = 0;
         try {
-            return [
-                'users' => [
-                    'used' => User::count(),
-                    'limit' => $this->getPlanQuota('max_users', 'unlimited'),
-                ],
-            ];
-        } catch (\Throwable) {
-            return [];
+            $usersUsed = User::count();
+        } catch (\Throwable $e) {
+            report($e);
         }
+
+        // Always return the structure (never []), so the seats widget reads a real
+        // count instead of falling back to 0 on any partial failure.
+        return [
+            'users' => [
+                'used'  => $usersUsed,
+                'limit' => $this->getPlanQuota('max_users', 'unlimited'),
+            ],
+        ];
     }
 
     protected function hasCompanyLogo(): bool
@@ -952,7 +1010,9 @@ class AdminDashboardService
             'trialEndsAt' => null,
             'expiresAt' => null,
             'daysRemaining' => null,
-            'quotaUsage' => [],
+            // Even on the default/Free plan, surface real usage (e.g. seat count)
+            // so the storage & plan widget doesn't read empty.
+            'quotaUsage' => $this->getQuotaUsage(),
         ];
     }
 }

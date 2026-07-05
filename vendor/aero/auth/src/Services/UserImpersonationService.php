@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Aero\Auth\Services;
 
-use Aero\Core\Models\User;
+use Aero\Auth\Models\User;
 use Carbon\Carbon;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Support\Collection;
@@ -326,8 +326,8 @@ class UserImpersonationService
             throw new \RuntimeException('Cannot impersonate users with equal or higher privileges.');
         }
 
-        // Check if target user is active
-        if (! $target->is_active) {
+        // Check if target user is active (active = not soft-deleted)
+        if ($target->trashed()) {
             throw new \RuntimeException('Cannot impersonate inactive users.');
         }
 

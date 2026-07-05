@@ -7,8 +7,8 @@ use Aero\Contracts\RoleModuleAccessInterface;
 use Aero\Core\Http\Resources\SystemSettingResource;
 use Aero\Core\Models\SystemSetting;
 use Aero\Core\Services\NavigationRegistry;
-use Aero\HRMAC\Models\Action;
-use Aero\HRMAC\Models\Component;
+use Aero\HRMAC\Models\ModuleComponentAction;
+use Aero\HRMAC\Models\ModuleComponent;
 use Aero\HRMAC\Models\Module;
 use Aero\HRMAC\Models\SubModule;
 use Illuminate\Database\QueryException;
@@ -497,7 +497,7 @@ class HandleInertiaRequests extends Middleware
 
         return Cache::remember($cacheKey, 600, function () use ($user) {
             try {
-                if (! class_exists(Action::class) || ! class_exists(Component::class)) {
+                if (! class_exists(ModuleComponentAction::class) || ! class_exists(ModuleComponent::class)) {
                     return [];
                 }
 
@@ -513,7 +513,7 @@ class HandleInertiaRequests extends Middleware
                     return [];
                 }
 
-                $actions = Action::with('component.subModule.module')
+                $actions = ModuleComponentAction::with('component.subModule.module')
                     ->whereIn('id', $actionIds)
                     ->get();
 
@@ -573,27 +573,15 @@ class HandleInertiaRequests extends Middleware
                 $modules = array_merge($modules, $coreModules);
             }
 
-            // Add plan-based modules from subscription
+            // Add subscribed product modules. Canonical source: Tenant::getSubscribedProductModules
+            // (baseline + active/trialing product_subscriptions). This replaces both the
+            // hand-rolled product query and the tenant_module pivot override — the override's
+            // ->where('is_active', true) on the joined pivot raised an ambiguous-column SQL
+            // error (modules.is_active vs tenant_module.is_active) that made this whole method
+            // fail closed, so the nav only ever rendered core modules.
             $tenant = tenant();
             if ($tenant) {
-                // Access gate: ProductSubscription is the canonical source of module access.
-                // plan_modules defines the catalog/storefront only — it does NOT grant access.
-                $productModules = $tenant->productSubscriptions()
-                    ->where('status', 'active')
-                    ->where(fn ($q) => $q->whereNull('ends_at')->orWhere('ends_at', '>', now()))
-                    ->with('product:id,module_code')
-                    ->get()
-                    ->pluck('product.module_code')
-                    ->filter()
-                    ->values()
-                    ->toArray();
-                $modules = array_merge($modules, $productModules);
-
-                // Admin overrides: granted outside subscription flow
-                $tenantModules = $tenant->modules()->where('is_active', true)->pluck('code')->toArray();
-                if (! empty($tenantModules)) {
-                    $modules = array_merge($modules, $tenantModules);
-                }
+                $modules = array_merge($modules, $tenant->subscribed_product_modules);
             }
 
             $result = array_values(array_unique($modules));

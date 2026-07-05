@@ -56,6 +56,13 @@
       0 => 'Aero\\Installation\\Providers\\AeroInstallationServiceProvider',
     ),
   ),
+  'aero/kernel' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Aero\\Kernel\\AeroKernelServiceProvider',
+    ),
+  ),
   'aero/notifications' => 
   array (
     'providers' => 

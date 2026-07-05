@@ -37,7 +37,8 @@ function ServicePill({ name, status }) {
 export function SystemHealthWidget({ systemHealth: initialData }) {
     const { auth }   = usePage().props;
     const user       = auth?.user;
-    const userRoles  = user?.roles ?? [];
+    // roles may arrive as strings or role objects — coerce to display strings.
+    const userRoles  = (user?.roles ?? []).map(r => (typeof r === 'string' ? r : (r?.name ?? r?.title ?? ''))).filter(Boolean);
 
     const { data, loading, error, refresh } = useWidgetRefresh('systemHealth', initialData);
 
@@ -80,7 +81,7 @@ export function SystemHealthWidget({ systemHealth: initialData }) {
                         <Badge
                             intent={failedJobs > 0 ? 'danger' : 'success'}
                             as={failedJobs > 0 ? Link : 'span'}
-                            href={failedJobs > 0 ? route('horizon.index') : undefined}
+                            href={failedJobs > 0 ? route('core.audit-logs.queues') : undefined}
                         >
                             {failedJobs} failed job{failedJobs !== 1 ? 's' : ''}
                             {failedJobs > 0 ? ' ↗' : ''}
@@ -112,7 +113,7 @@ export function SystemHealthWidget({ systemHealth: initialData }) {
                 <HStack gap={2}>
                     <Button
                         as={Link}
-                        href={route('settings.general')}
+                        href={route('core.settings.system')}
                         intent="ghost"
                         size="sm"
                     >
@@ -120,7 +121,7 @@ export function SystemHealthWidget({ systemHealth: initialData }) {
                     </Button>
                     <Button
                         as={Link}
-                        href={route('audit-logs.index')}
+                        href={route('core.audit-logs.index')}
                         intent="ghost"
                         size="sm"
                     >
@@ -128,7 +129,7 @@ export function SystemHealthWidget({ systemHealth: initialData }) {
                     </Button>
                     <Button
                         as={Link}
-                        href={route('system-health.index')}
+                        href={route('core.system-health.index')}
                         intent="outline"
                         size="sm"
                     >

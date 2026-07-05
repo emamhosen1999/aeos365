@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Aero\HRMAC\Models;
 
-use Aero\Core\Models\TenantModel;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
@@ -80,14 +79,19 @@ class Role extends HrmacModel
      */
     public function users(): BelongsToMany
     {
-        $userModel = config('hrmac.models.user', \Aero\Core\Models\User::class);
+        $userModel = config('hrmac.models.user') ?: config('auth.providers.users.model');
+
+        // Filter by the user model's morph key (not its raw FQN) so role rows stay
+        // resolvable when the User class moves package — Phase 2 decoupling. Falls back
+        // to the class name if the model has no morphMap entry (e.g. User).
+        $morphType = (new $userModel)->getMorphClass();
 
         return $this->belongsToMany(
             $userModel,
             'model_has_roles',
             'role_id',
             'model_id'
-        )->where('model_has_roles.model_type', $userModel);
+        )->where('model_has_roles.model_type', $morphType);
     }
 
     /**

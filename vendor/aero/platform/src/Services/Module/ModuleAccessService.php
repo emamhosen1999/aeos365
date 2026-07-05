@@ -6,7 +6,7 @@ namespace Aero\Platform\Services\Module;
 
 use Aero\Core\Support\TenantCache;
 use Aero\Contracts\RoleModuleAccessInterface;
-use Aero\Platform\Models\LandlordUser;
+use Aero\Auth\Models\User;
 use Aero\Platform\Models\Module;
 use Aero\Platform\Models\ModuleComponent;
 use Aero\Platform\Models\ModuleComponentAction;
@@ -37,7 +37,7 @@ class ModuleAccessService
     /**
      * Check if user is platform super administrator.
      */
-    protected function isPlatformSuperAdmin(LandlordUser $user): bool
+    protected function isPlatformSuperAdmin(User $user): bool
     {
         return $user->hasRole('Super Administrator');
     }
@@ -45,7 +45,7 @@ class ModuleAccessService
     /**
      * Check if user is tenant super administrator.
      */
-    protected function isTenantSuperAdmin(LandlordUser $user): bool
+    protected function isTenantSuperAdmin(User $user): bool
     {
         return $user->hasRole('tenant_super_administrator');
     }
@@ -53,7 +53,7 @@ class ModuleAccessService
     /**
      * Check if user's role has access to a module by ID.
      */
-    protected function userHasModuleAccess(LandlordUser $user, int $moduleId): bool
+    protected function userHasModuleAccess(User $user, int $moduleId): bool
     {
         // Get user's roles and check each
         $roles = $user->roles;
@@ -70,7 +70,7 @@ class ModuleAccessService
     /**
      * Check if user's role has access to a submodule by ID.
      */
-    protected function userHasSubModuleAccess(LandlordUser $user, int $subModuleId): bool
+    protected function userHasSubModuleAccess(User $user, int $subModuleId): bool
     {
         $roles = $user->roles;
 
@@ -86,7 +86,7 @@ class ModuleAccessService
     /**
      * Check if user's role has access to a component by ID.
      */
-    protected function userHasComponentAccess(LandlordUser $user, int $componentId): bool
+    protected function userHasComponentAccess(User $user, int $componentId): bool
     {
         $roles = $user->roles;
 
@@ -102,7 +102,7 @@ class ModuleAccessService
     /**
      * Check if user's role has access to an action by ID.
      */
-    protected function userHasActionAccess(LandlordUser $user, int $actionId): bool
+    protected function userHasActionAccess(User $user, int $actionId): bool
     {
         $roles = $user->roles;
 
@@ -118,7 +118,7 @@ class ModuleAccessService
     /**
      * Get user's access scope for an action.
      */
-    public function getUserAccessScope(LandlordUser $user, int $actionId): ?string
+    public function getUserAccessScope(User $user, int $actionId): ?string
     {
         $roles = $user->roles;
 
@@ -154,7 +154,7 @@ class ModuleAccessService
      *
      * @return array{allowed: bool, reason: string, message: string}
      */
-    public function canAccessModule(LandlordUser $user, string $moduleCode): array
+    public function canAccessModule(User $user, string $moduleCode): array
     {
         // EXCEPTION: Super Administrator bypasses everything
         if ($this->isPlatformSuperAdmin($user)) {
@@ -204,7 +204,7 @@ class ModuleAccessService
      *
      * @return array{allowed: bool, reason: string, message: string}
      */
-    public function canAccessSubModule(LandlordUser $user, string $moduleCode, string $subModuleCode): array
+    public function canAccessSubModule(User $user, string $moduleCode, string $subModuleCode): array
     {
         // EXCEPTION: Super Administrator bypasses everything
         if ($this->isPlatformSuperAdmin($user)) {
@@ -267,7 +267,7 @@ class ModuleAccessService
      *
      * @return array{allowed: bool, reason: string, message: string}
      */
-    public function canAccessComponent(LandlordUser $user, string $moduleCode, string $subModuleCode, string $componentCode): array
+    public function canAccessComponent(User $user, string $moduleCode, string $subModuleCode, string $componentCode): array
     {
         // EXCEPTION: Super Administrator bypasses everything
         if ($this->isPlatformSuperAdmin($user)) {
@@ -344,7 +344,7 @@ class ModuleAccessService
      * @return array{allowed: bool, reason: string, message: string}
      */
     public function canPerformAction(
-        LandlordUser $user,
+        User $user,
         string $moduleCode,
         string $subModuleCode,
         string $componentCode,
@@ -435,13 +435,14 @@ class ModuleAccessService
     /**
      * Check if the tenant has access to a specific module/item.
      *
-     * Module access is determined by the tenant_module pivot and
-     * independent module subscriptions (subscription_modules), not by the plan.
+     * Module access is determined by the canonical product subscriptions
+     * (Tenant::getSubscribedProductModules = baseline + active/trialing
+     * product_subscriptions), not by the plan.
      *
      * @param  string  $type  Type: module, submodule, component, action
      */
     protected function isPlanAllowed(
-        LandlordUser $user,
+        User $user,
         string $type,
         string $moduleCode,
         ?string $subModuleCode = null,
@@ -457,35 +458,20 @@ class ModuleAccessService
         $cacheKey = "tenant_modules_access:{$tenant->id}";
 
         $activeModuleCodes = TenantCache::remember($cacheKey, 300, function () use ($tenant) {
-            $moduleCodes = [];
+            // Canonical: baseline + active/trialing product subscriptions
+            // (Tenant::getSubscribedProductModules). Replaces the deprecated tenant_module
+            // pivot + legacy subscription_modules reads, which would miss products bought
+            // through the unified product_subscriptions flow.
+            $moduleCodes = $tenant->subscribed_product_modules;
 
-            // Check 1: Get modules from tenant_module pivot (active subscribed modules)
-            $tenantModules = $tenant->modules()->pluck('code')->toArray();
-            $moduleCodes = array_merge($moduleCodes, $tenantModules);
-
-            // Check 2: Get modules from active module subscriptions (subscription_modules table)
-            $moduleSubCodes = $tenant->moduleSubscriptions()
-                ->where(function ($q) {
-                    $q->where('status', 'active')
-                        ->orWhere('status', 'trialing');
-                })
-                ->where(function ($q) {
-                    $q->whereNull('ends_at')
-                        ->orWhere('ends_at', '>=', now());
-                })
-                ->pluck('module_code')
-                ->toArray();
-            $moduleCodes = array_merge($moduleCodes, $moduleSubCodes);
-
-            // Add core modules (always accessible)
+            // Defensive: ensure core DB modules are always accessible (baseline already
+            // includes 'core', but a tenant may have additional is_core modules).
             $coreModules = Module::where('is_core', true)
                 ->where('is_active', true)
                 ->pluck('code')
                 ->toArray();
-            $moduleCodes = array_merge($moduleCodes, $coreModules);
 
-            // Return unique module codes
-            return array_unique($moduleCodes);
+            return array_values(array_unique(array_merge($moduleCodes, $coreModules)));
         });
 
         // Check if module is allowed
@@ -493,15 +479,16 @@ class ModuleAccessService
             return false;
         }
 
-        // For now, if module is allowed, all its children are allowed
-        // In the future, plan_module pivot can include submodule/component restrictions
+        // For now, if module is allowed, all its children are allowed.
+        // Finer submodule/component restrictions would live on the product
+        // subscription's metadata (plans carry no modules).
         return true;
     }
 
     /**
      * Get all accessible modules for a user (respecting both plan and role access).
      */
-    public function getAccessibleModules(LandlordUser $user): array
+    public function getAccessibleModules(User $user): array
     {
         $cacheKey = "user_accessible_modules:{$user->id}";
 
@@ -529,7 +516,7 @@ class ModuleAccessService
     /**
      * Clear user access cache.
      */
-    public function clearUserCache(LandlordUser $user): void
+    public function clearUserCache(User $user): void
     {
         TenantCache::forget("user_accessible_modules:{$user->id}");
 

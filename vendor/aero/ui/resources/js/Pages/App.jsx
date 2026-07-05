@@ -11,7 +11,7 @@
  */
 import { usePage } from '@inertiajs/react';
 import { Head } from '@inertiajs/react';
-import { AppShell, AppBrand, AppTopbarTitle, AppUserMenu, SearchOverlay } from '@aero/ui';
+import { AppShell, AppBrand, AppTopbarTitle, GlobalActions, SearchOverlay } from '@aero/ui';
 import { useTheme } from '../theme/ThemeProvider.jsx';
 
 import * as HeroIcons from '@heroicons/react/24/outline';
@@ -106,7 +106,7 @@ function buildFallbackNav(currentUrl) {
 }
 
 // ─── App layout ───────────────────────────────────────────────────────────────
-export default function App({ title, children }) {
+export default function App({ title, rail, railTitle = 'Context', children }) {
   const { auth, navigation, navigationGroups, url } = usePage().props;
   const theme = useTheme();
   const currentUrl = url ?? (typeof window !== 'undefined' ? window.location.pathname : '/dashboard');
@@ -123,7 +123,9 @@ export default function App({ title, children }) {
         brand={<AppBrand href="/dashboard" size={28} />}
         nav={nav}
         topbar={<AppTopbarTitle title={title} />}
-        actions={<AppUserMenu user={auth?.user} />}
+        actions={<GlobalActions user={auth?.user} />}
+        rail={rail}
+        railTitle={railTitle}
       >
         {children}
       </AppShell>

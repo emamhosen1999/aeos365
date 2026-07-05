@@ -238,9 +238,14 @@ if (class_exists('Aero\Platform\Http\Controllers\Tenant\TenantSubscriptionContro
     Route::middleware(['auth:web', 'resolve.tenant.context'])->prefix('subscription')->name('core.subscription.')->group(function () use ($subscriptionController) {
         Route::get('/', [$subscriptionController, 'index'])->name('index')->middleware('hrmac:core.subscription.plans.view');
         Route::get('/plans', [$subscriptionController, 'plans'])->name('plans')->middleware('hrmac:core.subscription.plans.view');
-        Route::post('/change-plan', [$subscriptionController, 'changePlan'])->name('change-plan')->middleware('hrmac:core.subscription.plans.upgrade');
-        Route::get('/usage', [$subscriptionController, 'usage'])->name('usage')->middleware('hrmac:core.subscription.plans.view');
-        Route::get('/invoices', [$subscriptionController, 'invoices'])->name('invoices')->middleware('hrmac:core.subscription.plans.view');
+        Route::get('/usage', [$subscriptionController, 'usage'])->name('usage')->middleware('hrmac:core.subscription.usage.view');
+        Route::get('/invoices', [$subscriptionController, 'invoices'])->name('invoices')->middleware('hrmac:core.subscription.invoices.view');
+        Route::get('/invoices/{invoice}/download', [$subscriptionController, 'downloadInvoice'])->name('invoices.download')->middleware('hrmac:core.subscription.invoices.download');
+        Route::get('/products', [$subscriptionController, 'products'])->name('products')->middleware('hrmac:core.subscription.products.view');
+        Route::post('/change-plan', [$subscriptionController, 'changePlan'])->name('change-plan')->middleware('hrmac:core.subscription.plans.view');
+        Route::post('/cancel', [$subscriptionController, 'cancel'])->name('cancel')->middleware('hrmac:core.subscription.plans.cancel');
+        Route::post('/products/subscribe', [$subscriptionController, 'subscribeProduct'])->name('products.subscribe')->middleware('hrmac:core.subscription.products.subscribe');
+        Route::post('/products/{productSubscription}/cancel', [$subscriptionController, 'cancelProduct'])->name('products.cancel')->middleware('hrmac:core.subscription.products.cancel');
     });
 }
 
@@ -364,8 +369,10 @@ Route::middleware('auth:web')->group(function () {
     // CRITICAL: Authorization middleware added for security
     // Only users with 'manage-modules' capability can access these routes
     Route::prefix('modules')->name('core.modules.')->middleware('hrmac:core.roles_permissions.module_access.view')->group(function () {
-        // View
-        Route::get('/', [ModuleController::class, 'index'])->name('index');
+        // View — module access is now edited inline on the unified RBAC page (per-role
+        // access Drawer), so the standalone tree page redirects there. The JSON
+        // role-access.show|sync endpoints below remain the editor's data contract.
+        Route::get('/', fn () => redirect()->route('core.roles.index'))->name('index');
         Route::get('/api', [ModuleController::class, 'apiIndex'])->name('api.index');
         Route::post('/check-access', [ModuleController::class, 'checkAccess'])->name('check-access');
         Route::get('/{moduleCode}/requirements', [ModuleController::class, 'getModuleRequirements'])->name('requirements');
@@ -641,7 +648,9 @@ Route::middleware('auth:web')->group(function () {
             Route::post('/', [MailSettingsController::class, 'update'])->name('update')->middleware('hrmac:core.settings.mail_settings.update');
             Route::post('/test', [MailSettingsController::class, 'sendTest'])->name('test')->middleware('hrmac:core.settings.mail_settings.test');
         });
-        Route::get('/integrations', [SystemSettingController::class, 'index'])->name('integrations.index'); // API & integrations
+        // NOTE: /settings/integrations (GET) is defined by IntegrationsController below
+        // (prefix settings/integrations) — the stale duplicate that pointed at
+        // SystemSettingController@index was removed so the page renders Integrations.
         Route::put('/system', [SystemSettingController::class, 'update'])->name('system.update')->middleware('hrmac:core.settings.general.edit');
         Route::post('/system/test-email', [SystemSettingController::class, 'sendTestEmail'])->name('system.test-email');
         Route::post('/system/test-sms', [SystemSettingController::class, 'sendTestSms'])->name('system.test-sms');
@@ -977,17 +986,13 @@ Route::middleware('auth:web')->group(function () {
     // Activity Feed routes
     Route::prefix('activity')->name('core.activity.')->group(function () {
         Route::get('/', [ActivityController::class, 'index'])
-            ->middleware('hrmac:core.activity_feed.view')
-            ->name('index');
+            ->middleware('hrmac:core.activity_feed.feed.view')->name('index');
         Route::get('/{id}', [ActivityController::class, 'show'])
-            ->middleware('hrmac:core.activity_feed.view')
-            ->name('show');
+            ->middleware('hrmac:core.activity_feed.feed.view')->name('show');
         Route::get('/stats', [ActivityController::class, 'stats'])
-            ->middleware('hrmac:core.activity_feed.view')
-            ->name('stats');
+            ->middleware('hrmac:core.activity_feed.feed.view')->name('stats');
         Route::get('/export', [ActivityController::class, 'export'])
-            ->middleware('hrmac:core.activity_feed.export')
-            ->name('export');
+            ->middleware('hrmac:core.activity_feed.feed.export')->name('export');
     });
 
     // Data Export/Import routes
@@ -1162,20 +1167,27 @@ Route::middleware('auth:web')->group(function () {
             ->middleware('hrmac:core.user_management.users.bulk_assign_roles');
         Route::post('/stop-impersonating', [CoreUserController::class, 'stopImpersonating'])
             ->name('stop-impersonating');
+        // withTrashed(): active/inactive is managed via SoftDeletes, so these
+        // actions must resolve inactive (soft-deleted) users too.
         Route::get('/{user}', [CoreUserController::class, 'show'])
             ->name('show')
+            ->withTrashed()
             ->middleware('hrmac:core.user_management.users.view');
         Route::get('/{user}/edit', [CoreUserController::class, 'edit'])
             ->name('edit')
+            ->withTrashed()
             ->middleware('hrmac:core.user_management.users.edit');
         Route::put('/{user}', [CoreUserController::class, 'update'])
             ->name('update')
+            ->withTrashed()
             ->middleware('hrmac:core.user_management.users.edit');
         Route::delete('/{user}', [CoreUserController::class, 'destroy'])
             ->name('destroy')
+            ->withTrashed()
             ->middleware('hrmac:core.user_management.users.delete');
         Route::post('/{user}/toggle-status', [CoreUserController::class, 'toggleStatus'])
             ->name('toggle-status')
+            ->withTrashed()
             ->middleware('hrmac:core.user_management.users.activate');
         Route::post('/{user}/impersonate', [CoreUserController::class, 'impersonate'])
             ->name('impersonate')

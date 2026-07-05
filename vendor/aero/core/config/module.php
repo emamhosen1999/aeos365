@@ -141,6 +141,7 @@ return [
             'route' => '/subscription',
             'priority' => 2,
             'show_in_nav' => true, // Real tenant self-service page; no other nav home
+            'collapse_nav' => true, // Single hub link; Plans/Usage/Invoices are in-page tabs
             'plan' => 'saas',
 
             'components' => [
@@ -173,6 +174,17 @@ return [
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Invoices'],
                         ['code' => 'download', 'name' => 'Download Invoice'],
+                    ],
+                ],
+                [
+                    'code' => 'products',
+                    'name' => 'Add-on Products',
+                    'type' => 'page',
+                    'route' => '/subscription/products',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Add-ons'],
+                        ['code' => 'subscribe', 'name' => 'Subscribe to Add-on'],
+                        ['code' => 'cancel', 'name' => 'Cancel Add-on'],
                     ],
                 ],
             ],
@@ -375,6 +387,7 @@ return [
             'icon' => 'ClipboardDocumentListIcon',
             'route' => '/audit-logs',
             'priority' => 6,
+            'collapse_nav' => true,
 
             'components' => [
                 [
@@ -410,6 +423,32 @@ return [
                         ['code' => 'view', 'name' => 'View Job Queues'],
                         ['code' => 'retry', 'name' => 'Retry Failed Jobs'],
                         ['code' => 'flush', 'name' => 'Flush Queue'],
+                    ],
+                ],
+            ],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | 1.5b Activity Feed
+        |--------------------------------------------------------------------------
+        */
+        [
+            'code' => 'activity_feed',
+            'name' => 'Activity Feed',
+            'description' => 'Cross-module activity timeline of user and system actions',
+            'icon' => 'ClockIcon',
+            'route' => '/activity',
+            'priority' => 7,
+            'components' => [
+                [
+                    'code' => 'feed',
+                    'name' => 'Activity Feed',
+                    'type' => 'page',
+                    'route' => '/activity',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Activity Feed'],
+                        ['code' => 'export', 'name' => 'Export Activities'],
                     ],
                 ],
             ],
@@ -508,6 +547,11 @@ return [
             'icon' => 'Cog8ToothIcon',
             'route' => '/settings/system',
             'priority' => 99,
+
+            // Collapse the 9 settings pages into a single "Settings" nav link →
+            // /settings/system. The unified in-page SettingsLayout rail owns
+            // sub-navigation; the component actions below still define HRMAC perms.
+            'collapse_nav' => true,
 
             'components' => [
                 [
@@ -633,6 +677,13 @@ return [
             'icon' => 'BuildingOffice2Icon',
             'route' => '/organization/profile',
             'priority' => 9,
+            // collapse_nav: render as a single "Organization" leaf link instead of
+            // /organization/profile + 4 siblings. The unified in-page
+            // OrganizationLayout rail owns sub-navigation; the component actions
+            // below still define HRMAC perms. Honored in BOTH registration paths
+            // (AbstractModuleProvider::registerNavigation + AeroCoreServiceProvider::
+            // registerCoreNavigation — last-wins, see Settings root cause).
+            'collapse_nav' => true,
             'components' => [
                 [
                     'code' => 'org_profile', 'name' => 'Organization Profile', 'type' => 'page', 'route' => '/organization/profile',
@@ -1131,13 +1182,6 @@ return [
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Mentions'],
                         ['code' => 'mark_read', 'name' => 'Mark as Read'],
-                    ],
-                ],
-                [
-                    'code' => 'activity_feed', 'name' => 'Activity Feed', 'type' => 'page', 'route' => '/activity',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Activity Feed'],
-                        ['code' => 'export', 'name' => 'Export Activities'],
                     ],
                 ],
             ],

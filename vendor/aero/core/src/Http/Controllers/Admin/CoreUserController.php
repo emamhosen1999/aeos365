@@ -7,8 +7,8 @@ use Aero\Core\Http\Controllers\Controller;
 use Aero\Core\Http\Requests\StoreUserRequest;
 use Aero\Core\Http\Requests\UpdateUserRequest;
 use Aero\Core\Models\User;
-use Aero\Core\Services\UserInvitationService;
-use Aero\Core\Services\UserService;
+use Aero\Auth\Services\UserInvitationService;
+use Aero\Auth\Services\UserService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -33,10 +33,25 @@ class CoreUserController extends Controller
     {
         $users = $this->userService->list($request->only('search', 'role', 'status'));
 
+        // Invite-first UX: pending invitations are folded into this page under a
+        // "Pending invitations" tab (resend/cancel inline) — no separate page.
+        $invitations = $this->invitationService->list($request->only('search'))
+            ->whereNull('accepted_at')
+            ->values();
+
         return Inertia::render('Core/Users/Index', [
             'users' => $users,
             'roles' => Role::orderBy('name')->get(['id', 'name']),
+            'invitations' => $invitations,
             'filters' => $request->only('search', 'role', 'status'),
+            // KPI stats — were never sent (so the cards read 0). active = not
+            // trashed, inactive (deactivated) = soft-deleted, total = both.
+            'stats' => [
+                'total'    => User::withTrashed()->count(),
+                'active'   => User::count(),
+                'inactive' => User::onlyTrashed()->count(),
+                'pending'  => $invitations->count(),
+            ],
         ]);
     }
 
@@ -87,14 +102,15 @@ class CoreUserController extends Controller
 
     public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
-        $before = $user->only(['name', 'email', 'is_active']);
+        $before = $user->only(['name', 'email']);
 
+        // Service refreshes $user in place, so use the instance directly as the subject.
         $this->userService->update($user, $request->validated(), $request->user());
 
         $this->audit->log(
             event: 'core.user.updated',
             action: 'updated',
-            subject: $user->fresh(),
+            subject: $user,
             description: 'User account updated',
             before: $before,
             after: $request->safe()->except(['password', 'password_confirmation']),
@@ -126,17 +142,19 @@ class CoreUserController extends Controller
 
     public function toggleStatus(User $user, Request $request): RedirectResponse
     {
-        $previousStatus = $user->is_active;
+        // Active/inactive is managed via SoftDeletes: active = not trashed.
+        // The route binds with withTrashed() so an inactive (trashed) user resolves.
+        $wasActive = ! $user->trashed();
 
         $this->userService->toggleStatus($user, $request->user());
 
         $this->audit->log(
             event: 'core.user.status_toggled',
-            action: $previousStatus ? 'deactivated' : 'activated',
-            subject: $user->fresh(),
-            description: "User '{$user->email}' " . ($previousStatus ? 'deactivated' : 'activated'),
-            before: ['is_active' => $previousStatus],
-            after: ['is_active' => ! $previousStatus],
+            action: $wasActive ? 'deactivated' : 'activated',
+            subject: $user,
+            description: "User '{$user->email}' " . ($wasActive ? 'deactivated' : 'activated'),
+            before: ['active' => $wasActive],
+            after: ['active' => ! $wasActive],
             metadata: ['actor_id' => $request->user()?->id],
         );
 
@@ -162,8 +180,8 @@ class CoreUserController extends Controller
 
     public function bulkAssignRoles(Request $request): RedirectResponse
     {
-        $request->validate(['ids' => ['required', 'array'], 'roles' => ['required', 'array']]);
-        $count = $this->userService->bulkAssignRoles($request->ids, $request->roles, $request->user());
+        $request->validate(['ids' => ['required', 'array'], 'role_ids' => ['required', 'array']]);
+        $count = $this->userService->bulkAssignRoles($request->ids, $request->role_ids, $request->user());
 
         $this->audit->log(
             event: 'core.user.bulk_roles_assigned',
@@ -173,7 +191,7 @@ class CoreUserController extends Controller
             metadata: [
                 'actor_id' => $request->user()?->id,
                 'target_user_ids' => $request->ids,
-                'roles' => $request->roles,
+                'role_ids' => $request->role_ids,
                 'count' => $count,
             ],
         );

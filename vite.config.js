@@ -34,8 +34,15 @@ export default defineConfig({
 
     resolve: {
         preserveSymlinks: true,
+        // Force shared third-party deps to a single copy in the HOST node_modules.
+        // aero-ui is a path-repo junction; with preserveSymlinks the dev dep-optimizer
+        // resolves its imports from the junction's node_modules, where these heavy deps
+        // are NOT installed (only hoisted to the host) — one ENOENT aborts the whole
+        // optimize run and 504s every dep. dedupe + the recharts alias point them home.
+        dedupe: ['react', 'react-dom', '@inertiajs/react', '@heroui/react', 'recharts', 'framer-motion'],
         alias: {
             '@': resolve(__dirname, `${uiPath}/resources/js`),
+            recharts: resolve(__dirname, 'node_modules/recharts'),
         },
     },
 

@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use Aero\Platform\Database\Seeders\PlatformDatabaseSeeder;
 use Aero\Platform\Database\Seeders\PlatformHrmacSeeder;
-use Aero\Platform\Models\LandlordUser;
+use Aero\Auth\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
@@ -45,14 +45,15 @@ class UatPlatformSeeder extends Seeder
         // resolves the (tenant-scoped) HRMAC Role model on central, so run under
         // the guard-disabled helper like PlatformHrmacSeeder does.
         \Aero\Contracts\AeroMode::withoutTenantContextGuard(function () {
-            $admin = LandlordUser::firstOrCreate(
+            // Landlords are unified Aero\Auth\Models\User rows on the CENTRAL
+            // connection (auth-identity unification, Unit 4 — LandlordUser eliminated).
+            $admin = User::on('central')->firstOrCreate(
                 ['email' => 'landlord@aeos365.test'],
                 [
                     'name' => 'UAT Landlord',
                     'user_name' => 'uat_landlord',
                     'password' => Hash::make(self::PASSWORD),
                     'email_verified_at' => now(),
-                    'active' => true,
                 ]
             );
 

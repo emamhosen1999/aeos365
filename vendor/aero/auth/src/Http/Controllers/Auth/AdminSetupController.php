@@ -2,7 +2,7 @@
 
 namespace Aero\Auth\Http\Controllers\Auth;
 
-use Aero\Core\Models\User;
+use Aero\Auth\Models\User;
 use Aero\HRMAC\Models\Role;
 use Aero\Platform\Models\Tenant;
 use Illuminate\Http\JsonResponse;
@@ -111,7 +111,6 @@ class AdminSetupController extends Controller
                 'email' => $validated['email'],
                 'phone' => $validated['phone'] ?? null,
                 'password' => Hash::make($validated['password']),
-                'active' => true,
                 'email_verified_at' => now(), // Mark as verified - no verification needed
                 'phone_verified_at' => ! empty($validated['phone']) ? now() : null,
             ]);

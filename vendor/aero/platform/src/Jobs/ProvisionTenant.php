@@ -2,13 +2,12 @@
 
 namespace Aero\Platform\Jobs;
 
-use Aero\Core\Models\ModuleComponent;
-use Aero\Core\Models\ModuleComponentAction;
-use Aero\HRMAC\Models\Action;
-use Aero\HRMAC\Models\Component;
 use Aero\HRMAC\Models\Module;
+use Aero\HRMAC\Models\ModuleComponent;
+use Aero\HRMAC\Models\ModuleComponentAction;
 use Aero\HRMAC\Models\Role;
 use Aero\HRMAC\Models\SubModule;
+use Aero\Kernel\Migration\PackageTier;
 use Aero\Platform\Events\TenantProvisioningStepCompleted;
 use Aero\Platform\Models\PlatformSetting;
 use Aero\Platform\Models\Tenant;
@@ -184,7 +183,9 @@ class ProvisionTenant implements ShouldQueue
             $this->logAuditEvent('tenant.provisioning.completed', array_merge($context, [
                 'plan_id' => $planId,
                 'plan_name' => $planName,
-                'modules' => $this->tenant->getActiveModules()->all() ?? [],
+                // Canonical subscribed product modules (product_subscriptions + baseline),
+                // read from the central connection — no HRMAC tenant-context guard needed.
+                'modules' => $this->tenant->subscribed_product_modules,
                 'database' => $this->tenant->database()?->getName(),
             ]));
         } catch (Throwable $e) {
@@ -248,14 +249,14 @@ class ProvisionTenant implements ShouldQueue
         $plan = $planId ? \Aero\Platform\Models\Plan::find($planId) : null;
         if (! $planId || ! $plan) {
             $this->logStep('   ⚠️  Tenant has no plan assigned - will provision with core only', [], 'warning');
+        }
+
+        // 5. Validate tenant has modules (carried by product subscriptions, not plans)
+        $moduleCount = count($this->tenant->subscribed_product_modules ?? []);
+        if ($moduleCount === 0) {
+            $this->logStep('   ⚠️  Tenant has no product modules - will provision with core only', [], 'warning');
         } else {
-            // 5. Validate plan has modules
-            $moduleCount = $plan->modules()->count();
-            if ($moduleCount === 0) {
-                $this->logStep('   ⚠️  Plan has no modules - will provision with core only', [], 'warning');
-            } else {
-                $this->logStep("   → Plan has {$moduleCount} module(s)", ['module_count' => $moduleCount]);
-            }
+            $this->logStep("   → Tenant has {$moduleCount} product module(s)", ['module_count' => $moduleCount]);
         }
 
         // 6. Validate migration paths exist
@@ -511,7 +512,9 @@ class ProvisionTenant implements ShouldQueue
             $batch = 1;
 
             foreach ($migrationPaths as $path) {
-                $absolutePath = base_path($path);
+                // getTenantMigrationPaths() returns absolute realpaths (tier resolver +
+                // database_path); do NOT re-wrap in base_path().
+                $absolutePath = $path;
                 $this->logStep("   → Running migrations from: {$absolutePath}");
 
                 // Get all PHP files from the directory manually
@@ -603,12 +606,6 @@ class ProvisionTenant implements ShouldQueue
     }
 
     /**
-     * Modules that should be excluded from migration loading.
-     * These are either already included (core) or don't have migrations (dashboard).
-     */
-    private const EXCLUDED_MODULES = ['core', 'dashboard'];
-
-    /**
      * Module dependency map.
      * Each module can depend on other modules that must be included.
      * Core is always included automatically (in getTenantMigrationPaths).
@@ -664,61 +661,34 @@ class ProvisionTenant implements ShouldQueue
     }
 
     /**
-     * Get migration paths for tenant based on their plan's modules.
-     * Always includes core, plus any modules in the plan.
+     * Migration paths for a tenant DB, by the Phase-4 tier model
+     * (Aero\Kernel\Migration\PackageTier): core + ALL sharable packages (unconditional:
+     * core, auth, hrmac, i18n, infrastructure, notifications) + the tenant's SUBSCRIBED
+     * product packages (gated to the tenant_module pivot, dependencies resolved).
+     * Unknown/non-product subscription codes are skipped fail-closed. Returns absolute realpaths.
      *
-     * @return array<string>
+     * @return array<int, string>
      */
     protected function getTenantMigrationPaths(): array
     {
-        $paths = [];
-        $searchedPaths = [];
+        // Core + every sharable — always present in a tenant DB (the single source of truth).
+        // ORDERING (Phase-1): aero-auth owns `users` + the identity tables that core/hrmac/etc FK,
+        // so its path MUST run FIRST. migrationPathsForTiers returns filesystem-glob order (auth not
+        // guaranteed first), so prepend auth explicitly; array_unique below keeps the first occurrence.
+        $authPath = PackageTier::migrationPathForPackage('auth');
+        $paths = array_merge(
+            $authPath !== null ? [$authPath] : [],
+            PackageTier::migrationPathsForTiers([PackageTier::CORE, PackageTier::SHARABLE])
+        );
+        $this->logStep('   → Auth-first core + sharable migrations: '.count($paths).' path(s)', ['paths' => $paths]);
 
-        // Always include core migrations (users, roles, permissions, etc.)
-        $corePath = 'vendor/aero/core/database/migrations';
-        $searchedPaths[] = $corePath;
-
-        if (File::exists(base_path($corePath))) {
-            $paths[] = $corePath;
-            $this->logStep("   → Including core migrations: {$corePath}", []);
-        } else {
-            // Fallback: try packages directory (for development/non-composer installs)
-            $coreDevPath = 'packages/aero-core/database/migrations';
-            $searchedPaths[] = $coreDevPath;
-
-            if (File::exists(base_path($coreDevPath))) {
-                $paths[] = $coreDevPath;
-                $this->logStep("   → Including core migrations (dev): {$coreDevPath}", []);
-            } else {
-                $this->logStep("   ⚠️  Core migrations not found at {$corePath} or {$coreDevPath}", [], 'warning');
-            }
-        }
-
-        // Always include hrmac migrations (modules, sub_modules, role_module_access, etc.)
-        $hrmacPath = 'vendor/aero/hrmac/database/migrations';
-        $searchedPaths[] = $hrmacPath;
-
-        if (File::exists(base_path($hrmacPath))) {
-            $paths[] = $hrmacPath;
-            $this->logStep("   → Including hrmac migrations: {$hrmacPath}", []);
-        } else {
-            // Fallback: try packages directory
-            $hrmacDevPath = 'packages/aero-hrmac/database/migrations';
-            $searchedPaths[] = $hrmacDevPath;
-
-            if (File::exists(base_path($hrmacDevPath))) {
-                $paths[] = $hrmacDevPath;
-                $this->logStep("   → Including hrmac migrations (dev): {$hrmacDevPath}", []);
-            } else {
-                $this->logStep("   ⚠️  HRMAC migrations not found at {$hrmacPath} or {$hrmacDevPath}", [], 'warning');
-            }
-        }
-
-        // Get modules from tenant's subscriptions using tenant_module pivot table
-        $tenantModules = $this->tenant->getActiveModules()->all();
+        // Subscribed PRODUCTS only (tier=product), with dependencies auto-resolved.
+        // Canonical source: Tenant::getSubscribedProductModules (product_subscriptions +
+        // baseline), read from the central connection (ProductSubscription is a
+        // CentralModel) — no HRMAC tenant-context guard needed.
+        $tenantModules = $this->tenant->subscribed_product_modules;
 
         if (! empty($tenantModules)) {
-            // Resolve dependencies to auto-include required modules
             $tenantModules = $this->resolveModuleDependencies($tenantModules);
 
             $this->logStep('   → Tenant modules (with dependencies): '.implode(', ', $tenantModules), [
@@ -727,46 +697,36 @@ class ProvisionTenant implements ShouldQueue
             ]);
 
             foreach ($tenantModules as $moduleCode) {
-                // Skip excluded modules
-                if (in_array($moduleCode, self::EXCLUDED_MODULES, true)) {
+                // core/sharable are already in; only product-tier subscriptions add paths here.
+                // Unknown/non-product codes (e.g. dashboard with no migrations) skip fail-closed.
+                if (PackageTier::tierOf($moduleCode) !== PackageTier::PRODUCT) {
                     continue;
                 }
 
-                // Try vendor path first (production with composer install)
-                $modulePath = "vendor/aero/{$moduleCode}/database/migrations";
-                if (File::exists(base_path($modulePath))) {
+                $modulePath = PackageTier::migrationPathForPackage($moduleCode);
+                if ($modulePath !== null) {
                     $paths[] = $modulePath;
-                    $this->logStep("   → Including {$moduleCode} migrations: {$modulePath}", []);
-
-                    continue;
+                    $this->logStep("   → Including subscribed product {$moduleCode}: {$modulePath}", []);
+                } else {
+                    $this->logStep("   ⚠️  Subscribed product {$moduleCode} has no migrations directory", [], 'warning');
                 }
-
-                // Fallback: try packages directory with aero- prefix (development)
-                $moduleDevPath = "packages/aero-{$moduleCode}/database/migrations";
-                if (File::exists(base_path($moduleDevPath))) {
-                    $paths[] = $moduleDevPath;
-                    $this->logStep("   → Including {$moduleCode} migrations (dev): {$moduleDevPath}", []);
-
-                    continue;
-                }
-
-                $this->logStep("   ⚠️  Module {$moduleCode} has no migrations at {$modulePath} or {$moduleDevPath}", [], 'warning');
             }
         } else {
-            $this->logStep('   ⚠️  No plan assigned to tenant, using core only', [], 'warning');
+            $this->logStep('   ⚠️  No plan assigned to tenant, using core + sharable only', [], 'warning');
         }
 
-        // Include app-level tenant migrations if they exist
-        $appTenantPath = database_path('migrations/tenant');
-        if (File::exists($appTenantPath)) {
-            $paths[] = $appTenantPath;
-            $this->logStep("   → Including app tenant migrations: {$appTenantPath}", []);
+        // Host-app tenant migration overrides, if present.
+        $appTenantPath = database_path('migrations'.DIRECTORY_SEPARATOR.'tenant');
+        if (File::exists($appTenantPath) && ($realApp = realpath($appTenantPath)) !== false) {
+            $paths[] = $realApp;
+            $this->logStep("   → Including app tenant migrations: {$realApp}", []);
         }
 
-        // Validate that we have at least core migrations
+        $paths = array_values(array_unique($paths));
+
+        // Validate that we resolved at least the core/sharable baseline.
         if (empty($paths)) {
-            $searchedPathsStr = implode(', ', $searchedPaths);
-            throw new \RuntimeException("No migration paths found. Searched: {$searchedPathsStr}. Cannot provision tenant without migrations.");
+            throw new \RuntimeException('No migration paths found (core/sharable tier resolver returned empty). Cannot provision tenant without migrations.');
         }
 
         return $paths;
@@ -836,7 +796,7 @@ class ProvisionTenant implements ShouldQueue
         $modules = $this->discoverModuleConfigs();
 
         // Filter module configs by tenant modules (from tenant_module pivot table)
-        $tenantModuleCodes = $this->tenant->getActiveModules()->all();
+        $tenantModuleCodes = $this->tenant->subscribed_product_modules;
         $tenantModuleCodes = array_values(array_filter($tenantModuleCodes));
 
         // Resolve dependencies to ensure required modules are included
@@ -886,7 +846,7 @@ class ProvisionTenant implements ShouldQueue
         $modules = [];
 
         // Get tenant-selected module codes (core is always included)
-        $tenantModuleCodes = $this->tenant->getActiveModules()->all();
+        $tenantModuleCodes = $this->tenant->subscribed_product_modules;
         $tenantModuleCodes = array_values(array_filter($tenantModuleCodes));
         $allowedCodes = array_merge(['core'], $tenantModuleCodes);
         $allowedCodes = array_values(array_unique($allowedCodes));
@@ -967,19 +927,13 @@ class ProvisionTenant implements ShouldQueue
      */
     protected function syncModuleToDatabase(array $moduleDef): void
     {
-        // Use HRMAC models if available, else fall back to Core models
-        $moduleClass = class_exists(Module::class)
-            ? Module::class
-            : \Aero\Core\Models\Module::class;
-        $subModuleClass = class_exists(SubModule::class)
-            ? SubModule::class
-            : \Aero\Core\Models\SubModule::class;
-        $componentClass = class_exists(Component::class)
-            ? Component::class
-            : ModuleComponent::class;
-        $actionClass = class_exists(Action::class)
-            ? Action::class
-            : ModuleComponentAction::class;
+        // HRMAC owns the canonical module-hierarchy models. It is a foundational
+        // shared package that always boots in both central and tenant contexts,
+        // so these are the single source of truth — no core/platform fallback.
+        $moduleClass = Module::class;
+        $subModuleClass = SubModule::class;
+        $componentClass = ModuleComponent::class;
+        $actionClass = ModuleComponentAction::class;
 
         // Sync module (top level)
         $module = $moduleClass::updateOrCreate(
@@ -1262,6 +1216,14 @@ class ProvisionTenant implements ShouldQueue
                 ]);
             }
 
+            // ── Approach-2 secure admin binding ───────────────────────────────
+            // Pre-create the tenant admin HERE, bound to the email verified during
+            // signup, with NO usable password. This closes the tenant-hijack hole: the
+            // public /admin-setup page can no longer be claimed (an admin now exists, so
+            // it redirects to login), and the ONLY way in is the password-set link emailed
+            // to the verified address below.
+            $this->createTenantAdminUser();
+
             $this->logStep('   → Default roles seeded successfully', []);
         } catch (Throwable $e) {
             $this->logStep("   → Failed to seed default roles: {$e->getMessage()}", [
@@ -1270,6 +1232,106 @@ class ProvisionTenant implements ShouldQueue
             throw $e;
         } finally {
             tenancy()->end();
+        }
+    }
+
+    /**
+     * Pre-create the tenant admin, bound to the verified signup email, with no usable
+     * password (Approach 2). Runs inside the tenant context established by
+     * seedDefaultRoles(); the owner sets a real password via the emailed link.
+     */
+    protected function createTenantAdminUser(): void
+    {
+        $email = $this->tenant->email;
+        if (empty($email)) {
+            $this->logStep('   → No tenant email; skipping admin pre-creation', [], 'warning');
+
+            return;
+        }
+
+        if (\Aero\Auth\Models\User::query()->where('email', $email)->exists()) {
+            $this->logStep('   → Tenant admin already exists; skipping pre-creation', []);
+
+            return;
+        }
+
+        $local = \Illuminate\Support\Str::of($email)->before('@');
+        $userName = $local->slug('_')->value() ?: 'admin';
+        $base = $userName;
+        $n = 1;
+        while (\Aero\Auth\Models\User::where('user_name', $userName)->exists()) {
+            $userName = $base.'_'.(++$n);
+        }
+
+        $admin = \Aero\Auth\Models\User::create([
+            'name' => $this->tenant->name ?: $local->title()->value(),
+            'user_name' => $userName,
+            'email' => $email,
+            // Unusable random password — the owner sets a real one via the secure link.
+            'password' => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(48)),
+            'email_verified_at' => now(), // email was verified during signup
+        ]);
+
+        $superAdmin = Role::where('name', 'Super Administrator')->first();
+        if ($superAdmin) {
+            $admin->assignRole($superAdmin);
+        }
+
+        $this->logStep('   → Pre-created tenant admin (no password) bound to verified email', [
+            'user_id' => $admin->id,
+            'email' => $email,
+        ]);
+
+        $this->sendAdminPasswordSetupLink($admin);
+    }
+
+    /**
+     * Email the verified admin a single-use, expiring link to set their initial
+     * password (reuses Laravel's password-reset flow; token stored in the tenant DB).
+     */
+    protected function sendAdminPasswordSetupLink(\Aero\Auth\Models\User $admin): void
+    {
+        try {
+            $token = \Illuminate\Support\Facades\Password::broker()->createToken($admin);
+
+            // Use the eager-loaded domains collection (loaded in handle() on central conn).
+            $domain = $this->tenant->domains->firstWhere('is_primary', true)?->domain
+                ?? $this->tenant->domains->first()?->domain;
+            if (! $domain) {
+                $this->logStep('   → No tenant domain; cannot build password-set link', [], 'warning');
+
+                return;
+            }
+
+            $url = "https://{$domain}/reset-password/{$token}?email=".urlencode($admin->email);
+            $appName = config('app.name');
+
+            $html = "
+                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+                    <h1 style='color: #4F46E5;'>Set your password</h1>
+                    <p>Your <strong>{$this->tenant->name}</strong> workspace is ready. For security,
+                       set your admin password using the secure link below — it is tied to your
+                       verified email and expires soon.</p>
+                    <div style='text-align: center; margin: 30px 0;'>
+                        <a href='{$url}' style='background: #4F46E5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;'>Set your password</a>
+                    </div>
+                    <p style='color:#666;'>If you didn't expect this email, you can safely ignore it.</p>
+                    <p style='color: #666;'>The {$appName} Team</p>
+                </div>
+            ";
+
+            app(\Aero\Notifications\Services\Mail\MailService::class)
+                ->usePlatformSettings()
+                ->sendMail($admin->email, "Set your password · {$this->tenant->name}", $html);
+
+            // Dev aid: also log the link so it is retrievable when MAIL_MAILER=log.
+            Log::info('[AdminPasswordSetup] password-set link generated', [
+                'tenant_id' => $this->tenant->id,
+                'email' => $admin->email,
+                'url' => $url,
+            ]);
+        } catch (Throwable $e) {
+            $this->logStep('   → Failed to send password-set link: '.$e->getMessage(), [], 'warning');
         }
     }
 

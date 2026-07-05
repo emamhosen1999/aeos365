@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Aero\HRMAC\Console\Commands;
 
 use Aero\Contracts\ModuleSyncFilterInterface;
-use Aero\HRMAC\Models\Action;
-use Aero\HRMAC\Models\Component;
+use Aero\HRMAC\Models\ModuleComponentAction;
+use Aero\HRMAC\Models\ModuleComponent;
 use Aero\HRMAC\Models\Module;
 use Aero\HRMAC\Models\SubModule;
 use Aero\HRMAC\Services\ModuleDiscoveryService;
@@ -94,6 +94,13 @@ class SyncModuleHierarchy extends Command
             $this->info("📍 Context: {$scope}");
             $this->newLine();
 
+            // The module hierarchy (modules/sub_modules/components/actions) is
+            // central catalog data. Under SaaS the HrmacContextGuard blocks model
+            // writes that run without a resolved request context — but a CLI sync
+            // is exactly the central/CLI case the guard tells callers to bypass.
+            // Without this wrap, `aero:sync-module` fails on the first model touch
+            // in SaaS ("queried outside of a valid HRMAC context").
+            return \Aero\Contracts\AeroMode::withoutTenantContextGuard(function () use ($scope, $fresh, $prune) {
             try {
                 DB::beginTransaction();
 
@@ -169,6 +176,7 @@ class SyncModuleHierarchy extends Command
 
                 return self::FAILURE;
             }
+            });
 
         } finally {
             // Plan 04 T5 — release advisory lock no matter what
@@ -326,7 +334,7 @@ class SyncModuleHierarchy extends Command
 
         // Convert each self-service item to a component
         foreach ($selfServiceItems as $item) {
-            $component = Component::updateOrCreate(
+            $component = ModuleComponent::updateOrCreate(
                 [
                     'module_id' => $module->id,
                     'sub_module_id' => $subModule->id,
@@ -354,7 +362,7 @@ class SyncModuleHierarchy extends Command
             ];
 
             foreach ($selfServiceActions as $actionDef) {
-                $action = Action::updateOrCreate(
+                $action = ModuleComponentAction::updateOrCreate(
                     [
                         'module_component_id' => $component->id,
                         'code' => $actionDef['code'],
@@ -421,7 +429,7 @@ class SyncModuleHierarchy extends Command
     protected function syncComponents(Module $module, SubModule $subModule, array $components): void
     {
         foreach ($components as $componentDef) {
-            $component = Component::updateOrCreate(
+            $component = ModuleComponent::updateOrCreate(
                 [
                     'module_id' => $module->id,
                     'sub_module_id' => $subModule->id,
@@ -452,10 +460,10 @@ class SyncModuleHierarchy extends Command
     /**
      * Sync actions for a component.
      */
-    protected function syncActions(Component $component, array $actions): void
+    protected function syncActions(ModuleComponent $component, array $actions): void
     {
         foreach ($actions as $actionDef) {
-            $action = Action::updateOrCreate(
+            $action = ModuleComponentAction::updateOrCreate(
                 [
                     'module_component_id' => $component->id,
                     'code' => $actionDef['code'],
@@ -491,18 +499,18 @@ class SyncModuleHierarchy extends Command
 
         foreach ($modules as $module) {
             $submoduleCount = $module->subModules()->count();
-            $componentCount = Component::where('module_id', $module->id)->count();
-            $actionCount = Action::whereIn(
+            $componentCount = ModuleComponent::where('module_id', $module->id)->count();
+            $actionCount = ModuleComponentAction::whereIn(
                 'module_component_id',
-                Component::where('module_id', $module->id)->pluck('id')
+                ModuleComponent::where('module_id', $module->id)->pluck('id')
             )->count();
 
-            Action::whereIn(
+            ModuleComponentAction::whereIn(
                 'module_component_id',
-                Component::where('module_id', $module->id)->pluck('id')
+                ModuleComponent::where('module_id', $module->id)->pluck('id')
             )->delete();
 
-            Component::where('module_id', $module->id)->delete();
+            ModuleComponent::where('module_id', $module->id)->delete();
             $module->subModules()->delete();
             $module->delete();
 
@@ -537,18 +545,18 @@ class SyncModuleHierarchy extends Command
             $this->line("   - Removing: {$module->name} ({$module->code})");
 
             $submoduleCount = $module->subModules()->count();
-            $componentCount = Component::where('module_id', $module->id)->count();
-            $actionCount = Action::whereIn(
+            $componentCount = ModuleComponent::where('module_id', $module->id)->count();
+            $actionCount = ModuleComponentAction::whereIn(
                 'module_component_id',
-                Component::where('module_id', $module->id)->pluck('id')
+                ModuleComponent::where('module_id', $module->id)->pluck('id')
             )->count();
 
-            Action::whereIn(
+            ModuleComponentAction::whereIn(
                 'module_component_id',
-                Component::where('module_id', $module->id)->pluck('id')
+                ModuleComponent::where('module_id', $module->id)->pluck('id')
             )->delete();
 
-            Component::where('module_id', $module->id)->delete();
+            ModuleComponent::where('module_id', $module->id)->delete();
             $module->subModules()->delete();
             $module->delete();
 

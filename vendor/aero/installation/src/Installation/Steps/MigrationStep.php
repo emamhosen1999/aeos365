@@ -55,9 +55,28 @@ class MigrationStep extends BaseInstallationStep
         // Plan 09 T3 — refuse to destroy a dirty schema.
         $this->assertSchemaIsSafeToMigrate();
 
+        // Phase 4 — fail-closed: refuse to route migrations if any aero package is
+        // unclassified (no valid extra.aero.tier), which would otherwise be skipped and
+        // silently leave its tables out of every database. Gate on the kernel verifier
+        // directly: this step runs in a WEB request during the install wizard, where the
+        // aero:verify-tiers console command is NOT registered (AeroCoreServiceProvider
+        // registers commands only when runningInConsole()).
+        $tierCheck = \Aero\Kernel\Migration\PackageTier::verifyAll();
+        if (! $tierCheck['ok']) {
+            $details = [];
+            foreach ($tierCheck['errors'] as $pkg => $why) {
+                $details[] = "{$pkg}: {$why}";
+            }
+            throw new \RuntimeException(
+                'Migration aborted — one or more aero packages lack a valid extra.aero.tier. '
+                .implode('; ', $details)
+            );
+        }
+
         $packageCodes = $this->getAvailablePackageCodes();
         
         $tier1 = []; // infrastructure
+        $tierAuth = []; // auth — identity foundation; MUST precede core (core/hrmac/etc FK `users`)
         $tier2 = []; // core
         $tier3 = []; // hrmac
         $tier4 = []; // other foundation
@@ -75,15 +94,18 @@ class MigrationStep extends BaseInstallationStep
 
             if ($code === 'infrastructure') {
                 $tier1[] = ['code' => $code, 'path' => $path];
+            } elseif ($code === 'auth') {
+                // auth owns `users` and the identity tables that nearly everything FKs,
+                // so it runs right after infrastructure and BEFORE core (Phase-1 ordering).
+                $tierAuth[] = ['code' => $code, 'path' => $path];
             } elseif ($code === 'core') {
                 $tier2[] = ['code' => $code, 'path' => $path];
             } elseif ($code === 'hrmac') {
                 $tier3[] = ['code' => $code, 'path' => $path];
             } else {
-                $category = $this->getPackageCategory($code);
                 if ($code === 'platform') {
                     $tier5[] = ['code' => $code, 'path' => $path];
-                } elseif ($category === 'product') {
+                } elseif (\Aero\Kernel\Migration\PackageTier::tierOf($code) === \Aero\Kernel\Migration\PackageTier::PRODUCT) {
                     $tier5[] = ['code' => $code, 'path' => $path];
                 } else {
                     $tier4[] = ['code' => $code, 'path' => $path];
@@ -91,7 +113,7 @@ class MigrationStep extends BaseInstallationStep
             }
         }
 
-        $migrationQueue = array_merge($tier1, $tier2, $tier3, $tier4, $tier5);
+        $migrationQueue = array_merge($tier1, $tierAuth, $tier2, $tier3, $tier4, $tier5);
 
         if (empty($migrationQueue)) {
             $this->log('No package migrations to run');
@@ -191,21 +213,15 @@ class MigrationStep extends BaseInstallationStep
             return false;
         }
 
-        $category = $this->getPackageCategory($code);
+        // Phase 4 — route by tier (single source of truth: extra.aero.tier).
+        //   SaaS install targets the CENTRAL/landlord DB  -> platform + sharable only
+        //   Standalone targets the single DB              -> core + sharable + product
+        // So core + product are excluded from central; platform from standalone.
+        // Fail-closed: an unclassified package belongs to no context and is skipped
+        // (the aero:verify-tiers preflight already aborts install if that happens).
+        $context = $this->mode === 'saas' ? 'central' : 'standalone';
 
-        if ($this->mode === 'saas') {
-            // SaaS: Exclude product packages. Exclude anything categorized as product.
-            if ($category === 'product') {
-                return false;
-            }
-            return true;
-        } else {
-            // Standalone: Exclude platform.
-            if ($code === 'platform') {
-                return false;
-            }
-            return true;
-        }
+        return \Aero\Kernel\Migration\PackageTier::belongsIn($code, $context);
     }
 
     /**

@@ -22,13 +22,14 @@ import {
 
 
 export const NAV_LINKS = [
-  { label: "Home",       href: "/",           i18nKey: "nav_home"       },
-  { label: "Features",   href: "/features",   i18nKey: "nav_features",   hasMega: true },
-  { label: "Pricing",    href: "/pricing",    i18nKey: "nav_pricing"    },
-  { label: "Enterprise", href: "/enterprise", i18nKey: "nav_enterprise" },
-  { label: "About",      href: "/about",      i18nKey: "nav_about"      },
-  { label: "Docs",       href: "/docs",       i18nKey: "nav_docs"       },
-  { label: "Contact",    href: "/contact",    i18nKey: "nav_contact"    },
+  { label: "Home",         href: "/",             i18nKey: "nav_home"         },
+  { label: "Features",     href: "/features",     i18nKey: "nav_features", hasMega: true },
+  { label: "Solutions",    href: "/solutions",    i18nKey: "nav_solutions"    },
+  { label: "Integrations", href: "/integrations", i18nKey: "nav_integrations" },
+  { label: "Pricing",      href: "/pricing",      i18nKey: "nav_pricing"      },
+  { label: "Enterprise",   href: "/enterprise",   i18nKey: "nav_enterprise"   },
+  { label: "Docs",         href: "/docs",         i18nKey: "nav_docs"         },
+  { label: "Contact",      href: "/contact",      i18nKey: "nav_contact"      },
 ];
 
 export const CTA_LINKS = [
@@ -304,12 +305,12 @@ export const FOOTER_LINKS = [
   {
     category: "Platform",
     links: [
-      { label: "Human Resources",     href: "/features#hrm"     },
-      { label: "Payroll Engine",       href: "/features#payroll" },
-      { label: "CRM Suite",            href: "/features#crm"     },
-      { label: "Inventory Management", href: "/features#ims"     },
-      { label: "Finance & Accounting", href: "/features#finance" },
-      { label: "Project Management",   href: "/features#project" },
+      { label: "Solutions",            href: "/solutions"        },
+      { label: "Integrations",         href: "/integrations"     },
+      { label: "Self-hosted edition",  href: "/self-hosted"      },
+      { label: "All modules",          href: "/features"         },
+      { label: "Enterprise",           href: "/enterprise"       },
+      { label: "Pricing",              href: "/pricing"          },
     ],
   },
   {
@@ -694,8 +695,8 @@ export const PRICING_PLANS = [
     id: "starter",
     name: "Starter",
     tagline: "For small teams getting off the ground",
-    monthlyPrice: 49,
-    annualPrice: 39,
+    monthlyPrice: 29,
+    annualPrice: 24,
     currency: "$",
     highlight: false,
     badge: null,
@@ -718,8 +719,8 @@ export const PRICING_PLANS = [
     id: "professional",
     name: "Professional",
     tagline: "For growing businesses scaling fast",
-    monthlyPrice: 149,
-    annualPrice: 119,
+    monthlyPrice: 79,
+    annualPrice: 66,
     currency: "$",
     highlight: true,
     badge: "Most Popular",
@@ -742,8 +743,8 @@ export const PRICING_PLANS = [
     id: "business",
     name: "Business",
     tagline: "For established companies with complex needs",
-    monthlyPrice: 399,
-    annualPrice: 319,
+    monthlyPrice: 149,
+    annualPrice: 124,
     currency: "$",
     highlight: false,
     badge: "Best Value",

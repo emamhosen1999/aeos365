@@ -7,7 +7,7 @@ namespace Aero\Platform\Http\Controllers\Admin;
 use Aero\Core\Services\Module\ModuleDiscoveryService;
 use Aero\Contracts\RoleModuleAccessInterface;
 use Aero\Platform\Http\Controllers\Controller;
-use Aero\Platform\Models\LandlordUser;
+use Aero\Auth\Models\User;
 use Aero\Platform\Models\Module;
 use Aero\Platform\Models\ModuleComponent;
 use Aero\Platform\Models\ModuleComponentAction;
@@ -80,7 +80,7 @@ class ModuleController extends Controller
         $user = $this->getCurrentUser();
 
         if ($this->isPlatformContext()) {
-            return $user instanceof LandlordUser && $user->isSuperAdmin();
+            return $user instanceof User && $user->isSuperAdmin();
         }
 
         return $user?->hasRole('Super Administrator') ?? false;
@@ -466,10 +466,10 @@ class ModuleController extends Controller
         try {
             $module = Module::findOrFail($moduleId);
 
-            // Check if module is in use by any plans
-            if ($module->plans()->exists()) {
+            // Check if module is carried by any product (modules are sold via products)
+            if (\Aero\Platform\Models\Product::where('module_code', $module->code)->exists()) {
                 return response()->json([
-                    'error' => 'Cannot delete module that is assigned to plans. Remove from plans first.',
+                    'error' => 'Cannot delete module that is carried by a product. Retire the product first.',
                 ], 422);
             }
 

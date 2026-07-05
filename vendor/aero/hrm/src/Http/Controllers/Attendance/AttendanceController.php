@@ -2043,7 +2043,7 @@ class AttendanceController extends Controller
     {
         Gate::authorize('hrmac', 'hrm.attendance.daily-attendance.view');
 
-        $date = $request->date('date', now())->toDateString();
+        $date = ($request->date('date') ?? now())->toDateString();
         $records = Attendance::query()
             ->with(['employee.user:id,name'])
             ->whereDate('date', $date)
@@ -2051,10 +2051,25 @@ class AttendanceController extends Controller
             ->paginate(50)
             ->withQueryString();
 
+        $agg = Attendance::query()
+            ->whereDate('date', $date)
+            ->selectRaw(
+                'COUNT(*) as total,'
+                .' SUM(CASE WHEN punchin IS NULL THEN 1 ELSE 0 END) as absent,'
+                .' SUM(CASE WHEN is_late = 1 THEN 1 ELSE 0 END) as late'
+            )
+            ->first();
+
         return Inertia::render('HRM/Attendance/Admin/Daily', [
             'date' => $date,
             'records' => $records,
             'filters' => ['date' => $date, 'department_id' => $request->integer('department_id')],
+            'stats' => [
+                'total'   => (int) ($agg->total ?? 0),
+                'present' => (int) ($agg->total ?? 0) - (int) ($agg->absent ?? 0),
+                'late'    => (int) ($agg->late ?? 0),
+                'absent'  => (int) ($agg->absent ?? 0),
+            ],
         ]);
     }
 
@@ -2062,7 +2077,7 @@ class AttendanceController extends Controller
     {
         Gate::authorize('hrmac', 'hrm.attendance.daily-attendance.view');
 
-        $month = $request->date('month', now())->startOfMonth();
+        $month = ($request->date('month') ?? now())->startOfMonth();
 
         $days = collect();
         $cursor = $month->copy();

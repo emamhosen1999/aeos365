@@ -32,6 +32,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -532,7 +533,11 @@ class UnifiedInstallationController extends Controller
             'connection', 'host', 'port', 'database', 'username', 'password',
         ]));
 
-        return response()->json(['success' => true]);
+        // Inertia-standard response: this endpoint is called via Inertia's router.post,
+        // so it must return an Inertia response (a redirect), NOT plain JSON — returning
+        // JSON trips Inertia's "must receive a valid Inertia response" guard. back()
+        // reloads the step with fresh props (savedDatabase) so onSuccess fires client-side.
+        return back();
     }
 
     /**
@@ -583,7 +588,9 @@ class UnifiedInstallationController extends Controller
 
         $this->persistConfig('settings', $request->all());
 
-        return response()->json(['success' => true]);
+        // Inertia-standard response (called via Inertia router.post) — return a redirect,
+        // not JSON, so Inertia's response guard is satisfied and onSuccess fires.
+        return back();
     }
 
     /**
@@ -600,7 +607,9 @@ class UnifiedInstallationController extends Controller
 
         $this->persistConfig('settings', $request->all());
 
-        return response()->json(['success' => true]);
+        // Inertia-standard response (called via Inertia router.post) — return a redirect,
+        // not JSON, so Inertia's response guard is satisfied and onSuccess fires.
+        return back();
     }
 
     /**
@@ -648,7 +657,9 @@ class UnifiedInstallationController extends Controller
             'password_hash' => Hash::make($request->password),
         ]);
 
-        return response()->json(['success' => true]);
+        // Inertia-standard response (called via Inertia useForm().post) — return a redirect,
+        // not JSON, so Inertia's response guard is satisfied and onSuccess fires.
+        return back();
     }
 
     /**
@@ -792,6 +803,11 @@ class UnifiedInstallationController extends Controller
 
         $progressData = $this->getProgressData();
 
+        // Surface a tail of the real installation log lines for the "Show details"
+        // panel on the Processing screen. Read once here so every getProgressData()
+        // return path gets it.
+        $progressData['log'] = $this->getInstallationLogTail();
+
         Log::info('[Installation] Progress data returned', [
             'percentage' => $progressData['percentage'] ?? 0,
             'current_step' => $progressData['currentStep'] ?? 'unknown',
@@ -804,15 +820,78 @@ class UnifiedInstallationController extends Controller
     }
 
     /**
+     * Read the tail of the most recent Laravel log file and return only the
+     * installation-related lines (those tagged "[Installation"), trimmed of the
+     * leading timestamp/level prefix and trailing JSON context for readability.
+     *
+     * @return array<int, string>
+     */
+    protected function getInstallationLogTail(int $lines = 25): array
+    {
+        try {
+            $dir = storage_path('logs');
+            if (! is_dir($dir)) {
+                return [];
+            }
+
+            $files = glob($dir.DIRECTORY_SEPARATOR.'laravel*.log') ?: [];
+            if (empty($files)) {
+                return [];
+            }
+
+            // Newest file first (handles the `daily` channel's rotated files).
+            usort($files, fn ($a, $b) => filemtime($b) <=> filemtime($a));
+            $file = $files[0];
+
+            // Only read the last chunk of the file to avoid loading huge logs.
+            $size = filesize($file);
+            $chunk = (int) min($size, 256 * 1024);
+            $handle = fopen($file, 'rb');
+            if ($handle === false) {
+                return [];
+            }
+            if ($chunk < $size) {
+                fseek($handle, -$chunk, SEEK_END);
+            }
+            $content = (string) fread($handle, $chunk);
+            fclose($handle);
+
+            $out = [];
+            foreach (preg_split('/\r?\n/', $content) ?: [] as $line) {
+                $pos = stripos($line, '[Installation');
+                if ($pos === false) {
+                    continue;
+                }
+                // Keep from the "[Installation…]" marker, drop a trailing JSON context blob.
+                $msg = preg_replace('/\s+\{.*\}\s*$/', '', substr($line, $pos));
+                $msg = trim((string) $msg);
+                if ($msg !== '') {
+                    $out[] = $msg;
+                }
+            }
+
+            return array_slice($out, -$lines);
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
      * Get installation progress
      */
     public function getProgressData()
     {
         $mode = $this->getMode();
 
-        // Check if application is already installed to prevent re-running steps or recreating orchestrator
-        if ($this->isInstalled()) {
-            Log::info('[Installation] Application is already installed, returning completed progress');
+        // Treat the install as finished ONLY when the authoritative lock file exists
+        // (storage/app/aeos.installed, written by FinalizeStep at the very end).
+        // Do NOT use InstallationState::isInstalled() here: its schema fallback
+        // (hasTable('users') && hasTable('modules')) turns true the moment MigrationStep
+        // creates those tables — i.e. MID-INSTALL — which would short-circuit this poll to
+        // "completed" before the module-sync, admin-user, seeding and finalize steps ever
+        // run, leaving a half-installed system with no admin user and no lock file.
+        if (File::exists(storage_path(self::LOCK_FILE))) {
+            Log::info('[Installation] Lock file present — installation already complete');
 
             return [
                 'status' => 'completed',
@@ -1310,8 +1389,8 @@ class UnifiedInstallationController extends Controller
         $adminConfig = $config['admin'] ?? [];
 
         if ($mode === 'saas') {
-            // Create LandlordUser with HRMAC Role model
-            $userClass = 'Aero\\Platform\\Models\\LandlordUser';
+            // Create User with HRMAC Role model
+            $userClass = 'Aero\\Platform\\Models\\User';
             $roleClass = 'Aero\\HRMAC\\Models\\Role';
         } else {
             // Create regular User
@@ -1593,7 +1672,43 @@ class UnifiedInstallationController extends Controller
             // Password is intentionally not passed — user already knows it; never echo it back.
             'licensedModules' => $licensedModules,
             'installationKey' => $installationKey,
+            // Real, verified destination URLs for the Complete-page quick actions.
+            // Each falls back to appUrl when the named route does not exist (or is
+            // tenant-scoped and cannot be resolved without params), so links never 404.
+            'actions' => $this->resolveCompleteActions($appUrl),
         ]);
+    }
+
+    /**
+     * Resolve quick-action URLs for the Complete page from named routes,
+     * guarding each lookup and falling back to the app URL.
+     */
+    protected function resolveCompleteActions(string $appUrl): array
+    {
+        $resolve = function (array $names) use ($appUrl) {
+            foreach ($names as $name) {
+                try {
+                    if (Route::has($name)) {
+                        return route($name);
+                    }
+                } catch (\Throwable $e) {
+                    // Route exists but needs params we don't have (e.g. tenant scope) — try next.
+                }
+            }
+
+            return $appUrl;
+        };
+
+        // Each chain prefers the most specific real route, then degrades to a
+        // resolvable sign-in route, then the app URL — so a card always points
+        // somewhere real (e.g. on a SaaS central domain the tenant-scoped
+        // dashboard/settings routes aren't registered, but `login` is).
+        return [
+            'app' => $appUrl,
+            'dashboard' => $resolve(['dashboard', 'admin.dashboard', 'login']),
+            'login' => $resolve(['login']),
+            'settings' => $resolve(['settings', 'admin.settings', 'dashboard', 'login']),
+        ];
     }
 
     /**

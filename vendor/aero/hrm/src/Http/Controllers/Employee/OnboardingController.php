@@ -53,7 +53,7 @@ class OnboardingController extends Controller
         $this->authorize('create', Onboarding::class);
 
         $employees = User::select('id', 'name')
-            ->where('active', true) // replaced status check
+            ->whereNull('deleted_at') // replaced status check
             ->orderBy('name')
             ->get();
 
@@ -142,7 +142,7 @@ class OnboardingController extends Controller
             ->get();
 
         $assignees = User::select('id', 'name')
-            ->where('active', true) // replaced status check
+            ->whereNull('deleted_at') // replaced status check
             ->orderBy('name')
             ->get();
 
@@ -271,7 +271,7 @@ class OnboardingController extends Controller
 
         $managers = User::select('id', 'name')
             ->where('id', '!=', $employeeId)
-            ->where('active', true)
+            ->whereNull('deleted_at')
             ->orderBy('name')
             ->get();
 
@@ -474,8 +474,10 @@ class OnboardingController extends Controller
                 ]);
             }
 
-            // Mark employee as active
-            $employee->update(['active' => true]);
+            // Mark employee as active (active = not soft-deleted; restore if needed)
+            if ($employee->trashed()) {
+                $employee->restore();
+            }
 
             // Mark onboarding as completed
             $onboarding->update(['status' => Onboarding::STATUS_COMPLETED]);
@@ -523,7 +525,7 @@ class OnboardingController extends Controller
         $this->authorize('create', Offboarding::class);
 
         $employees = User::select('id', 'name')
-            ->where('active', true)
+            ->whereNull('deleted_at')
             ->orderBy('name')
             ->get();
 

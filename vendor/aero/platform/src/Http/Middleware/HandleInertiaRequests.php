@@ -175,6 +175,22 @@ class HandleInertiaRequests extends Middleware
         // 1. Authenticate User (Safely)
         $user = $this->getTenantUserSafe($request);
 
+        // Keep "online now" accurate: bump the current session's last_active_at as
+        // the user browses (throttled to once a minute). Login only sets it once, so
+        // without this the user drops out of "online" after the inactivity window
+        // even while actively using the app.
+        if ($user) {
+            try {
+                \Aero\Auth\Models\UserSession::query()
+                    ->where('user_id', $user->id)
+                    ->where('is_current', true)
+                    ->where('last_active_at', '<', now()->subSeconds(60))
+                    ->update(['last_active_at' => now()]);
+            } catch (\Throwable $e) {
+                // Activity tracking must never break a page load.
+            }
+        }
+
         // 2. Load System Settings (Tenant Scope)
         $settings = $this->resolveSystemSettings($request);
         $branding = $settings['branding'] ?? [];
@@ -204,7 +220,7 @@ class HandleInertiaRequests extends Middleware
                 'subdomain' => tenant('subdomain'),
                 'status' => tenant('status'),
                 'onTrial' => tenant()?->isOnTrial() ?? false,
-                'trialEndsAt' => tenant()->subscription('default')?->trial_ends_at,
+                'trialEndsAt' => tenant()?->subscription('default')?->trial_ends_at,
             ],
             'app' => [
                 'name' => $companyName,
@@ -319,16 +335,32 @@ class HandleInertiaRequests extends Middleware
     private function mapTenantUser($user, bool $isSuperAdmin): array
     {
         $userData = $user->toArray();
-        $designation = $user->designation?->title ?? null;
+
+        // HRM-module relations — access defensively so a missing table on a
+        // core-only tenant can't 500 the shared props.
+        $designation = null;
+        $attendanceType = null;
+        try {
+            $designation = $user->designation?->title ?? null;
+            $attendanceType = $user->attendanceType ? [
+                'id' => $user->attendanceType->id,
+                'name' => $user->attendanceType->name,
+                'slug' => $user->attendanceType->slug,
+            ] : null;
+        } catch (QueryException $e) {
+            if ($e->getCode() !== '42S02') {
+                throw $e;
+            }
+        }
 
         return array_merge($userData, [
             'is_super_admin' => $isSuperAdmin,
             'is_tenant_super_admin' => $isSuperAdmin,
-            'attendance_type' => $user->attendanceType ? [
-                'id' => $user->attendanceType->id,
-                'name' => $user->attendanceType->name,
-                'slug' => $user->attendanceType->slug,
-            ] : null,
+            // Normalize roles to plain name STRINGS (toArray() yields full role
+            // objects). Frontend consumers render auth.user.roles[0] as text, so
+            // objects here crash the UI ("Objects are not valid as a React child").
+            'roles' => $user->roles->pluck('name')->values()->all(),
+            'attendance_type' => $attendanceType,
             'designation' => $designation,
             'module_access' => ! $isSuperAdmin ? $this->getTenantUserModuleAccess($user) : null,
             'accessible_modules' => ! $isSuperAdmin ? $this->getTenantUserAccessibleModules($user) : null,
@@ -348,21 +380,27 @@ class HandleInertiaRequests extends Middleware
      */
     private function getTenantUserSafe(Request $request)
     {
+        $user = $request->user();
+        if (! $user) {
+            return null;
+        }
+
+        // designation / attendanceType are HRM-module relations that may be absent
+        // on a core-only tenant. Eager-load them when possible, but NEVER drop the
+        // authenticated user if those tables are missing — fall back to the base
+        // user so auth.user is always populated (a missing module must not log the
+        // user out of the UI / hide the user menu and global search).
         try {
-            $user = $request->user();
-            if ($user) {
-                // Eager load relationships if table exists
-                return User::with(['designation', 'attendanceType'])->find($user->id);
-            }
+            return User::with(['designation', 'attendanceType'])->find($user->id) ?? $user;
         } catch (QueryException $e) {
-            // 42S02 = Table not found. Common during new tenant provisioning.
+            // 42S02 = Table not found. Common on core-only tenants.
             if ($e->getCode() !== '42S02') {
                 throw $e;
             }
-            Log::warning('Tenant user load skipped: Tables missing.');
-        }
+            Log::warning('Tenant user relations skipped: HRM module tables missing.');
 
-        return null;
+            return $user;
+        }
     }
 
     private function resolvePlatformSettings(Request $request): ?array
@@ -473,13 +511,21 @@ class HandleInertiaRequests extends Middleware
 
     protected function getModuleHierarchy(): array
     {
-        return TenantCache::remember('frontend_module_hierarchy', 600, function () {
-            return Module::active()->ordered()
-                ->with(['subModules' => fn ($q) => $q->active()->ordered()->with(['components' => fn ($q) => $q->active()->with('actions')])])
-                ->get()
-                ->map(fn ($m) => $this->transformModuleForHierarchy($m))
-                ->toArray();
-        });
+        try {
+            return TenantCache::remember('frontend_module_hierarchy', 600, function () {
+                return Module::active()->ordered()
+                    ->with(['subModules' => fn ($q) => $q->active()->ordered()->with(['components' => fn ($q) => $q->active()->with('actions')])])
+                    ->get()
+                    ->map(fn ($m) => $this->transformModuleForHierarchy($m))
+                    ->toArray();
+            });
+        } catch (\Throwable) {
+            // The HRMAC Module registry requires a valid HRMAC context (established
+            // after auth). On unauthenticated pages (login/register/reset-password)
+            // it isn't, so a cold cache would 500 this shared Inertia prop. Empty is
+            // the safe fallback — those pages don't render the module nav.
+            return [];
+        }
     }
 
     private function transformModuleForHierarchy($module): array
@@ -520,8 +566,14 @@ class HandleInertiaRequests extends Middleware
 
     protected function getAllModules(): array
     {
-        return TenantCache::remember('all_modules', 3600, fn () => Module::active()->ordered()->get(['id', 'code', 'name', 'description', 'icon', 'category', 'is_core'])->toArray()
-        );
+        try {
+            return TenantCache::remember('all_modules', 3600, fn () => Module::active()->ordered()->get(['id', 'code', 'name', 'description', 'icon', 'category', 'is_core'])->toArray()
+            );
+        } catch (\Throwable) {
+            // See getModuleHierarchy(): the Module registry needs a valid HRMAC
+            // context; return empty on unauthenticated pages instead of 500ing.
+            return [];
+        }
     }
 
     protected function getTenantSubscribedModules(): array
@@ -830,7 +882,10 @@ class HandleInertiaRequests extends Middleware
             return null;
         }
 
-        $upgradeUrl = route('billing.plans');
+        // Tenant-domain-relative path (matches the Subscription hub's own links);
+        // the named route `core.subscription.plans` requires the {tenant} domain
+        // param and `billing.plans` does not exist.
+        $upgradeUrl = '/subscription/plans';
 
         // 1. Already expired — hard block.
         if ($subscription->status === Subscription::STATUS_EXPIRED) {

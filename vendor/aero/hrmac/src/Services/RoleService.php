@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Aero\HRMAC\Services;
 
+use Aero\Contracts\AuditServiceInterface;
 use Aero\Contracts\RoleModuleAccessInterface;
-use Aero\Core\Services\Audit\AuditEventType;
-use Aero\Core\Services\Audit\AuditService;
 use Aero\HRMAC\Models\Role;
+use Aero\Kernel\Audit\AuditEventType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\DB;
  */
 class RoleService
 {
-    public function __construct(private readonly AuditService $audit) {}
+    public function __construct(private readonly AuditServiceInterface $audit) {}
 
     public function create(array $data, Model $actor): Role
     {
@@ -93,7 +93,7 @@ class RoleService
     /**
      * Assign a set of roles to a user (replaces the user's current role set).
      *
-     * Accepts any user model (tenant User or central LandlordUser) — the morph class
+     * Accepts any user model (tenant User or central User) — the morph class
      * + key come from the model, and model_has_roles is written on the default
      * connection (tenant or central, as the host context dictates).
      */

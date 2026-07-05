@@ -7,11 +7,10 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-auth",
-                "reference": "e9e4a8b62e1e000b74f0ea952aa2a20350c00353"
+                "reference": "16b41518ef593dcb601d5d47d31b104b08c2f28f"
             },
             "require": {
                 "aero/contracts": "^1.0",
-                "aero/core": "^1.0",
                 "jenssegers/agent": "^2.6|^3.0",
                 "laravel/fortify": "^1.24",
                 "laravel/framework": "^11.0|^12.0",
@@ -132,11 +131,13 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-core",
-                "reference": "94ee36ae295a8b9d2731d1c854951762ddfd1883"
+                "reference": "e81ceb0fc01a2d29cc83f58cfb0e0395f9e54897"
             },
             "require": {
                 "aero/contracts": "^1.0",
                 "aero/infrastructure": "self.version",
+                "aero/kernel": "self.version",
+                "aero/license": "^1.0",
                 "inertiajs/inertia-laravel": "^2.0",
                 "jenssegers/agent": "^2.6|^3.0",
                 "laravel/framework": "^11.0|^12.0",
@@ -518,6 +519,88 @@
             "install-path": "../aero/installation"
         },
         {
+            "name": "aero/kernel",
+            "version": "1.0.0",
+            "version_normalized": "1.0.0.0",
+            "dist": {
+                "type": "path",
+                "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-kernel",
+                "reference": "ab67fdc4041bbd9dc63f3c93b80ddf75a5c83ef7"
+            },
+            "require": {
+                "aero/contracts": "^1.0",
+                "aero/infrastructure": "^1.0",
+                "laravel/framework": "^11.0|^12.0",
+                "php": "^8.2"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Aero\\Kernel\\AeroKernelServiceProvider"
+                    ]
+                },
+                "aero": {
+                    "package": "kernel",
+                    "category": "foundation",
+                    "description": "Shared runtime services consumed by core and platform"
+                }
+            },
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Aero\\Kernel\\": "src/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "description": "Aero Kernel Package - shared runtime services (audit, module registry, license core) consumed by core and platform",
+            "transport-options": {
+                "symlink": true,
+                "relative": false
+            },
+            "install-path": "../aero/kernel"
+        },
+        {
+            "name": "aero/license",
+            "version": "1.0.0",
+            "version_normalized": "1.0.0.0",
+            "dist": {
+                "type": "path",
+                "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-license",
+                "reference": "6794661789300a3b60521c36df2f94b964a48990"
+            },
+            "require": {
+                "aero/contracts": "^1.0",
+                "laravel/framework": "^11.0|^12.0",
+                "php": "^8.2"
+            },
+            "type": "library",
+            "extra": {
+                "aero": {
+                    "package": "license",
+                    "category": "foundation",
+                    "description": "Shared license signing/checksum core (validator + issuer consume it)"
+                }
+            },
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Aero\\License\\": "src/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "description": "Aero License Package - single-source license key signing/checksum core shared by the core validator and the platform issuer",
+            "transport-options": {
+                "symlink": true,
+                "relative": false
+            },
+            "install-path": "../aero/license"
+        },
+        {
             "name": "aero/notifications",
             "version": "dev-feature/core-admin-ca1-ca7",
             "version_normalized": "dev-feature/core-admin-ca1-ca7",
@@ -605,13 +688,14 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-platform",
-                "reference": "9d98d47a004e03d99a42e08cc34ef543b0bd94d5"
+                "reference": "8da6ccd5eaad3451f9db322dcad15c69dcb95212"
             },
             "require": {
                 "aero/auth": "*",
                 "aero/contracts": "^1.0",
                 "aero/core": "^1.0",
                 "aero/infrastructure": "self.version",
+                "aero/license": "^1.0",
                 "aero/notifications": "@dev",
                 "inertiajs/inertia-laravel": "^2.0",
                 "laravel/cashier": "^15.0",

@@ -97,8 +97,6 @@ class UatSeeder extends Seeder
                     'user_name' => explode('@', $email)[0],
                     'password' => Hash::make(self::PASSWORD),
                     'email_verified_at' => now(),
-                    'active' => true,
-                    'is_active' => true,
                 ]
             );
             if (! $user->hasRole($roleName)) {

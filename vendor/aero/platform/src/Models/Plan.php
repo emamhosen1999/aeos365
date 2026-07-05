@@ -138,17 +138,6 @@ class Plan extends CentralModel
     }
 
     /**
-     * Get all modules included in this plan.
-     */
-    public function modules(): BelongsToMany
-    {
-        return $this->belongsToMany(Module::class, 'plan_module')
-            ->withPivot('limits', 'is_enabled')
-            ->withTimestamps()
-            ->wherePivot('is_enabled', true);
-    }
-
-    /**
      * Get canonical quota rows for this plan.
      */
     public function planQuotas(): HasMany
@@ -322,11 +311,13 @@ class Plan extends CentralModel
     }
 
     /**
-     * Get the count of modules included in this plan.
+     * Plans carry no modules — plans and products are SEPARATE subscriptions,
+     * and modules are carried by products (products.module_code). Kept so
+     * legacy serializers keep a stable shape.
      */
     public function getModulesCountAttribute(): int
     {
-        return $this->modules()->count();
+        return 0;
     }
 
     /**

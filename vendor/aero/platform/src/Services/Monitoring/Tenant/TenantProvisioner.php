@@ -107,19 +107,19 @@ class TenantProvisioner
                 'provisioning_step' => null,
                 'admin_data' => null,
                 'maintenance_mode' => false,
-                'data' => [
-                    'owner_name' => Arr::get($details, 'owner_name'),
-                    'owner_email' => Arr::get($details, 'owner_email', $email),
-                    'owner_phone' => Arr::get($details, 'owner_phone'),
-                    'team_size' => Arr::get($details, 'team_size'),
-                    'industry' => Arr::get($details, 'industry'),
-                    'plan_id' => $planId,
-                    'billing_cycle' => Arr::get($plan, 'billing_cycle'),
-                    'selected_modules' => $modules,
-                    'notes' => Arr::get($plan, 'notes'),
-                    'registration_ip' => request()->ip(),
-                    'registered_at' => now()->toIso8601String(),
-                ],
+                // VirtualColumn attributes — set top-level so they encode into `data`
+                // (nesting under a literal `data` key is dropped by the re-encode).
+                'owner_name' => Arr::get($details, 'owner_name'),
+                'owner_email' => Arr::get($details, 'owner_email', $email),
+                'owner_phone' => Arr::get($details, 'owner_phone'),
+                'team_size' => Arr::get($details, 'team_size'),
+                'industry' => Arr::get($details, 'industry'),
+                'plan_id' => $planId,
+                'billing_cycle' => Arr::get($plan, 'billing_cycle'),
+                'selected_modules' => $modules,
+                'notes' => Arr::get($plan, 'notes'),
+                'registration_ip' => request()->ip(),
+                'registered_at' => now()->toIso8601String(),
             ], $byocData));
 
             // Create domain if doesn't exist
@@ -148,19 +148,19 @@ class TenantProvisioner
             'provisioning_step' => null,
             'admin_data' => null,
             'maintenance_mode' => false,
-            'data' => [
-                'owner_name' => Arr::get($details, 'owner_name'),
-                'owner_email' => Arr::get($details, 'owner_email', $email),
-                'owner_phone' => Arr::get($details, 'owner_phone'),
-                'team_size' => Arr::get($details, 'team_size'),
-                'industry' => Arr::get($details, 'industry'),
-                'plan_id' => $planId,
-                'billing_cycle' => Arr::get($plan, 'billing_cycle'),
-                'selected_modules' => $modules,
-                'notes' => Arr::get($plan, 'notes'),
-                'registration_ip' => request()->ip(),
-                'registered_at' => now()->toIso8601String(),
-            ],
+            // VirtualColumn attributes — set top-level so they encode into `data`
+            // (nesting under a literal `data` key is dropped by the re-encode).
+            'owner_name' => Arr::get($details, 'owner_name'),
+            'owner_email' => Arr::get($details, 'owner_email', $email),
+            'owner_phone' => Arr::get($details, 'owner_phone'),
+            'team_size' => Arr::get($details, 'team_size'),
+            'industry' => Arr::get($details, 'industry'),
+            'plan_id' => $planId,
+            'billing_cycle' => Arr::get($plan, 'billing_cycle'),
+            'selected_modules' => $modules,
+            'notes' => Arr::get($plan, 'notes'),
+            'registration_ip' => request()->ip(),
+            'registered_at' => now()->toIso8601String(),
         ], $byocData));
 
         // Create the primary domain for tenant routing
@@ -193,11 +193,6 @@ class TenantProvisioner
         $planId = $plan['plan_id'] ?? $this->resolvePlanId($plan['plan_slug'] ?? null);
         $modules = $this->sanitizeModulesAgainstPlan($planId, $this->cleanModules($plan['modules'] ?? []));
 
-        // Get existing data as array (handles ArrayObject or array)
-        $existingData = $tenant->data instanceof \ArrayObject
-            ? $tenant->data->getArrayCopy()
-            : (array) ($tenant->data ?? []);
-
         // BYOC: if tenant opted in, assemble encrypted credential fields
         $byoc = $payload['byoc'] ?? [];
         $byocData = [];
@@ -214,27 +209,31 @@ class TenantProvisioner
             ];
         }
 
-        // Update tenant with full registration data
-        // Preserve company verification timestamps
+        // Update tenant with full registration data.
+        // owner_*, plan_id, selected_modules, … are stancl VirtualColumn attributes:
+        // they MUST be assigned as TOP-LEVEL keys so the VirtualColumn encoder writes
+        // them into the `data` JSON. Nesting them under a literal `data` key did NOT
+        // survive the re-encode on save (the encoder rebuilds `data` from the model's
+        // top-level attributes), so these fields were silently lost. Existing `data`
+        // keys (currency, verification timestamps, …) are preserved automatically
+        // because they are already loaded as attributes on the model.
         $tenant->update(array_merge([
             'name' => (string) Arr::get($details, 'name', $tenant->name),
             'type' => (string) Arr::get($account, 'type', $tenant->type ?? 'company'),
             'status' => Tenant::STATUS_PENDING,
             'provisioning_step' => null,
             'maintenance_mode' => false,
-            'data' => array_merge($existingData, [
-                'owner_name' => Arr::get($details, 'owner_name'),
-                'owner_email' => Arr::get($details, 'owner_email', $tenant->email),
-                'owner_phone' => Arr::get($details, 'owner_phone'),
-                'team_size' => Arr::get($details, 'team_size'),
-                'industry' => Arr::get($details, 'industry'),
-                'plan_id' => $planId,
-                'billing_cycle' => Arr::get($plan, 'billing_cycle'),
-                'selected_modules' => $modules,
-                'notes' => Arr::get($plan, 'notes'),
-                'registration_ip' => request()->ip(),
-                'registered_at' => now()->toIso8601String(),
-            ]),
+            'owner_name' => Arr::get($details, 'owner_name'),
+            'owner_email' => Arr::get($details, 'owner_email', $tenant->email),
+            'owner_phone' => Arr::get($details, 'owner_phone'),
+            'team_size' => Arr::get($details, 'team_size'),
+            'industry' => Arr::get($details, 'industry'),
+            'plan_id' => $planId,
+            'billing_cycle' => Arr::get($plan, 'billing_cycle'),
+            'selected_modules' => $modules,
+            'notes' => Arr::get($plan, 'notes'),
+            'registration_ip' => request()->ip(),
+            'registered_at' => now()->toIso8601String(),
         ], $byocData));
 
         // Create domain if doesn't exist
@@ -326,17 +325,24 @@ class TenantProvisioner
             return;
         }
 
-        $moduleIds = Module::whereIn('code', $moduleCodes)
-            ->where('is_active', true)
-            ->pluck('id')
-            ->all();
+        // The HRMAC Module model + tenant_module pivot live on the CENTRAL/landlord DB.
+        // This runs during signup trial-activation — a platform/central request with no
+        // tenant context resolved — so HrmacModel's tenant-context guard would throw
+        // ("queried outside of a valid HRMAC context"). Central landlord work is
+        // legitimate (no tenant to leak between), so run it with the guard disabled.
+        \Aero\Contracts\AeroMode::withoutTenantContextGuard(function () use ($tenant, $moduleCodes) {
+            $moduleIds = Module::whereIn('code', $moduleCodes)
+                ->where('is_active', true)
+                ->pluck('id')
+                ->all();
 
-        $syncData = array_fill_keys($moduleIds, [
-            'is_active' => true,
-            'subscribed_at' => now(),
-        ]);
+            $syncData = array_fill_keys($moduleIds, [
+                'is_active' => true,
+                'subscribed_at' => now(),
+            ]);
 
-        $tenant->modules()->sync($syncData);
+            $tenant->modules()->sync($syncData);
+        });
     }
 
     private function buildDomain(?string $subdomain): string

@@ -99,7 +99,7 @@ export function AuditLogWidget({ recentAuditLog: initialData }) {
                                     <AuditDot action={entry.action} />
                                     <VStack gap={0} style={{ flex: 1 }}>
                                         <Text size="sm">
-                                            <Text as="span" weight={500}>{entry.userName}</Text>
+                                            <Text as="span" weight={500}>{entry.user}</Text>
                                             {' '}{entry.description}
                                         </Text>
                                         <Text size="xs" tone="tertiary" mono>{entry.timeAgo}</Text>
@@ -112,7 +112,7 @@ export function AuditLogWidget({ recentAuditLog: initialData }) {
 
                     <CardFooter align="left">
                         <Link
-                            href={route('audit-logs.index')}
+                            href={route('core.audit-logs.index')}
                             className="dash-view-all-link"
                         >
                             View all {data?.length ?? ''} entries →

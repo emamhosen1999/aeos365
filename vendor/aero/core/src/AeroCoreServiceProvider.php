@@ -2,19 +2,29 @@
 
 namespace Aero\Core;
 
+use Aero\Auth\Models\TenantInvitation;
+use Aero\Auth\Models\UserDevice;
+use Aero\Auth\Models\UserSession;
 use Aero\Contracts\AeroMode;
 use Aero\Contracts\AuditServiceInterface;
 use Aero\Contracts\EmployeeServiceContract;
 use Aero\Contracts\EncryptionDriverInterface;
+use Aero\Contracts\HrmacModelGuardInterface;
 use Aero\Contracts\LicenseServiceInterface;
 use Aero\Contracts\MailContextResolverInterface;
+use Aero\Contracts\ModuleRegistryInterface;
+use Aero\Contracts\NavigationRegistryInterface;
 use Aero\Contracts\NotificationChannelInterface;
 use Aero\Contracts\NotificationRoutingContract;
+use Aero\Contracts\RoleModuleAccessInterface;
 use Aero\Contracts\SmsContextResolverInterface;
+use Aero\Contracts\SystemSettingServiceInterface;
 use Aero\Contracts\TenantScopeInterface;
 use Aero\Contracts\TranslationDriverInterface;
 use Aero\Core\Database\Seeders\CoreDatabaseSeeder;
+use Aero\Kernel\Encryption\LaravelEncryptionDriver;
 use Aero\Core\Exceptions\Handler;
+use Aero\Core\Hrmac\HrmacContextGuard;
 use Aero\Core\Http\Middleware\CheckModuleAccess;
 use Aero\Core\Http\Middleware\DashboardRedirectMiddleware;
 use Aero\Core\Http\Middleware\EnforceLicense;
@@ -24,10 +34,12 @@ use Aero\Core\Http\Middleware\InitializeTenancyIfNotCentral;
 use Aero\Core\Http\Middleware\ResolvePlatformContext;
 use Aero\Core\Http\Middleware\ResolveTenantContext;
 use Aero\Core\Models\User;
+use Aero\Core\Providers\AeroOctaneServiceProvider;
 use Aero\Core\Providers\CoreModuleProvider;
 use Aero\Core\Providers\ModuleRouteServiceProvider;
 use Aero\Core\Services\AddonCatalogService;
 use Aero\Core\Services\AddonInstaller;
+use Aero\Core\Services\Audit\AuditService;
 use Aero\Core\Services\DashboardRegistry;
 use Aero\Core\Services\HrmacNotificationRoutingService;
 use Aero\Core\Services\InstallationState;
@@ -45,13 +57,15 @@ use Aero\Core\Services\PlatformErrorReporter;
 use Aero\Core\Services\ProductManifestLoader;
 use Aero\Core\Services\RuntimeLoader;
 use Aero\Core\Services\StandaloneTenantScope;
+use Aero\Core\Services\SystemSettingService;
 use Aero\Core\Services\UserRelationshipRegistry;
 use Aero\Core\Traits\ParsesHostDomain;
 use Aero\HRM\Services\EmployeeService;
-use Aero\Contracts\RoleModuleAccessInterface;
+use Aero\HRMAC\Services\NullRoleModuleAccessService;
 use Aero\HRMAC\Services\RoleModuleAccessService;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Migrations\Migrator;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Http\Request;
@@ -76,21 +90,30 @@ class AeroCoreServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Wire AeroMode FIRST so every guard in this register() pass (e.g. the
+        // migrator override below) can resolve SaaS/standalone via the contract
+        // API. The resolver is file-based (is_saas_mode()) so it is safe to set
+        // before the container bindings exist. The tenant-context checker depends
+        // on TenantScopeInterface and is wired later, after that binding.
+        AeroMode::setModeResolver(fn () => is_saas_mode());
+
+        $this->registerIdentityModelAliases();
+
         try {
             // Register the Core module service provider
             // This handles navigation, self-service items, dashboards, etc.
             $this->app->register(CoreModuleProvider::class);
 
             // Register Octane flush callbacks for per-request singletons
-            $this->app->register(\Aero\Core\Providers\AeroOctaneServiceProvider::class);
+            $this->app->register(AeroOctaneServiceProvider::class);
 
             // Override the Migrator to exclude app's migration directory
             // Core and module packages provide all necessary migrations
             //
-            // NOTE: Skip this override if Platform is installed
+            // NOTE: Skip this override in SaaS mode.
             // Platform has its own migrator override that restricts landlord migrations
             // to only platform package migrations (tenants, domains, plans, etc.)
-            if (! class_exists('Aero\\Platform\\AeroPlatformServiceProvider')) {
+            if (AeroMode::isStandalone()) {
                 $this->app->extend('migrator', function ($migrator, $app) {
                     return new class($app['migration.repository'], $app['db'], $app['files'], $app['events']) extends Migrator
                     {
@@ -137,20 +160,34 @@ class AeroCoreServiceProvider extends ServiceProvider
 
             // Encryption driver — swappable for AWS KMS, HashiCorp Vault, etc.
             $this->app->singleton(EncryptionDriverInterface::class, function ($app) {
-                return new \Aero\Core\Encryption\LaravelEncryptionDriver(
+                return new LaravelEncryptionDriver(
                     $app['encrypter']
                 );
             });
 
             // Audit service — writes to audit_logs (tenant) or platform_audit_logs (central)
-            $this->app->singleton(AuditServiceInterface::class, \Aero\Core\Services\Audit\AuditService::class);
+            $this->app->singleton(AuditServiceInterface::class, AuditService::class);
+
+            // System settings — shared/feature packages depend on the contract, not the
+            // concrete core service (which owns the media-bearing SystemSetting model).
+            $this->app->singleton(SystemSettingServiceInterface::class, SystemSettingService::class);
+
+            // User invitations — the capability now lives in aero-auth (auth owns
+            // identity). AeroAuthServiceProvider binds UserInvitationServiceInterface
+            // to the concrete Aero\Auth\Services\UserInvitationService.
 
             // Register Core Singletons
             $this->app->singleton(ModuleRegistry::class);
-            $this->app->alias(ModuleRegistry::class, \Aero\Contracts\ModuleRegistryInterface::class);
+            $this->app->alias(ModuleRegistry::class, ModuleRegistryInterface::class);
             $this->app->singleton(NavigationRegistry::class);
-            $this->app->alias(NavigationRegistry::class, \Aero\Contracts\NavigationRegistryInterface::class);
+            $this->app->alias(NavigationRegistry::class, NavigationRegistryInterface::class);
             $this->app->singleton(UserRelationshipRegistry::class);
+            // UserRelationshipRegistry moved to aero-kernel. class_alias unifies the class
+            // symbol but NOT container keys, so consumers that resolve via the kernel FQN
+            // (e.g. aero-auth User) would otherwise get a SEPARATE, empty singleton and lose
+            // every module-registered relationship. Alias the kernel container key to the
+            // same singleton the legacy key is bound to.
+            $this->app->alias(UserRelationshipRegistry::class, \Aero\Kernel\Services\UserRelationshipRegistry::class);
             $this->app->singleton(DashboardRegistry::class);
 
             // Bind notification context resolvers — use aero-core interfaces as the canonical binding
@@ -228,68 +265,35 @@ class AeroCoreServiceProvider extends ServiceProvider
                 }
             });
 
-            $this->app->singleton(RoleModuleAccessService::class, function ($app) {
-                // Only instantiate if installed to avoid DB queries pre-install
+            // RBAC authority. The RoleModuleAccessInterface (Aero\Contracts) is the
+            // single binding key; it resolves to the HRMAC implementation, or to
+            // HRMAC's NULL implementation before installation so RBAC fails CLOSED
+            // with no DB queries. Both stubs honour the real contract (no ad-hoc
+            // anonymous classes with mismatched signatures).
+            $this->app->singleton(RoleModuleAccessInterface::class, function ($app) {
                 if (! InstallationState::isInstalled()) {
-                    return new class
-                    {
-                        public function canUserAccessModule(int $userId, string $moduleCode): bool
-                        {
-                            return false;
-                        }
-
-                        public function getUserAccessibleModules(int $userId): array
-                        {
-                            return [];
-                        }
-
-                        public function getFirstAccessibleRoute(int $userId): ?string
-                        {
-                            return null;
-                        }
-
-                        public function __call(string $method, array $args): mixed
-                        {
-                            return str_starts_with($method, 'get') ? ($method === 'getFirstAccessibleRoute' ? null : []) : false;
-                        }
-                    };
+                    return new NullRoleModuleAccessService;
                 }
 
                 try {
                     return new RoleModuleAccessService;
                 } catch (\Throwable $e) {
-                    return new class
-                    {
-                        public function canUserAccessModule(int $userId, string $moduleCode): bool
-                        {
-                            return false;
-                        }
-
-                        public function getUserAccessibleModules(int $userId): array
-                        {
-                            return [];
-                        }
-
-                        public function getFirstAccessibleRoute(int $userId): ?string
-                        {
-                            return null;
-                        }
-
-                        public function __call(string $method, array $args): mixed
-                        {
-                            return str_starts_with($method, 'get') ? ($method === 'getFirstAccessibleRoute' ? null : []) : false;
-                        }
-                    };
+                    return new NullRoleModuleAccessService;
                 }
             });
+
+            // Concrete-class alias: callers that type-hint the HRMAC concrete class
+            // resolve the same (install-gated) instance as the interface.
+            $this->app->alias(RoleModuleAccessInterface::class, RoleModuleAccessService::class);
 
             // Bind TenantScopeInterface to StandaloneTenantScope as default
             // This can be overridden by aero-platform for SaaS mode
             $this->app->singleton(TenantScopeInterface::class, StandaloneTenantScope::class);
 
-            // Wire AeroMode so aero-contracts TenantModel can detect SaaS/standalone
-            // without importing aero-core helpers directly.
-            AeroMode::setModeResolver(fn () => is_saas_mode());
+            // Wire the AeroMode tenant-context checker so aero-contracts TenantModel
+            // can enforce isolation without importing aero-core directly. (The mode
+            // resolver is wired at the very top of register(); this checker depends on
+            // the TenantScopeInterface binding above, so it stays here.)
             AeroMode::setTenantContextChecker(function (string $modelClass) {
                 // Fail CLOSED (Axis A A10). Previously a catch-all swallowed any
                 // non-LogicException — so a container/resolution fault let the query
@@ -303,8 +307,8 @@ class AeroCoreServiceProvider extends ServiceProvider
                 $scope = app(TenantScopeInterface::class);
                 if (! $scope->inTenantContext()) {
                     throw new \LogicException(
-                        $modelClass . ' queried outside of tenant context. ' .
-                        'Ensure this runs after tenancy middleware. ' .
+                        $modelClass.' queried outside of tenant context. '.
+                        'Ensure this runs after tenancy middleware. '.
                         'For central-DB models extend CentralModel instead.'
                     );
                 }
@@ -315,8 +319,8 @@ class AeroCoreServiceProvider extends ServiceProvider
             // tenant requests while allowing the platform/central context. (Standalone
             // and early boot are no-ops.) See Aero\Core\Hrmac\HrmacContextGuard.
             $this->app->singleton(
-                \Aero\Contracts\HrmacModelGuardInterface::class,
-                \Aero\Core\Hrmac\HrmacContextGuard::class
+                HrmacModelGuardInterface::class,
+                HrmacContextGuard::class
             );
 
             // Register cross-package contracts for modular architecture
@@ -362,8 +366,46 @@ class AeroCoreServiceProvider extends ServiceProvider
     /**
      * Bootstrap services.
      */
+    /**
+     * Dependency decoupling (Phase 2): the identity models (User + device/session/
+     * invitation) moved out of aero-core into aero-auth. ~250 files across every product
+     * package still reference the old `Aero\Core\Models\*` names (foreign keys, type
+     * hints, belongsTo), so we register class aliases from the legacy core names to the
+     * new aero-auth classes. This keeps those references resolving with zero edits while
+     * they are repointed incrementally over later phases (the aliases are removed in the
+     * final enforcement phase). Registered in register() — before any model is used — and
+     * in EVERY context (tenant, central, standalone, the aero-core package test) because
+     * core boots everywhere. Guarded so it is a no-op if the alias is already defined.
+     */
+    private function registerIdentityModelAliases(): void
+    {
+        $aliases = [
+            \Aero\Auth\Models\User::class => 'Aero\\Core\\Models\\User',
+            UserDevice::class => 'Aero\\Core\\Models\\UserDevice',
+            UserSession::class => 'Aero\\Core\\Models\\UserSession',
+            TenantInvitation::class => 'Aero\\Core\\Models\\TenantInvitation',
+        ];
+
+        foreach ($aliases as $original => $legacyAlias) {
+            if (! class_exists($legacyAlias, false)) {
+                class_alias($original, $legacyAlias);
+            }
+        }
+    }
+
     public function boot(): void
     {
+        // Dependency decoupling (Phase 2): decouple the User morph identity from its
+        // namespace. model_has_roles / model_has_permissions persist a polymorphic
+        // model_type; binding it to a stable morph key ('user') instead of the class
+        // FQN means the User model can move package (Aero\Core\Models\User ->
+        // Aero\Auth\Models\User) without orphaning every existing role/permission row.
+        // Registered here (boots in EVERY context: tenant, central, standalone, and the
+        // aero-core package test) so getMorphClass() is consistent everywhere.
+        Relation::morphMap([
+            'user' => \Aero\Auth\Models\User::class,
+        ]);
+
         // Force file-based sessions BEFORE any session driver is instantiated
         // This allows installation to work without database tables
         if (! $this->installed()) {
@@ -400,7 +442,6 @@ class AeroCoreServiceProvider extends ServiceProvider
             __DIR__.'/../resources/stubs/DatabaseSeeder.php.stub' => database_path('seeders/DatabaseSeeder.php'),
             __DIR__.'/../stubs/web.php.stub' => base_path('routes/web.php'),
         ], 'aero-core-stubs');
-
 
         // JSON translations are now loaded by aero-i18n package
 
@@ -535,7 +576,7 @@ class AeroCoreServiceProvider extends ServiceProvider
             // SaaS Mode: Core routes are ONLY for tenant subdomains ({tenant}.domain.com).
             // Using a domain constraint guarantees this at route-matching time, not request time,
             // so route:list and cached routes cannot leak onto the platform domain.
-            $platformDomain = env('PLATFORM_DOMAIN', env('APP_DOMAIN', 'localhost'));
+            $platformDomain = config('aero.platform_domain', 'localhost');
 
             // B-43: constrain {tenant} so reserved subdomains (admin, www, api, …) are
             // NOT treated as tenants. Without this, admin.<domain> matches {tenant}=admin
@@ -703,13 +744,13 @@ class AeroCoreServiceProvider extends ServiceProvider
     }
 
     /**
-     * Check if aero-platform is active.
+     * Check if running in SaaS mode (formerly: "is aero-platform active").
      *
      * @deprecated Use isSaasMode() instead for mode detection
      */
     protected function isPlatformActive(): bool
     {
-        return class_exists('Aero\Platform\AeroPlatformServiceProvider');
+        return AeroMode::isSaas();
     }
 
     /**
@@ -811,13 +852,13 @@ class AeroCoreServiceProvider extends ServiceProvider
     protected function registerCommands(): void
     {
         $this->commands([
-            Console\Commands\InstallCommand::class,
             // aero:sync-module is provided solely by aero-hrmac (one sync for both
             // modes, HRMAC models, nested parent_id support).
             Console\Commands\SyncModuleMigrations::class,
             Console\Commands\SeedCommand::class,
             Console\Commands\CleanupExpiredSessions::class,
             Console\Commands\ValidateManifests::class,
+            Console\Commands\VerifyTiersCommand::class,
             Console\Commands\PackageProduct::class,
         ]);
     }
@@ -902,6 +943,7 @@ class AeroCoreServiceProvider extends ServiceProvider
             NavigationRegistry::class,
             UserRelationshipRegistry::class,
             ModuleAccessService::class,
+            RoleModuleAccessInterface::class,
             RoleModuleAccessService::class,
         ];
     }
@@ -988,8 +1030,21 @@ class AeroCoreServiceProvider extends ServiceProvider
             $submoduleIcon = $submodule['icon'] ?? 'FolderIcon';
             $components = $submodule['components'] ?? [];
 
-            // If submodule has only ONE component, use it directly as the menu item
-            if (count($components) === 1) {
+            // collapse_nav: render as a single leaf link (no child pages). The
+            // component HRMAC actions are still defined/synced; collapsing only
+            // hides the child links so an in-page rail owns sub-navigation
+            // (e.g. the unified Settings shell → /settings/system).
+            if (($submodule['collapse_nav'] ?? false) === true) {
+                $submoduleNav[] = [
+                    'name' => $submodule['name'] ?? ucfirst($submoduleCode),
+                    'path' => $submodule['route'] ?? ($components[0]['route'] ?? null),
+                    'icon' => $submoduleIcon,
+                    'access' => 'core.'.$submoduleCode,
+                    'priority' => $submodule['priority'] ?? 100,
+                    'type' => 'page',
+                    // No children - the in-page rail handles sub-navigation.
+                ];
+            } elseif (count($components) === 1) {
                 $component = $components[0];
                 $submoduleNav[] = [
                     'name' => $submodule['name'] ?? ucfirst($submoduleCode),

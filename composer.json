@@ -26,6 +26,7 @@
         "aero/i18n": "@dev",
         "aero/infrastructure": "@dev",
         "aero/installation": "@dev",
+        "aero/kernel": "@dev",
         "aero/notifications": "@dev",
         "aero/platform": "@dev",
         "aero/ui": "@dev",

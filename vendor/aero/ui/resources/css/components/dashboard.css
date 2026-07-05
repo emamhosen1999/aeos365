@@ -18,16 +18,53 @@
 /* ── Grid ──────────────────────────────────────────────────────────────── */
 .dash-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    /* minmax(0,1fr) — keep all 4 tracks EQUAL and let them shrink, so wide widget
+       content can't blow a column out (unequal widths) or overflow a narrow shell
+       panel (e.g. the command shell's center column). */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--aeos-space-3);
     padding: var(--aeos-space-5) var(--aeos-space-5) var(--aeos-space-8);
 }
 
-/* Column spans */
-.aeos-col-span-1 { grid-column: span 1; }
-.aeos-col-span-2 { grid-column: span 2; }
-.aeos-col-span-3 { grid-column: span 3; }
-.aeos-col-span-4 { grid-column: span 4; }
+/* Column spans — scoped under `.dash-grid > .aeos-card-auto` (specificity 0,3,0)
+   so they BEAT the card-style customizer's `all: revert` on .aeos-card-auto
+   (body[data-card-style] .aeos-card-auto, 0,2,1), which otherwise resets
+   grid-column to auto and collapses every widget to a single equal column. */
+.dash-grid > .aeos-card-auto.aeos-col-span-1 { grid-column: span 1; }
+.dash-grid > .aeos-card-auto.aeos-col-span-2 { grid-column: span 2; }
+.dash-grid > .aeos-card-auto.aeos-col-span-3 { grid-column: span 3; }
+.dash-grid > .aeos-card-auto.aeos-col-span-4 { grid-column: span 4; }
+
+/* Widget empty-state — muted, centered; fills a widget body slot (e.g. a chart
+   area) so genuinely-empty data reads as "no data" rather than a stuck skeleton. */
+.dash-widget-empty {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 120px; padding: var(--aeos-space-4);
+    font-size: var(--aeos-text-sm); color: var(--aeos-text-tertiary); text-align: center;
+}
+
+/* ── Command-shell context rail (DashboardRail) ──────────────────────────── */
+.dash-rail-link {
+    display: flex; align-items: center; gap: var(--aeos-space-2);
+    padding: var(--aeos-space-2);
+    border-radius: var(--aeos-r-sm);
+    color: var(--aeos-text-secondary); font-size: var(--aeos-text-sm);
+    transition: background var(--aeos-dur-fast) var(--aeos-ease-out),
+                color      var(--aeos-dur-fast) var(--aeos-ease-out);
+}
+.dash-rail-link:hover { background: var(--aeos-bg-hover); color: var(--aeos-text-primary); }
+.dash-rail-link svg { flex-shrink: 0; }
+.dash-rail-shortcut {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 var(--aeos-space-2);
+    font-size: var(--aeos-text-sm); color: var(--aeos-text-secondary);
+}
+.dash-rail-kbd {
+    font-family: var(--aeos-font-mono); font-size: var(--aeos-text-2xs);
+    color: var(--aeos-text-tertiary); background: var(--aeos-bg-active);
+    border: var(--aeos-border-width) solid var(--aeos-border-subtle);
+    border-radius: var(--aeos-r-sm); padding: 1px 5px;
+}
 
 /* ── Refresh button ────────────────────────────────────────────────────── */
 .dash-widget-refresh-btn {
@@ -325,24 +362,29 @@
     background: var(--aeos-divider);
 }
 
-/* ── Responsive overrides ───────────────────────────────────────────────── */
-@media (max-width: 1280px) {
-    .dash-grid { grid-template-columns: repeat(3, 1fr); }
-    .aeos-col-span-4 { grid-column: span 3; }
+/* ── Responsive overrides ───────────────────────────────────────────────────
+   Container-query based: the grid adapts to its CONTENT width (which differs per
+   shell — e.g. the command shell's narrow center panel) rather than the viewport,
+   so it never overflows. Requires an ancestor with container-type:inline-size
+   (set on .aeos-shell-content). Col-spans keep the 0,3,0 specificity to survive
+   the card-style `all: revert`. */
+@container (max-width: 1100px) {
+    .dash-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .dash-grid > .aeos-card-auto.aeos-col-span-4 { grid-column: span 3; }
 }
 
-@media (max-width: 960px) {
-    .dash-grid { grid-template-columns: repeat(2, 1fr); }
-    .aeos-col-span-3,
-    .aeos-col-span-4 { grid-column: span 2; }
+@container (max-width: 820px) {
+    .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dash-grid > .aeos-card-auto.aeos-col-span-3,
+    .dash-grid > .aeos-card-auto.aeos-col-span-4 { grid-column: span 2; }
 }
 
-@media (max-width: 640px) {
+@container (max-width: 560px) {
     .dash-grid { grid-template-columns: 1fr; gap: var(--aeos-space-2); padding: var(--aeos-space-3); }
-    .aeos-col-span-1,
-    .aeos-col-span-2,
-    .aeos-col-span-3,
-    .aeos-col-span-4 { grid-column: span 1; }
+    .dash-grid > .aeos-card-auto.aeos-col-span-1,
+    .dash-grid > .aeos-card-auto.aeos-col-span-2,
+    .dash-grid > .aeos-card-auto.aeos-col-span-3,
+    .dash-grid > .aeos-card-auto.aeos-col-span-4 { grid-column: span 1; }
 }
 
 /* ── Reduced motion ─────────────────────────────────────────────────────── */

@@ -6,8 +6,8 @@ namespace Aero\Platform\Http\Controllers\Admin;
 
 use Aero\HRMAC\Models\Role;
 use Aero\Platform\Http\Controllers\Controller;
-use Aero\Platform\Models\LandlordUser;
-use Aero\Platform\Services\LandlordUserService;
+use Aero\Auth\Models\User;
+use Aero\Auth\Services\UserService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -25,12 +25,18 @@ use Inertia\Response;
  */
 class LandlordUserController extends Controller
 {
-    public function __construct(private LandlordUserService $svc) {}
+    public function __construct(private UserService $svc) {}
 
     public function index(Request $request): Response
     {
+        // Active/inactive is managed via SoftDeletes (active = not trashed). Map the
+        // legacy q/active filter onto the unified search/status contract.
+        $status = $request->filled('active')
+            ? ($request->boolean('active') ? 'active' : 'inactive')
+            : 'all';
+
         return Inertia::render('Platform/Admin/Users/Index', [
-            'users' => $this->svc->list($request->only(['q', 'active'])),
+            'users' => $this->svc->list(['search' => $request->input('q'), 'status' => $status]),
             'roles' => Role::orderBy('name')->get(['id', 'name']),
             'filters' => $request->only(['q', 'active']),
         ]);
@@ -40,7 +46,7 @@ class LandlordUserController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:160'],
-            'email' => ['required', 'email', Rule::unique('central.landlord_users', 'email')],
+            'email' => ['required', 'email', Rule::unique('central.users', 'email')],
             'password' => ['required', 'string', 'min:8'],
             'active' => ['boolean'],
             'role_ids' => ['array'],
@@ -52,18 +58,18 @@ class LandlordUserController extends Controller
         return back()->with('success', 'User created.');
     }
 
-    public function show(LandlordUser $user): Response
+    public function show(User $user): Response
     {
         return Inertia::render('Platform/Admin/Users/Show', [
             'user' => $user->load('roles:id,name'),
         ]);
     }
 
-    public function update(Request $request, LandlordUser $user): RedirectResponse
+    public function update(Request $request, User $user): RedirectResponse
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:160'],
-            'email' => ['required', 'email', Rule::unique('central.landlord_users', 'email')->ignore($user->id)],
+            'email' => ['required', 'email', Rule::unique('central.users', 'email')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:8'],
             'active' => ['boolean'],
             'role_ids' => ['array'],
@@ -75,14 +81,14 @@ class LandlordUserController extends Controller
         return back()->with('success', 'User updated.');
     }
 
-    public function destroy(LandlordUser $user): RedirectResponse
+    public function destroy(User $user): RedirectResponse
     {
         $this->svc->delete($user);
 
         return back()->with('success', 'User deleted.');
     }
 
-    public function toggleStatus(LandlordUser $user): RedirectResponse
+    public function toggleStatus(User $user): RedirectResponse
     {
         $this->svc->toggleStatus($user);
 
