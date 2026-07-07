@@ -183,6 +183,23 @@ class AeroPlatformServiceProvider extends ServiceProvider
             // CRITICAL: This registers event listeners for TenancyInitialized which
             // runs the DatabaseTenancyBootstrapper to switch DB connections
             $this->app->register(TenancyBootstrapServiceProvider::class);
+
+            // Demo guardrail: a live-demo tenant must never send real email/SMS to
+            // the fake addresses visitors enter. On every tenancy init (web AND
+            // queue), if the tenant is a demo, route mail to the log driver and flag
+            // demo mode so any outbound-send code can no-op. Reset heals data; this
+            // protects real inboxes.
+            \Illuminate\Support\Facades\Event::listen(
+                \Stancl\Tenancy\Events\TenancyInitialized::class,
+                function () {
+                    if (function_exists('tenant') && tenant() && (bool) tenant('is_demo')) {
+                        config([
+                            'mail.default' => 'log',
+                            'aero.demo.active' => true,
+                        ]);
+                    }
+                }
+            );
         }
 
         // Override Core's migrator to ONLY use platform migrations on landlord database
