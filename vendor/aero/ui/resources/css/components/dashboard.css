@@ -26,14 +26,25 @@
     padding: var(--aeos-space-5) var(--aeos-space-5) var(--aeos-space-8);
 }
 
-/* Column spans — scoped under `.dash-grid > .aeos-card-auto` (specificity 0,3,0)
-   so they BEAT the card-style customizer's `all: revert` on .aeos-card-auto
-   (body[data-card-style] .aeos-card-auto, 0,2,1), which otherwise resets
-   grid-column to auto and collapses every widget to a single equal column. */
+/* Column spans — two selector forms per span:
+   • `.dash-grid > .aeos-col-span-N` (0,2,0) matches EVERY grid child, including
+     non-card items (the PageHeader is a <header> without .aeos-card-auto — the
+     card-only selector silently skipped it, collapsing it to one column).
+   • `.dash-grid > .aeos-card-auto.aeos-col-span-N` (0,3,0) re-asserts the span
+     for cards so it BEATS the card-style customizer's `all: revert`
+     (body[data-card-style] .aeos-card-auto, 0,2,1), which otherwise resets
+     grid-column to auto and collapses every widget to a single equal column.
+   Full-width items use `1 / -1` (first line → last line) instead of `span 4`:
+   it fills the row at ANY column count, whereas `span 4` force-creates implicit
+   overflow tracks whenever the template has fewer than 4 columns. */
+.dash-grid > .aeos-col-span-1,
 .dash-grid > .aeos-card-auto.aeos-col-span-1 { grid-column: span 1; }
+.dash-grid > .aeos-col-span-2,
 .dash-grid > .aeos-card-auto.aeos-col-span-2 { grid-column: span 2; }
+.dash-grid > .aeos-col-span-3,
 .dash-grid > .aeos-card-auto.aeos-col-span-3 { grid-column: span 3; }
-.dash-grid > .aeos-card-auto.aeos-col-span-4 { grid-column: span 4; }
+.dash-grid > .aeos-col-span-4,
+.dash-grid > .aeos-card-auto.aeos-col-span-4 { grid-column: 1 / -1; }
 
 /* Widget empty-state — muted, centered; fills a widget body slot (e.g. a chart
    area) so genuinely-empty data reads as "no data" rather than a stuck skeleton. */
@@ -363,29 +374,93 @@
 }
 
 /* ── Responsive overrides ───────────────────────────────────────────────────
-   Container-query based: the grid adapts to its CONTENT width (which differs per
-   shell — e.g. the command shell's narrow center panel) rather than the viewport,
-   so it never overflows. Requires an ancestor with container-type:inline-size
-   (set on .aeos-shell-content). Col-spans keep the 0,3,0 specificity to survive
-   the card-style `all: revert`. */
+   TWO independent layers so the grid is correct even if one is inert:
+
+   1. Viewport @media fallback (first) — always evaluates, zero dependency on
+      the container-query chain. Thresholds ≈ the container thresholds plus
+      minimum shell chrome, so on any real device the column count is already
+      right even if no ancestor query container exists (or a future intermediate
+      `container-type` ancestor silently retargets the unnamed queries).
+   2. @container refinements (second, so they WIN the cascade when both apply) —
+      adapt to the grid's OWN available width, which differs per shell (e.g. the
+      command shell's narrow center panel at a wide viewport). The query
+      container is `.aeos-page-container` (container-type: inline-size, set in
+      shells/_shell-core.css).
+
+   Span caps: a `span N` larger than the current column count would force
+   implicit overflow tracks, so span-3 collapses to the full row at 2 columns
+   and span-2/3 collapse at 1 column (`1 / -1` is count-proof; span-4 is already
+   `1 / -1` in the base rule and needs no per-breakpoint override). Card
+   selectors keep the 0,3,0 specificity to survive the card-style `all: revert`.
+   Tracks stay `minmax(0, 1fr)` at every step — fr min 0 means tracks are always
+   EQUAL and can never be blown out or collapsed by widget content. */
+@media (max-width: 1180px) {
+    .dash-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 900px) {
+    .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dash-grid > .aeos-col-span-3,
+    .dash-grid > .aeos-card-auto.aeos-col-span-3 { grid-column: 1 / -1; }
+}
+
+@media (max-width: 620px) {
+    .dash-grid { grid-template-columns: minmax(0, 1fr); gap: var(--aeos-space-2); padding: var(--aeos-space-3); }
+    .dash-grid > .aeos-col-span-2,
+    .dash-grid > .aeos-col-span-3,
+    .dash-grid > .aeos-card-auto.aeos-col-span-2,
+    .dash-grid > .aeos-card-auto.aeos-col-span-3 { grid-column: 1 / -1; }
+}
+
 @container (max-width: 1100px) {
     .dash-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .dash-grid > .aeos-card-auto.aeos-col-span-4 { grid-column: span 3; }
 }
 
 @container (max-width: 820px) {
     .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .dash-grid > .aeos-card-auto.aeos-col-span-3,
-    .dash-grid > .aeos-card-auto.aeos-col-span-4 { grid-column: span 2; }
+    .dash-grid > .aeos-col-span-3,
+    .dash-grid > .aeos-card-auto.aeos-col-span-3 { grid-column: 1 / -1; }
 }
 
 @container (max-width: 560px) {
-    .dash-grid { grid-template-columns: 1fr; gap: var(--aeos-space-2); padding: var(--aeos-space-3); }
-    .dash-grid > .aeos-card-auto.aeos-col-span-1,
+    .dash-grid { grid-template-columns: minmax(0, 1fr); gap: var(--aeos-space-2); padding: var(--aeos-space-3); }
+    .dash-grid > .aeos-col-span-2,
+    .dash-grid > .aeos-col-span-3,
     .dash-grid > .aeos-card-auto.aeos-col-span-2,
-    .dash-grid > .aeos-card-auto.aeos-col-span-3,
-    .dash-grid > .aeos-card-auto.aeos-col-span-4 { grid-column: span 1; }
+    .dash-grid > .aeos-card-auto.aeos-col-span-3 { grid-column: 1 / -1; }
 }
+
+/* ── Tenants rail — status overview dots (theme-reactive tokens) ─────────── */
+.tenants-rail-stat { min-height: var(--aeos-space-6, 1.5rem); }
+.tenants-rail-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+    display: inline-block;
+    background: var(--aeos-text-tertiary);
+}
+.tenants-rail-dot--active       { background: var(--aeos-success); }
+.tenants-rail-dot--trial        { background: var(--aeos-info, var(--aeos-primary)); }
+.tenants-rail-dot--pending      { background: var(--aeos-warning); }
+.tenants-rail-dot--provisioning { background: var(--aeos-indigo, var(--aeos-primary)); }
+.tenants-rail-dot--suspended    { background: var(--aeos-danger); }
+.tenants-rail-dot--failed       { background: var(--aeos-danger); }
+.tenants-rail-dot--archived     { background: var(--aeos-text-tertiary); }
+
+/* ── Plans rail — tier overview dots (theme-reactive tokens) ─────────────── */
+.plans-rail-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+    display: inline-block;
+    background: var(--aeos-text-tertiary);
+}
+.plans-rail-dot--free         { background: var(--aeos-text-tertiary); }
+.plans-rail-dot--starter      { background: var(--aeos-primary); }
+.plans-rail-dot--professional { background: var(--aeos-indigo, var(--aeos-primary)); }
+.plans-rail-dot--enterprise   { background: var(--aeos-warning); }
 
 /* ── Reduced motion ─────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

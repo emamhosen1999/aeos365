@@ -43,8 +43,9 @@ use Aero\Platform\Http\Controllers\Admin\Infra\SecurityCenterController;
 use Aero\Platform\Http\Controllers\Admin\Infra\StatusPageController;
 use Aero\Platform\Http\Controllers\Admin\Infra\WhiteLabelController;
 use Aero\Platform\Http\Controllers\Admin\InvoiceController as AdminInvoiceController;
+use Aero\HRMAC\Http\Controllers\ModuleController as HrmacModuleController;
 use Aero\HRMAC\Http\Controllers\RoleController;
-use Aero\Platform\Http\Controllers\Admin\LandlordUserController;
+use Aero\Auth\Http\Controllers\Admin\UserAdminController;
 use Aero\Platform\Http\Controllers\Admin\LeadController;
 use Aero\Platform\Http\Controllers\Admin\MaintenanceWindowController;
 use Aero\Platform\Http\Controllers\Admin\ModuleAdminController;
@@ -1372,21 +1373,46 @@ Route::middleware('admin.domain')->group(function () {
         });
 
         // Landlord Users (P-4)
+        // Platform users render the SHARED Pages/Shared/UserManagement/Users pages
+        // (platform context) via the shared aero-auth UserAdminController, driven by
+        // route defaults. Invitations are gated OFF (platform); impersonation ON.
         Route::prefix('users')->name('platform.admin.users.')->group(function () {
-            Route::middleware('hrmac:platform-users.landlord-user-list.view')->group(function () {
-                Route::get('/', [LandlordUserController::class, 'index'])->name('index');
-                // withTrashed(): active/inactive is managed via SoftDeletes, so these
-                // actions must resolve inactive (soft-deleted) users too.
-                Route::get('/{user}', [LandlordUserController::class, 'show'])->name('show')->withTrashed();
-            });
-            Route::middleware('hrmac:platform-users.landlord-user-list.create')
-                ->post('/', [LandlordUserController::class, 'store'])->name('store');
-            Route::middleware('hrmac:platform-users.landlord-user-list.edit')->group(function () {
-                Route::put('/{user}', [LandlordUserController::class, 'update'])->name('update')->withTrashed();
-                Route::patch('/{user}/toggle-status', [LandlordUserController::class, 'toggleStatus'])->name('toggle-status')->withTrashed();
-            });
-            Route::middleware('hrmac:platform-users.landlord-user-list.delete')
-                ->delete('/{user}', [LandlordUserController::class, 'destroy'])->name('destroy')->withTrashed();
+            $platformUserCtx = [
+                'hrmac_route_prefix' => 'platform.admin.users',
+                'hrmac_namespace' => 'auth.user_management',
+                'hrmac_scope' => 'platform',
+                'hrmac_dashboard_route' => 'platform.admin.dashboard',
+                'hrmac_user_impersonation' => true,
+                'hrmac_user_invitations' => false,
+            ];
+
+            Route::get('/', [UserAdminController::class, 'index'])->name('index')
+                ->middleware('hrmac:auth.user_management.users.view')
+                ->setDefaults($platformUserCtx + ['hrmac_user_view' => 'Shared/UserManagement/Users/Index']);
+            Route::get('/create', [UserAdminController::class, 'create'])->name('create')
+                ->middleware('hrmac:auth.user_management.users.create')
+                ->setDefaults($platformUserCtx + ['hrmac_user_create_view' => 'Shared/UserManagement/Users/Create']);
+            Route::post('/', [UserAdminController::class, 'store'])->name('store')
+                ->middleware('hrmac:auth.user_management.users.create');
+            Route::get('/{id}', [UserAdminController::class, 'show'])->name('show')->whereNumber('id')
+                ->middleware('hrmac:auth.user_management.users.view')
+                ->setDefaults($platformUserCtx + ['hrmac_user_show_view' => 'Shared/UserManagement/Users/Show']);
+            Route::get('/{id}/edit', [UserAdminController::class, 'edit'])->name('edit')->whereNumber('id')
+                ->middleware('hrmac:auth.user_management.users.edit')
+                ->setDefaults($platformUserCtx + ['hrmac_user_edit_view' => 'Shared/UserManagement/Users/Edit']);
+            Route::put('/{id}', [UserAdminController::class, 'update'])->name('update')->whereNumber('id')
+                ->middleware('hrmac:auth.user_management.users.edit');
+            Route::patch('/{id}/toggle-status', [UserAdminController::class, 'toggleStatus'])->name('toggle-status')->whereNumber('id')
+                ->middleware('hrmac:auth.user_management.users.edit');
+            Route::delete('/{id}', [UserAdminController::class, 'destroy'])->name('destroy')->whereNumber('id')
+                ->middleware('hrmac:auth.user_management.users.delete');
+            Route::post('/{id}/impersonate', [UserAdminController::class, 'impersonate'])->name('impersonate')->whereNumber('id')
+                ->middleware('hrmac:auth.user_management.users.impersonate')
+                ->defaults('hrmac_user_impersonation', true);
+            Route::post('/bulk/delete', [UserAdminController::class, 'bulkDelete'])->name('bulk.delete')
+                ->middleware('hrmac:auth.user_management.users.bulk_delete');
+            Route::post('/bulk/toggle-status', [UserAdminController::class, 'bulkToggleStatus'])->name('bulk.toggle-status')
+                ->middleware('hrmac:auth.user_management.users.edit');
         });
 
         // Platform roles — the SAME HRMAC RoleController the tenant side uses
@@ -1395,15 +1421,25 @@ Route::middleware('admin.domain')->group(function () {
         // a role is edited through the HRMAC module-access surface, not a JSON picker.
         Route::prefix('roles')->name('platform.admin.roles.')
             ->group(function () {
-                Route::middleware('hrmac:platform-users.landlord-roles.view')
+                // Renders the shared Pages/Shared/AccessControl/Roles/Index (platform
+                // context), driven by route defaults. Access-control HRMAC lives in aero-hrmac.
+                Route::middleware('hrmac:hrmac.roles_permissions.roles.view')
                     ->get('/', [RoleController::class, 'index'])
-                    ->defaults('hrmac_role_view', 'Platform/Admin/Roles/Index')
+                    ->defaults('hrmac_role_view', 'Shared/AccessControl/Roles/Index')
+                    ->defaults('hrmac_route_prefix', 'platform.admin.roles')
+                    ->defaults('hrmac_module_access_prefix', 'platform.admin.modules')
+                    ->defaults('hrmac_namespace', 'hrmac.roles_permissions')
+                    ->defaults('hrmac_scope', 'platform')
+                    ->defaults('hrmac_dashboard_route', 'platform.admin.dashboard')
                     ->name('index');
-                Route::middleware('hrmac:platform-users.landlord-roles.manage')->group(function () {
-                    Route::post('/', [RoleController::class, 'store'])->name('store');
-                    Route::put('/{role}', [RoleController::class, 'update'])->name('update');
-                    Route::delete('/{role}', [RoleController::class, 'destroy'])->name('destroy');
-                });
+                Route::middleware('hrmac:hrmac.roles_permissions.roles.create')
+                    ->post('/', [RoleController::class, 'store'])->name('store');
+                Route::middleware('hrmac:hrmac.roles_permissions.roles.edit')
+                    ->put('/{role}', [RoleController::class, 'update'])->name('update');
+                Route::middleware('hrmac:hrmac.roles_permissions.roles.delete')
+                    ->delete('/{role}', [RoleController::class, 'destroy'])->name('destroy');
+                Route::middleware('hrmac:hrmac.roles_permissions.roles.assign')
+                    ->post('/assign-user', [RoleController::class, 'assignUser'])->name('assign-user');
             });
 
         // Module Management (P-4)
@@ -1416,6 +1452,13 @@ Route::middleware('admin.domain')->group(function () {
                 ->put('/{module}/config', [ModuleAdminController::class, 'configure'])->name('configure');
             Route::middleware('hrmac:module-management.module-pricing.edit')
                 ->put('/{module}/pricing', [ModuleAdminController::class, 'updatePricing'])->name('pricing');
+
+            // Per-role module-access data contract for the shared RBAC access Drawer
+            // (platform context). Backed by the shared aero-hrmac ModuleController.
+            Route::middleware('hrmac:hrmac.roles_permissions.module_access.view')
+                ->get('/role-access/{roleId}', [HrmacModuleController::class, 'getRoleAccess'])->name('role-access.show');
+            Route::middleware('hrmac:hrmac.roles_permissions.module_access.configure')
+                ->post('/role-access/{roleId}/sync', [HrmacModuleController::class, 'syncRoleAccess'])->name('role-access.sync');
         });
 
         // =========================================================================
