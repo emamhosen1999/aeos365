@@ -7,33 +7,34 @@ namespace Aero\Platform\Http\Controllers\Admin;
 use Aero\Platform\Http\Controllers\Controller;
 use Aero\Platform\Models\Module;
 use Aero\Platform\Services\ModuleAdminService;
+use Aero\Platform\Services\ModuleRegistryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 /**
- * P-4 Module Admin Controller
+ * Modules (registry) controller — the TECHNICAL module surface.
  *
- * Manages the platform-wide product catalog (which modules are sellable,
- * their default config, and pricing).
+ * Presents the shipped module registry: HRMAC hierarchy depth (sub-modules /
+ * components / actions), core-vs-sellable, dependencies and sync health. Pricing
+ * and productisation live on the Products (Catalog) page, not here.
  *
- * ARCH NOTE: This controller manages catalog availability only.
- * Toggling a module inactive does NOT cancel existing tenant ProductSubscription
- * rows — that is handled by the Subscriptions admin (P-2).
- *
- * Route prefix: /admin/p4/modules
- * Route names:  platform.admin.p4modules.*
+ * ARCH NOTE: Toggling a module inactive is a registry flag only; it does NOT
+ * cancel existing tenant ProductSubscription rows (handled by Subscriptions).
  */
 class ModuleAdminController extends Controller
 {
-    public function __construct(private ModuleAdminService $svc) {}
+    public function __construct(
+        private ModuleAdminService $svc,
+        private ModuleRegistryService $registry,
+    ) {}
 
     public function index(): Response
     {
-        return Inertia::render('Platform/Admin/Modules/Index', [
-            'modules' => $this->svc->list(),
-        ]);
+        return Inertia::render('Platform/Admin/Modules/Index', $this->registry->overview());
     }
 
     public function toggle(Module $module): RedirectResponse
@@ -54,15 +55,21 @@ class ModuleAdminController extends Controller
         return back()->with('success', 'Module configured.');
     }
 
-    public function updatePricing(Request $request, Module $module): RedirectResponse
+    /**
+     * Re-run the module-registry sync (aero:sync-module) so the HRMAC hierarchy
+     * matches the packages' config/module.php after a deploy or config change.
+     * Synchronous — the sync completes in ~2s and the admin expects a fresh page.
+     */
+    public function resync(): RedirectResponse
     {
-        $data = $request->validate([
-            'price_monthly' => ['required', 'numeric', 'min:0'],
-            'price_annual' => ['required', 'numeric', 'min:0'],
-        ]);
+        try {
+            $exit = Artisan::call('aero:sync-module', ['--scope' => 'platform']);
+        } catch (Throwable $e) {
+            return back()->with('error', 'Registry sync failed: '.$e->getMessage());
+        }
 
-        $this->svc->updatePricing($module, (float) $data['price_monthly'], (float) $data['price_annual']);
-
-        return back()->with('success', 'Pricing updated.');
+        return $exit === 0
+            ? back()->with('success', 'Module registry re-synced.')
+            : back()->with('error', "Registry sync returned exit code {$exit}.");
     }
 }

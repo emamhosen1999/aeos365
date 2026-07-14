@@ -11,6 +11,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { cx } from './Primitives.jsx';
 import * as HeroIcons from '@heroicons/react/24/outline';
 import { useTheme } from '../theme/ThemeProvider.jsx';
+import { BrandLockup } from './AppChrome.jsx';
 
 const resolvePublicIcon = (ico) => {
   if (!ico) return null;
@@ -380,22 +381,8 @@ export function PublicHeader({ navLinks = [], ctaLinks = [], loginHref, announce
         {/* Logo / Home */}
         {logo ? logo : (
           <Link href="/" className="aeos-pub-logo-link" aria-label="aeos365 home">
-            <div className="aeos-pub-logo-mark">
-              <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true">
-                <rect width="30" height="30" rx="8" fill="url(#pub-logo-grad)" />
-                <path d="M9 21L15 9l6 12H9z" fill="white" fillOpacity=".92" />
-                <defs>
-                  <linearGradient id="pub-logo-grad" x1="0" y1="0" x2="30" y2="30">
-                    <stop stopColor="var(--aeos-primary)" />
-                    <stop offset="1" stopColor="var(--aeos-tertiary)" />
-                  </linearGradient>
-                </defs>
-              </svg>
-            </div>
-            <div className="aeos-pub-logo-text">
-              <span className="aeos-pub-logo-name">aeos365</span>
-              <span className="aeos-pub-logo-sub">ENTERPRISE SUITE</span>
-            </div>
+            {/* Full lockup image — wide surface, never composed mark + text */}
+            <BrandLockup className="aeos-pub-logo-img" />
           </Link>
         )}
 
@@ -615,19 +602,8 @@ export function PublicFooter({ brand = {}, linkColumns = [], socialLinks = [], n
         <div className="aeos-pub-footer-top">
           <div className="aeos-pub-footer-brand">
             <Link href="/" className="aeos-pub-logo-link" aria-label="Home">
-              <div className="aeos-pub-logo-mark">
-                <svg width="28" height="28" viewBox="0 0 30 30" fill="none" aria-hidden="true">
-                  <rect width="30" height="30" rx="8" fill="url(#pub-footer-grad)" />
-                  <path d="M9 21L15 9l6 12H9z" fill="white" fillOpacity=".92" />
-                  <defs>
-                    <linearGradient id="pub-footer-grad" x1="0" y1="0" x2="30" y2="30">
-                      <stop stopColor="var(--aeos-primary)" />
-                      <stop offset="1" stopColor="var(--aeos-tertiary)" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-              </div>
-              <span className="aeos-pub-logo-name">{brand.name ?? 'aeos365'}</span>
+              {/* Full lockup image — wide surface, never composed mark + text */}
+              <BrandLockup className="aeos-pub-logo-img" />
             </Link>
             {brand.tagline && <p className="aeos-pub-footer-tagline">{brand.tagline}</p>}
             {socialLinks.length > 0 && (

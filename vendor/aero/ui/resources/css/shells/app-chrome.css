@@ -5,6 +5,41 @@
 
 .aeos-logo-svg { display: block; flex-shrink: 0; }
 
+/* White-label brand switch — every shell shows the full lockup by default
+   (topnav, command, expanded sidebar); ONLY the collapsed sidebar rail is
+   narrow enough to demand the square icon instead. */
+.aeos-brand-icon {
+  display: none; flex-shrink: 0;
+  width: 28px; height: 28px; object-fit: contain;
+}
+.aeos-brand-img {
+  display: block; flex-shrink: 0;
+  max-height: 34px; max-width: 150px;
+  object-fit: contain;
+}
+/* Anchor to .aeos-app-chrome-active (the shell div) — ThemeProvider also stamps
+   data-aeos-shell on <body>, which never gets .sidebar-expanded, so an unanchored
+   :not(.sidebar-expanded) matches through body and hides the lockup permanently. */
+[data-aeos-shell="sidebar"].aeos-app-chrome-active:not(.sidebar-expanded):not(.mobile-open) .aeos-brand-icon,
+[data-aeos-shell="floating"].aeos-app-chrome-active:not(.sidebar-expanded):not(.mobile-open) .aeos-brand-icon { display: block; }
+[data-aeos-shell="sidebar"].aeos-app-chrome-active:not(.sidebar-expanded):not(.mobile-open) .aeos-brand-img,
+[data-aeos-shell="floating"].aeos-app-chrome-active:not(.sidebar-expanded):not(.mobile-open) .aeos-brand-img { display: none; }
+
+/* Brand wordmark — shown everywhere except the collapsed sidebar rail */
+.aeos-brand-word {
+  display: inline-block;
+  font-family: var(--aeos-font-display);
+  font-size: 1.05rem; font-weight: 700;
+  letter-spacing: -0.01em; line-height: 1;
+  color: var(--aeos-text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 150px;
+}
+.aeos-brand-word em { font-style: normal; font-weight: 300; color: #FF7A1F; }
+[data-aeos-shell="sidebar"].aeos-app-chrome-active:not(.sidebar-expanded):not(.mobile-open) .aeos-brand-word,
+[data-aeos-shell="floating"].aeos-app-chrome-active:not(.sidebar-expanded):not(.mobile-open) .aeos-brand-word { display: none; }
+.aeos-app-brand { gap: 10px; }
+
 .aeos-app-brand {
   display: flex; align-items: center; justify-content: center;
   width: 100%; padding: var(--aeos-space-2) 0;

@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Steps, ThemeToggle, Text } from '@aero/ui';
+import { Steps, ThemeToggle, Text, BrandLockup } from '@aero/ui';
 
 export default function RegistrationLayout({ title, currentStep, steps = [], wide = false, children }) {
   return (
@@ -12,19 +12,8 @@ export default function RegistrationLayout({ title, currentStep, steps = [], wid
         {/* ── Brand header ── */}
         <header className="rl-brand">
           <Link href="/" className="rl-brand-link" aria-label="aeos365 home">
-            <span className="rl-logo-mark">
-              <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true">
-                <rect width="30" height="30" rx="8" fill="url(#rl-grad)" />
-                <path d="M9 21L15 9l6 12H9z" fill="white" fillOpacity=".92" />
-                <defs>
-                  <linearGradient id="rl-grad" x1="0" y1="0" x2="30" y2="30">
-                    <stop stopColor="var(--aeos-primary, #00E5FF)" />
-                    <stop offset="1" stopColor="var(--aeos-tertiary, #6366F1)" />
-                  </linearGradient>
-                </defs>
-              </svg>
-            </span>
-            <span className="aeos-logo-text rl-brand-name">aeos365</span>
+            {/* Full lockup image — wide surface, never composed mark + text */}
+            <BrandLockup className="rl-brand-logo" />
           </Link>
           <div className="rl-brand-actions">
             <ThemeToggle />
@@ -163,12 +152,16 @@ export default function RegistrationLayout({ title, currentStep, steps = [], wid
         }
         .rl-logo-mark {
           display: flex; align-items: center;
+          color: var(--aeos-text-primary);
           filter: drop-shadow(0 0 14px rgba(0,229,255,.35));
         }
         .rl-brand-name {
           font-family: var(--aeos-font-display);
           font-weight: 700; font-size: 1.1rem;
           color: var(--aeos-text-primary);
+        }
+        .rl-brand-logo {
+          display: block; max-height: 34px; max-width: 180px; object-fit: contain;
         }
         .rl-brand-actions { display: flex; align-items: center; gap: 12px; }
 

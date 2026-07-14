@@ -1,5 +1,6 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { useTheme } from '../../theme/ThemeProvider.jsx';
+import { BrandLockup } from '../../components/AppChrome.jsx';
 
 /**
  * AuthLayout — centred full-viewport shell for all auth pages.
@@ -17,30 +18,32 @@ export default function AuthLayout({ title, eyebrow, children }) {
   const theme = useTheme();
   const isDark = theme.isDark;
 
+  // White-label: the workspace's configured brand, falling back to Meridian
+  const { branding } = usePage().props;
+  const brandName = branding?.name || 'aeos365';
+  const loginBg = branding?.login_background || null;
+
   return (
     <>
-      <Head title={`${title} · aeos365`} />
+      <Head title={`${title} · ${brandName}`} />
 
       <div className="al-root">
-        {/* Ambient gradient mesh */}
-        <div className="al-mesh" aria-hidden="true" />
+        {/* Custom login background (white-label) or the ambient gradient mesh */}
+        {loginBg ? (
+          <div
+            className="al-login-bg"
+            style={{ backgroundImage: `url(${loginBg})` }}
+            aria-hidden="true"
+          />
+        ) : (
+          <div className="al-mesh" aria-hidden="true" />
+        )}
 
         {/* Brand header with theme toggle */}
         <header className="al-brand">
-          <Link href="/" className="al-brand-link" aria-label="aeos365 home">
-            <span className="al-logo-mark">
-              <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true">
-                <rect width="30" height="30" rx="8" fill="url(#al-grad)" />
-                <path d="M9 21L15 9l6 12H9z" fill="white" fillOpacity=".92" />
-                <defs>
-                  <linearGradient id="al-grad" x1="0" y1="0" x2="30" y2="30">
-                    <stop stopColor="var(--aeos-primary, #00E5FF)" />
-                    <stop offset="1" stopColor="var(--aeos-tertiary, #6366F1)" />
-                  </linearGradient>
-                </defs>
-              </svg>
-            </span>
-            <span className="aeos-logo-text">aeos365</span>
+          <Link href="/" className="al-brand-link" aria-label={`${brandName} home`}>
+            {/* Full lockup — uploaded white-label image → Meridian lockup image */}
+            <BrandLockup className="al-brand-logo" />
           </Link>
 
           <button
@@ -81,7 +84,7 @@ export default function AuthLayout({ title, eyebrow, children }) {
         {/* Footer */}
         <footer className="al-footer">
           <span className="aeos-text-xs aeos-text-tertiary">
-            © {new Date().getFullYear()} aeos365
+            © {new Date().getFullYear()} {brandName}
           </span>
         </footer>
       </div>
@@ -101,6 +104,15 @@ export default function AuthLayout({ title, eyebrow, children }) {
            ThemeProvider still runs (no data-no-theme) so CSS variables
            like --aeos-bg-page update correctly for dark/light mode. */
         body[data-aeos-shell] { display: block !important; }
+        .al-login-bg {
+          position: fixed; inset: 0; pointer-events: none; z-index: 0;
+          background-size: cover; background-position: center;
+        }
+        /* Scrim keeps the card readable over any uploaded image */
+        .al-login-bg::after {
+          content: ''; position: absolute; inset: 0;
+          background: color-mix(in srgb, var(--aeos-bg-page) 62%, transparent);
+        }
         .al-mesh {
           position: fixed; inset: 0; pointer-events: none; z-index: 0;
           background:
@@ -123,6 +135,9 @@ export default function AuthLayout({ title, eyebrow, children }) {
         .al-logo-mark {
           display: flex; align-items: center;
           filter: drop-shadow(0 0 14px rgba(0,229,255,.35));
+        }
+        .al-brand-logo {
+          display: block; max-height: 34px; max-width: 180px; object-fit: contain;
         }
         .al-theme-toggle {
           display: inline-flex; align-items: center; justify-content: center;

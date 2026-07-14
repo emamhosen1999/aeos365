@@ -65,6 +65,7 @@ use Aero\Platform\Http\Middleware\SmartLandingRedirect;
 use Aero\Platform\Http\Middleware\TenantSuperAdmin;
 use Aero\Platform\Http\Middleware\TrustHosts;
 use Aero\Platform\Listeners\ReactivateRoleAccessOnResubscribe;
+use Aero\Platform\Listeners\RecordProductEntitlementLedger;
 use Aero\Platform\Listeners\ResyncTenantModuleCatalog;
 use Aero\Platform\Listeners\SuspendUnsubscribedRoleAccess;
 use Aero\Platform\Listeners\TenantCreatedListener;
@@ -227,6 +228,16 @@ class AeroPlatformServiceProvider extends ServiceProvider
             \Aero\Platform\Services\TenantSubscriptionModuleFilter::class
         );
 
+        // Notification branding: rebind over core's tenant-only resolver with the
+        // FULL SaaS chain (tenant → central TenantBranding → platform → Meridian).
+        // Standalone never boots this provider, so it keeps CoreBrandingResolver.
+        if (interface_exists(\Aero\Notifications\Contracts\BrandingResolver::class)) {
+            $this->app->singleton(
+                \Aero\Notifications\Contracts\BrandingResolver::class,
+                \Aero\Platform\Services\Notifications\SaasBrandingResolver::class
+            );
+        }
+
         // Register Module Access Services with fallback stubs for pre-install
         // These services are lazy-loaded to avoid DB queries before installation
         // The RoleModuleAccessInterface (Aero\Contracts) is the single binding key
@@ -279,6 +290,18 @@ class AeroPlatformServiceProvider extends ServiceProvider
 
         $this->app->singleton(ErrorLogService::class);
         $this->app->singleton(SslCommerzService::class);
+
+        // Aeon AI control plane: tenant-facing assistant reads provider/models/
+        // key/limits from platform_settings.ai_settings via this contract.
+        $this->app->singleton(
+            \Aero\Contracts\Ai\AeonSettingsContract::class,
+            \Aero\Platform\Ai\PlatformAeonSettings::class,
+        );
+        // AI quota for the current tenant (plan allowance, metered per month).
+        $this->app->singleton(
+            \Aero\Contracts\Ai\AeonQuotaContract::class,
+            \Aero\Platform\Ai\PlatformAeonQuota::class,
+        );
 
         $this->app->singleton(ProductAccessService::class);
         $this->app->singleton(ProductSubscriptionService::class);
@@ -378,6 +401,9 @@ class AeroPlatformServiceProvider extends ServiceProvider
         ProductSubscription::observe(ProductSubscriptionObserver::class);
         Event::listen(ProductSubscriptionChanged::class, ResyncTenantModuleCatalog::class);
 
+        // Append grant/revoke rows to the tenant_entitlements audit ledger.
+        Event::listen(ProductSubscriptionChanged::class, RecordProductEntitlementLedger::class);
+
         // Audit D17 — soft-suspend role grants on unsubscribe; restore on re-subscribe.
         // SuspendUnsubscribedRoleAccess marks rows suspended (30-day grace; no access at runtime).
         // ReactivateRoleAccessOnResubscribe flips them back to active within the grace window.
@@ -472,8 +498,14 @@ class AeroPlatformServiceProvider extends ServiceProvider
                 ExpireGracePeriods::class,
                 PurgeSuspendedRoleAccess::class, // D17: daily hard-delete after 30-day grace
                 \Aero\Platform\Console\Commands\DemoResetCommand::class,
+                \Aero\Platform\Console\Commands\RollupAeonUsage::class, // AI fleet usage summary
             ]);
         }
+
+        // Nightly AI usage roll-up → central aeon_tenant_usage (fleet console reads it).
+        $this->callAfterResolving(\Illuminate\Console\Scheduling\Schedule::class, function ($schedule) {
+            $schedule->command('aeon:rollup')->hourly();
+        });
 
         // Register platform navigation with NavigationRegistry
         // This allows HandleInertiaRequests to share navigation via Inertia props
@@ -578,18 +610,35 @@ class AeroPlatformServiceProvider extends ServiceProvider
 
             // Get submodule icon for fallback
             $submoduleIcon = $submodule['icon'] ?? 'FolderIcon';
-            $components = $submodule['components'] ?? [];
+            // Component-level nav suppression: a component may exist for HRMAC
+            // (permission node) yet be hidden from the sidebar — used when a
+            // command centre subsumes former sub-pages but their actions still
+            // gate routes.
+            $components = array_values(array_filter(
+                $submodule['components'] ?? [],
+                fn ($c) => ($c['show_in_nav'] ?? true) !== false
+            ));
 
-            // If submodule has only ONE component, use it directly as the menu item
-            if (count($components) === 1) {
-                $component = $components[0];
+            // Resolve the IA section for this submodule from the package's own
+            // config (explicit nav_section, else the nav_section_map keyed by the
+            // first route segment). Core aggregates this generically.
+            $navRoute = $submodule['route'] ?? ($components[0]['route'] ?? '');
+            $navSeg = strtolower(trim(explode('/', ltrim((string) $navRoute, '/'))[0] ?? ''));
+            $navSection = $submodule['nav_section'] ?? ($config['nav_section_map'][$navSeg] ?? null);
+
+            // If a submodule exposes ONE nav component (or none — e.g. a command
+            // centre that subsumed its sub-pages, leaving only hidden HRMAC
+            // components), it becomes a single flat menu item on the module route.
+            if (count($components) <= 1) {
+                $component = $components[0] ?? null;
                 $submoduleNav[] = [
                     'name' => $submodule['name'] ?? ucfirst($submoduleCode),
                     'path' => $component['route'] ?? $submodule['route'] ?? null,
                     'icon' => $component['icon'] ?? $submoduleIcon,
-                    'access' => 'platform.'.$submoduleCode.'.'.($component['code'] ?? ''),
+                    'access' => 'platform.'.$submoduleCode.($component ? '.'.($component['code'] ?? '') : ''),
                     'priority' => $submodule['priority'] ?? 100,
                     'type' => $component['type'] ?? 'page',
+                    'nav_section' => $navSection,
                     // No children - single component becomes the page
                 ];
             } else {
@@ -613,12 +662,16 @@ class AeroPlatformServiceProvider extends ServiceProvider
                     'access' => 'platform.'.$submoduleCode,
                     'priority' => $submodule['priority'] ?? 100,
                     'children' => $componentNav, // Include children for submenu
+                    'nav_section' => $navSection,
                 ];
             }
         }
 
         // Sort submodules by priority
         usort($submoduleNav, fn ($a, $b) => ($a['priority'] ?? 100) <=> ($b['priority'] ?? 100));
+
+        // Publish this package's section catalog to the generic aggregator.
+        $registry->registerSections('platform', $config['nav_sections'] ?? []);
 
         // Register platform navigation with highest priority (0)
         // Platform is is_core=true so its children flatten to top level in admin context

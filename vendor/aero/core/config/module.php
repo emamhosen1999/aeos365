@@ -28,6 +28,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Navigation IA — core (tenant) sections, package-owned
+    |--------------------------------------------------------------------------
+    | Core sections always render at the TOP of the tenant/standalone nav;
+    | subscribed products render their own section headers BELOW these.
+    */
+    'nav_sections' => [
+        ['key' => 'access', 'label' => 'People & Access',    'icon' => 'UserGroupIcon',  'order' => 20],
+        ['key' => 'cd',     'label' => 'Content & Data',     'icon' => 'FolderIcon',     'order' => 40],
+        ['key' => 'cm',     'label' => 'Communications',     'icon' => 'EnvelopeIcon',   'order' => 50],
+        ['key' => 'mh',     'label' => 'Monitoring & Health','icon' => 'HeartIcon',      'order' => 60],
+        ['key' => 'cf',     'label' => 'Configuration',      'icon' => 'Cog6ToothIcon',  'order' => 70],
+        ['key' => 'bill',   'label' => 'Billing',            'icon' => 'CreditCardIcon', 'order' => 80],
+    ],
+    'nav_section_map' => [
+        'organization' => 'access', 'users' => 'access', 'roles' => 'access', 'profile' => 'access',
+        'files' => 'cd', 'file-manager' => 'cd', 'i18n' => 'cd', 'tags' => 'cd', 'saved-views' => 'cd', 'search' => 'cd', 'export-import' => 'cd', 'numbering' => 'cd', 'print-templates' => 'cd',
+        'notifications' => 'cm', 'email' => 'cm', 'announcements' => 'cm',
+        'audit-logs' => 'mh', 'activity' => 'mh', 'system-health' => 'mh', 'retention-policies' => 'mh', 'trash' => 'mh',
+        'settings' => 'cf', 'api' => 'cf', 'backup' => 'cf', 'license' => 'cf', 'mobile-pwa' => 'cf', 'maintenance-mode' => 'cf', 'help' => 'cf',
+        'subscription' => 'bill',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Self-Service Navigation Items
     |--------------------------------------------------------------------------
     |
@@ -483,8 +507,9 @@ return [
             'priority' => 99,
 
             // Collapse the 9 settings pages into a single "Settings" nav link →
-            // /settings/system. The unified in-page SettingsLayout rail owns
-            // sub-navigation; the component actions below still define HRMAC perms.
+            // /settings/system. The unified Settings command center
+            // (Core/Settings/Index) owns the grouped in-page section rail; the
+            // component actions below still define HRMAC perms per section.
             'collapse_nav' => true,
 
             'components' => [
@@ -612,9 +637,10 @@ return [
             'route' => '/organization/profile',
             'priority' => 9,
             // collapse_nav: render as a single "Organization" leaf link instead of
-            // /organization/profile + 4 siblings. The unified in-page
-            // OrganizationLayout rail owns sub-navigation; the component actions
-            // below still define HRMAC perms. Honored in BOTH registration paths
+            // /organization/profile + 4 siblings. The unified Organization command
+            // center (Core/Organization/Index) owns in-page section tabs; the
+            // component actions below still define HRMAC perms per section.
+            // Honored in BOTH registration paths
             // (AbstractModuleProvider::registerNavigation + AeroCoreServiceProvider::
             // registerCoreNavigation — last-wins, see Settings root cause).
             'collapse_nav' => true,

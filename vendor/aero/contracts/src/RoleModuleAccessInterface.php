@@ -24,6 +24,15 @@ interface RoleModuleAccessInterface
 
     public function userCanAccessModule(mixed $user, string $moduleCode): bool;
 
+    /**
+     * The user's effective DATA scope for a module: 'all' | 'department' | 'team' | 'own'.
+     *
+     * Access answers "may they open this module"; scope answers "which rows may they
+     * see inside it". A user holding several roles gets the BROADEST scope any of them
+     * grants. Implementations must fail closed — return 'own' when nothing is granted.
+     */
+    public function getUserModuleScope(mixed $user, string $moduleCode): string;
+
     public function userCanAccessSubModule(mixed $user, string $moduleCode, string $subModuleCode): bool;
 
     public function userCanAccessAction(mixed $user, string $moduleCode, string $subModuleCode, string $actionCode): bool;

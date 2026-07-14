@@ -1,247 +1,342 @@
 /**
- * Notifications Center — paginated notification list with read/unread/all tabs,
- * mark-as-read, mark-all-read, and delete actions.
+ * Notifications command centre.
  *
- * Uses Inertia page shell with JSON API fetch for notification data.
+ * One page owns the whole surface: inbox, delivery log, bounces, suppression,
+ * deliverability, templates, channels and per-user preferences. Replaces five
+ * scattered pages plus two endpoints that returned raw JSON to an Inertia visit
+ * (the bell in AppChrome navigates here — it used to land on a JSON dump).
+ *
+ * Backend: NotificationCenterController. Every write is HRMAC-gated on the route;
+ * the `can` map only decides what this UI bothers to render.
  */
-import { useState, useEffect, useCallback } from 'react';
-import {
-  IndexPageLayout,
-  Tabs,
-  DataTable,
-  Button, IconButton,
-  Badge,
-  Pagination,
-  HStack, VStack, Text,
-  EmptyState,
-  useToast,
-} from '@aero/ui';
+import { useState } from 'react';
+import { router } from '@inertiajs/react';
+import { Card, CardBody, WbDrawer, useToast } from '@aero/ui';
 import App from '@/Pages/App.jsx';
-import { useHRMAC } from '../../../hooks/useHRMAC';
 
-const TAB_ALL = 'all';
-const TAB_UNREAD = 'unread';
-const TAB_READ = 'read';
+import '../../Platform/Admin/Products/products.css';
+import '../AuditLogs/audit.css';
+import './notifications.css';
 
-export default function NotificationsIndex() {
-  const toast = useToast();
-  const canMarkRead = useHRMAC('core.self_service.my-notifications.mark_read');
-  const canDelete = useHRMAC('core.self_service.my-notifications.view');
+import {
+  InboxTab, LogTab, BouncesTab, SuppressionTab,
+  DeliverabilityTab, TemplatesTab, ChannelsTab, PreferencesTab, fmtTime,
+} from './tabs.jsx';
 
-  const [activeTab, setActiveTab] = useState(TAB_ALL);
-  const [notifications, setNotifications] = useState([]);
-  const [meta, setMeta] = useState({ current_page: 1, last_page: 1, per_page: 15, total: 0 });
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(false);
+const TABS = [
+  { id: 'inbox', label: 'Inbox' },
+  { id: 'log', label: 'Delivery log' },
+  { id: 'bounces', label: 'Bounces' },
+  { id: 'suppression', label: 'Suppression' },
+  { id: 'deliverability', label: 'Deliverability' },
+  { id: 'templates', label: 'Templates' },
+  { id: 'channels', label: 'Channels' },
+  { id: 'preferences', label: 'Preferences' },
+];
 
-  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-
-  const fetchNotifications = useCallback(async (page = 1, filter = activeTab) => {
-    setLoading(true);
-    const params = new URLSearchParams();
-    params.append('per_page', '15');
-    params.append('page', String(page));
-    if (filter !== TAB_ALL) params.append('filter', filter);
-
-    try {
-      const res = await fetch(`${route('core.notifications.list')}?${params.toString()}`, {
-        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data.data ?? []);
-        setMeta(data.meta ?? { current_page: 1, last_page: 1, per_page: 15, total: 0 });
-        setUnreadCount(data.unread_count ?? 0);
-      } else {
-        toast.error('Failed to load notifications.');
-        setNotifications([]);
-      }
-    } catch {
-      toast.error('Network error while loading notifications.');
-      setNotifications([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeTab, toast]);
-
-  useEffect(() => {
-    fetchNotifications(1, activeTab);
-  }, [fetchNotifications, activeTab]);
-
-  const handlePageChange = (page) => {
-    fetchNotifications(page, activeTab);
-  };
-
-  const markAsRead = async (id) => {
-    try {
-      const res = await fetch(route('core.notifications.read', id), {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'X-CSRF-TOKEN': csrf,
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUnreadCount(data.unread_count ?? 0);
-        setNotifications(prev => prev.map(n =>
-          n.id === id ? { ...n, read_at: new Date().toISOString() } : n
-        ));
-        toast.success('Marked as read.');
-      }
-    } catch {
-      toast.error('Failed to mark as read.');
-    }
-  };
-
-  const markAllAsRead = async () => {
-    try {
-      const res = await fetch(route('core.notifications.read-all'), {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'X-CSRF-TOKEN': csrf,
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUnreadCount(data.unread_count ?? 0);
-        setNotifications(prev => prev.map(n => ({ ...n, read_at: new Date().toISOString() })));
-        toast.success(data.message || 'All notifications marked as read.');
-      }
-    } catch {
-      toast.error('Failed to mark all as read.');
-    }
-  };
-
-  const deleteNotification = async (id) => {
-    try {
-      const res = await fetch(route('core.notifications.destroy', id), {
-        method: 'DELETE',
-        headers: {
-          Accept: 'application/json',
-          'X-CSRF-TOKEN': csrf,
-        },
-      });
-      if (res.ok) {
-        setNotifications(prev => prev.filter(n => n.id !== id));
-        toast.success('Notification deleted.');
-      }
-    } catch {
-      toast.error('Failed to delete notification.');
-    }
-  };
-
-  const columns = [
-    {
-      key: 'read_status',
-      label: '',
-      width: '40px',
-      render: (row) => (
-        <div style={{
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          backgroundColor: row.read_at ? 'transparent' : 'var(--color-primary)',
-          border: row.read_at ? '1px solid var(--color-muted)' : 'none',
-        }} />
-      ),
-    },
-    { key: 'type', label: 'Type', width: '15%', render: (row) => <Badge>{row.type || 'Notification'}</Badge> },
-    {
-      key: 'data',
-      label: 'Message',
-      width: '45%',
-      render: (row) => {
-        const message = row.data?.message || row.data?.title || JSON.stringify(row.data).slice(0, 60);
-        return (
-          <Text weight={row.read_at ? 'normal' : 'semibold'}>
-            {message}
-          </Text>
-        );
-      },
-    },
-    {
-      key: 'created_at',
-      label: 'Time',
-      width: '18%',
-      render: (row) => row.created_at ? new Date(row.created_at).toLocaleString() : '—',
-    },
-    {
-      key: 'actions',
-      label: '',
-      width: '22%',
-      align: 'right',
-      render: (row) => (
-        <HStack gap={2} justify="end">
-          {!row.read_at && canMarkRead && (
-            <Button variant="secondary" size="sm" onClick={() => markAsRead(row.id)}>
-              Mark Read
-            </Button>
-          )}
-          {canDelete && (
-            <Button variant="danger" size="sm" onClick={() => deleteNotification(row.id)}>
-              Delete
-            </Button>
-          )}
-        </HStack>
-      ),
-    },
-  ];
-
-  const tabs = [
-    { value: TAB_ALL, label: 'All', count: meta.total },
-    { value: TAB_UNREAD, label: 'Unread', count: unreadCount },
-    { value: TAB_READ, label: 'Read' },
-  ];
+/* ------------------------------------------------------------------- rail */
+function Rail({ stats }) {
+  const s = stats ?? {};
+  const rate = s.deliveryRate;
 
   return (
-    <IndexPageLayout
-      title="Notifications"
-      breadcrumb={[
-        { label: 'Dashboard', href: route('core.dashboard') },
-        { label: 'Notifications' },
-      ]}
-      description="View and manage your notifications."
-      actions={
-        unreadCount > 0 && canMarkRead && (
-          <Button variant="primary" onClick={markAllAsRead}>
-            Mark All as Read ({unreadCount})
-          </Button>
-        )
-      }
-      filters={
-        <Tabs
-          tabs={tabs}
-          value={activeTab}
-          onChange={setActiveTab}
-        />
-      }
-      table={
-        <DataTable
-          columns={columns}
-          rows={notifications}
-          loading={loading}
-          empty={
-            loading
-              ? 'Loading notifications...'
-              : 'No notifications found.'
-          }
-        />
-      }
-      pagination={
-        meta.last_page > 1 && (
-          <Pagination
-            page={meta.current_page}
-            total={meta.last_page}
-            onChange={handlePageChange}
-          />
-        )
-      }
-    />
+    <div className="nc-rail">
+      <div>
+        <div className="nc-rail__h">Live now</div>
+        <div className="nc-rail__rows">
+          <div className="nc-rail__row"><span>Unread</span><b>{s.unread ?? 0}</b></div>
+          <div className="nc-rail__row"><span>Queued</span><b>{s.queued ?? 0}</b></div>
+          <div className="nc-rail__row"><span>Failed (24h)</span><b className={(s.failed24h ?? 0) > 0 ? 'is-bad' : ''}>{s.failed24h ?? 0}</b></div>
+          <div className="nc-rail__row"><span>Suppressed</span><b className={(s.suppressed ?? 0) > 0 ? 'is-warn' : ''}>{s.suppressed ?? 0}</b></div>
+        </div>
+      </div>
+      <div>
+        <div className="nc-rail__h">Health</div>
+        <div className="nc-rail__rows">
+          <div className="nc-rail__row">
+            <span>Delivery rate</span>
+            <b className={rate != null && rate < 95 ? 'is-warn' : ''}>{rate == null ? '—' : `${rate}%`}</b>
+          </div>
+          <div className="nc-rail__row">
+            <span>Deliverability</span>
+            <b className={(s.deliverabilityScore ?? 0) < 80 ? 'is-warn' : ''}>{s.deliverabilityScore ?? 0}/100</b>
+          </div>
+          <div className="nc-rail__row"><span>Sent (24h)</span><b>{s.sent24h ?? 0}</b></div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-NotificationsIndex.layout = page => (
-  <App title="Notifications">{page}</App>
+/* ==================================================================== page */
+export default function NotificationsIndex(props) {
+  const { tab, can = {}, stats = {}, filters = {} } = props;
+  const toast = useToast();
+
+  const [detail, setDetail] = useState(null);     // delivery-log row drawer
+  const [editing, setEditing] = useState(null);   // template editor modal
+  const [preview, setPreview] = useState(null);   // template preview modal
+
+  /** Every tab filters through here — the active tab always rides along. */
+  const go = (params = {}) => router.get('/notifications', { tab, ...params }, {
+    preserveState: true, preserveScroll: true,
+  });
+  const switchTab = (next) => router.get('/notifications', { tab: next }, { preserveScroll: true });
+
+  const openPreview = (template) => {
+    fetch(`/notifications/templates/${template.id}/preview`, {
+      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('failed'))))
+      .then((data) => setPreview({ ...data, name: template.name }))
+      .catch(() => toast.error('Could not render that template.'));
+  };
+
+  const visibleTabs = TABS.filter((t) => can[t.id]);
+  const rate = stats.deliveryRate;
+  const score = stats.deliverabilityScore ?? 0;
+
+  const kpis = [
+    { label: 'Sent (24h)', value: (stats.sent24h ?? 0).toLocaleString(), delta: 'delivered or accepted' },
+    {
+      label: 'Delivery rate',
+      value: rate == null ? '—' : rate, unit: rate == null ? '' : '%',
+      delta: rate == null ? 'Nothing sent yet' : rate >= 95 ? 'Healthy' : 'Below target',
+      mod: rate == null ? '' : rate >= 95 ? 'up' : 'warn',
+      bar: rate == null ? null : { value: rate, mod: rate >= 95 ? 'is-ok' : 'is-warn' },
+    },
+    {
+      label: 'Failed (24h)', value: (stats.failed24h ?? 0).toLocaleString(),
+      delta: (stats.failed24h ?? 0) > 0 ? 'Needs attention' : 'None',
+      mod: (stats.failed24h ?? 0) > 0 ? 'bad' : '',
+    },
+    { label: 'Queued', value: (stats.queued ?? 0).toLocaleString(), delta: (stats.queued ?? 0) > 0 ? 'Draining' : 'Empty' },
+    { label: 'Suppressed', value: (stats.suppressed ?? 0).toLocaleString(), delta: 'addresses blocked' },
+    {
+      label: 'Deliverability', value: score, unit: '/100',
+      delta: score >= 80 ? 'Trusted' : 'Improve DNS',
+      mod: score >= 80 ? 'up' : 'warn',
+      bar: { value: score, mod: score >= 80 ? 'is-ok' : 'is-warn' },
+    },
+  ];
+
+  const tabProps = { ...props, can, filters, go };
+
+  return (
+    <div className="pc nc">
+      <div className="pc-head">
+        <div>
+          <div className="pc-eyebrow"><span className="pc-eyebrow__dot" /> Workspace · Communications</div>
+          <h1 className="pc-title">Notifications</h1>
+          <div className="pc-sub">
+            Every message this workspace sends and receives — your inbox, the delivery log across all
+            channels, bounces, suppression, deliverability, templates, channels, and your own preferences.
+          </div>
+        </div>
+      </div>
+
+      <div className="nc-kpis">
+        {kpis.map((k) => (
+          <Card key={k.label}><CardBody>
+            <div className="nc-kpi__label">{k.label}</div>
+            <div className="nc-kpi__value">{k.value}{k.unit && <small>{k.unit}</small>}</div>
+            <div className={`nc-kpi__delta${k.mod ? ` nc-kpi__delta--${k.mod}` : ''}`}>{k.delta}</div>
+            {k.bar && <div className="nc-track"><i className={k.bar.mod} style={{ width: `${Math.min(100, k.bar.value)}%` }} /></div>}
+          </CardBody></Card>
+        ))}
+      </div>
+
+      <div className="nc-tabs" role="tablist">
+        {visibleTabs.map((t) => (
+          <button key={t.id} type="button" role="tab" aria-selected={tab === t.id}
+            className={`nc-tab${tab === t.id ? ' is-active' : ''}`} onClick={() => switchTab(t.id)}>
+            {t.label}
+            {t.id === 'inbox' && (stats.unread ?? 0) > 0 && <span className="nc-tab__n">{stats.unread}</span>}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'inbox' && <InboxTab {...tabProps} />}
+      {tab === 'log' && <LogTab {...tabProps} onRow={setDetail} />}
+      {tab === 'bounces' && <BouncesTab {...tabProps} />}
+      {tab === 'suppression' && <SuppressionTab {...tabProps} />}
+      {tab === 'deliverability' && <DeliverabilityTab {...tabProps} />}
+      {tab === 'templates' && <TemplatesTab {...tabProps} onEdit={setEditing} onPreview={openPreview} />}
+      {tab === 'channels' && <ChannelsTab {...tabProps} />}
+      {tab === 'preferences' && <PreferencesTab {...tabProps} />}
+
+      {detail && <LogDrawer row={detail} onClose={() => setDetail(null)} />}
+      {editing && <TemplateModal template={editing} onClose={() => setEditing(null)} />}
+      {preview && <PreviewModal preview={preview} onClose={() => setPreview(null)} />}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------- delivery-log drawer */
+function LogDrawer({ row, onClose }) {
+  const fields = [
+    ['Recipient', row.recipient], ['Subject', row.subject], ['Channel', row.channel],
+    ['Status', row.status], ['Attempts', `${row.attempts} of ${row.max_attempts}`],
+    ['Event', row.event_type], ['Sent', fmtTime(row.sent_at)], ['Delivered', fmtTime(row.delivered_at)],
+    ['Created', fmtTime(row.created_at)], ['Idempotency key', row.idempotency_key],
+  ];
+
+  return (
+    <WbDrawer open onClose={onClose} ariaLabel="Notification detail"
+      head={
+        <div className="au-dr-top">
+          <div>
+            <div className="au-dr-title">{row.subject || 'Notification'}</div>
+            <div className="au-dr-code">{row.recipient}</div>
+          </div>
+          <button type="button" className="wb-drawer__x" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+      }
+    >
+      {fields.filter(([, v]) => v != null && v !== '' && v !== '—').map(([k, v]) => (
+        <div className="pc-drow" key={k}>
+          <span className="pc-drow__k">{k}</span>
+          <span className="pc-drow__v au-break">{v}</span>
+        </div>
+      ))}
+
+      {row.error_message && (
+        <>
+          <div className="au-dr-sec">Why it failed</div>
+          <pre className="au-json">{row.error_message}</pre>
+        </>
+      )}
+      {row.content && (
+        <>
+          <div className="au-dr-sec">Message</div>
+          <pre className="au-json">{row.content}</pre>
+        </>
+      )}
+    </WbDrawer>
+  );
+}
+
+/* --------------------------------------------------------- template editor */
+const VARIABLES = ['user_name', 'first_name', 'email', 'company_name', 'app_name', 'period', 'code', 'action_url', 'date'];
+
+function TemplateModal({ template, onClose }) {
+  const toast = useToast();
+  const isNew = !template.id;
+
+  const [f, setF] = useState({
+    name: template.name ?? '',
+    subject: template.subject ?? '',
+    category: template.category ?? 'transactional',
+    body_html: template.body_html ?? '',
+    body_text: template.body_text ?? '',
+    is_active: template.is_active ?? true,
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+
+  const submit = () => {
+    setSaving(true);
+    const done = {
+      preserveScroll: true,
+      onSuccess: () => { toast.success(isNew ? 'Template created.' : 'Template updated.'); onClose(); },
+      onError: () => toast.error('Check the fields and try again.'),
+      onFinish: () => setSaving(false),
+    };
+
+    if (isNew) {
+      router.post('/notifications/templates', f, done);
+    } else {
+      router.put(`/notifications/templates/${template.id}`, f, done);
+    }
+  };
+
+  return (
+    <div className="pc-modal-overlay" onClick={onClose}>
+      <div className="pc-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <h2 className="pc-modal__title">{isNew ? 'New template' : `Edit ${template.name}`}</h2>
+        <div className="pc-modal__sub">
+          {template.is_locked
+            ? 'A locked template — the app itself sends this. You can change the wording; it cannot be deleted.'
+            : isNew ? 'New custom template for this workspace.' : 'A custom template belonging to this workspace.'}
+        </div>
+
+        <div className="pc-form">
+          <div className="pc-row2">
+            <label className="pc-field"><span className="pc-field__label">Name</span>
+              <input className="pc-input" value={f.name} onChange={(e) => set('name', e.target.value)} placeholder="Welcome email" /></label>
+            <label className="pc-field"><span className="pc-field__label">Category</span>
+              <select className="pc-input" value={f.category} onChange={(e) => set('category', e.target.value)}>
+                {['transactional', 'system', 'marketing'].map((c) => <option key={c} value={c}>{c}</option>)}
+              </select></label>
+          </div>
+
+          <label className="pc-field"><span className="pc-field__label">Subject</span>
+            <input className="pc-input" value={f.subject} onChange={(e) => set('subject', e.target.value)}
+              placeholder="Welcome to {{company_name}}" /></label>
+
+          <label className="pc-field"><span className="pc-field__label">Body (HTML)</span>
+            <textarea className="pc-input" rows={9} value={f.body_html}
+              onChange={(e) => set('body_html', e.target.value)} placeholder="<p>Hello {{first_name}},</p>" /></label>
+
+          <label className="pc-field"><span className="pc-field__label">Plain-text fallback (optional)</span>
+            <textarea className="pc-input" rows={3} value={f.body_text}
+              onChange={(e) => set('body_text', e.target.value)} placeholder="Hello {{first_name}}," /></label>
+
+          <div>
+            <span className="pc-field__label">Insert a variable</span>
+            <div className="nc-varlist">
+              {VARIABLES.map((v) => (
+                <button type="button" key={v} className="nc-var"
+                  onClick={() => set('body_html', `${f.body_html}{{${v}}}`)}>{`{{${v}}}`}</button>
+              ))}
+            </div>
+          </div>
+
+          <label className="pc-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <button type="button" className="nc-sw" role="switch" aria-checked={!!f.is_active}
+              aria-label="Active" onClick={() => set('is_active', !f.is_active)} />
+            <span className="pc-field__label">Active — the app may send this template</span>
+          </label>
+        </div>
+
+        <div className="pc-detail__actions">
+          <button type="button" className="pc-btn" onClick={onClose}>Cancel</button>
+          <button type="button" className="pc-btn pc-btn--primary" onClick={submit} disabled={saving}>
+            {saving ? 'Saving…' : isNew ? 'Create template' : 'Save changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------- template preview */
+function PreviewModal({ preview, onClose }) {
+  return (
+    <div className="pc-modal-overlay" onClick={onClose}>
+      <div className="pc-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <h2 className="pc-modal__title">{preview.name}</h2>
+        <div className="pc-modal__sub">Rendered with sample data — this is what the recipient sees.</div>
+
+        <div className="pc-drow">
+          <span className="pc-drow__k">Subject</span>
+          <span className="pc-drow__v au-break">{preview.subject}</span>
+        </div>
+
+        {/* Template HTML is authored by tenant admins with the templates.create
+            permission — the same trust level as any other admin-authored content. */}
+        <div className="nc-preview" dangerouslySetInnerHTML={{ __html: preview.html }} />
+
+        <div className="pc-detail__actions">
+          <button type="button" className="pc-btn" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+NotificationsIndex.layout = (page) => (
+  <App title="Notifications" railTitle="Notifications" rail={<Rail stats={page.props.stats} />}>
+    {page}
+  </App>
 );

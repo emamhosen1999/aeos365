@@ -9,9 +9,10 @@
  *   import App from '@/Pages/App.jsx';
  *   MyPage.layout = page => <App title="Page Title">{page}</App>;
  */
+import { useEffect, useRef } from 'react';
 import { usePage } from '@inertiajs/react';
 import { Head } from '@inertiajs/react';
-import { AppShell, AppBrand, AppTopbarTitle, GlobalActions, SearchOverlay } from '@aero/ui';
+import { AppShell, AppBrand, AppTopbarTitle, GlobalActions, SearchOverlay, useToast } from '@aero/ui';
 import { useTheme } from '../theme/ThemeProvider.jsx';
 import { useTourEngine } from '../tour/useTour.jsx';
 
@@ -87,42 +88,153 @@ function mapItem(item, activeHref) {
     active,
     hasActiveChild,
     children,
+    // Count badge on any group (Guardian pattern).
+    count: children && children.length ? children.length : undefined,
+    // Semantic sub-group within a product section (see transformNavigation).
+    group: item.nav_group ?? null,
+    groupLabel: item.nav_group_label ?? null,
+    groupOrder: item.nav_group_order ?? 500,
+    groupIcon: item.nav_group_icon ?? null,
   };
 }
 
-function transformNavigation(backendNav, activeHref) {
+// Sections framing the package-owned catalog (props.navSections): dashboards +
+// my-workspace pin to the top; administration/modules are the tail fallbacks.
+// The middle (core sections + subscribed-product sections) is data-driven, so
+// adding a product/section needs no frontend change.
+const PINNED_SECTIONS = [
+  { key: 'dashboards',   title: null,           icon: null,             order: -100 },
+  { key: 'my-workspace', title: 'My Workspace', icon: 'UserCircleIcon', order: -50 },
+];
+const TAIL_SECTIONS = [
+  { key: 'administration', title: 'Administration', icon: 'RectangleGroupIcon', order: 9000 },
+  { key: 'modules',        title: 'Modules',        icon: 'CubeIcon',           order: 9100 },
+];
+
+const humanize = (k) => String(k).replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+/** Ordered section list built from the backend catalog (props.navSections). */
+function buildSections(catalog) {
+  const mid = (catalog ?? []).map((s) => ({ key: s.key, title: s.label, icon: s.icon, order: s.order ?? 500 }));
+  return [...PINNED_SECTIONS, ...mid, ...TAIL_SECTIONS].sort((a, b) => (a.order ?? 500) - (b.order ?? 500));
+}
+
+function transformNavigation(backendNav, activeHref, sections) {
   if (!backendNav?.length) return null;
 
-  const buckets = { dashboards: [], 'my-workspace': [], administration: [], modules: [], others: [] };
-
+  const meta = new Map(sections.map((s) => [s.key, s]));
+  const buckets = {};
   for (const item of backendNav) {
-    const section = item.section ?? 'others';
-    if (Object.prototype.hasOwnProperty.call(buckets, section)) {
-      buckets[section].push(mapItem(item, activeHref));
+    const section = item.section ?? 'modules';
+    // The self-service items arrive pre-aggregated under a single "My Workspace"
+    // parent. That parent would sit inside the "My Workspace" section header —
+    // doubled — so flatten its children directly under the header instead.
+    if (section === 'my-workspace' && Array.isArray(item.children) && item.children.length) {
+      for (const child of item.children) (buckets[section] ??= []).push(mapItem(child, activeHref));
     } else {
-      buckets.modules.push(mapItem(item, activeHref));
+      (buckets[section] ??= []).push(mapItem(item, activeHref));
     }
   }
 
+  // Catalog sections render in their declared order; any section not in the
+  // catalog (e.g. a product with no declared section) sorts at 8000 — just
+  // after the core catalog — so products always fall below core.
+  const ordered = Object.keys(buckets)
+    .map((key) => {
+      const m = meta.get(key);
+      return { key, title: m ? m.title : humanize(key), icon: m?.icon, order: m ? (m.order ?? 500) : 8000 };
+    })
+    .sort((a, b) => (a.order ?? 500) - (b.order ?? 500));
+
+  // Drop a leaf that already appeared in an earlier section (e.g. "My Profile"
+  // exists both as a self-service item and a top-level submodule). Earlier
+  // section wins, so My Workspace keeps it.
+  const seen = new Set();
+  const dedup = (items) => items.filter((it) => {
+    if (it.href && !(it.children && it.children.length)) {
+      if (seen.has(it.href)) return false;
+      seen.add(it.href);
+    }
+    return true;
+  });
+
   const result = [];
-  if (buckets.dashboards.length)             result.push(...buckets.dashboards);
-  if (buckets['my-workspace'].length)        { if (result.length) result.push({ divider: true }); result.push(...buckets['my-workspace']); }
-  if (buckets.administration.length)         { if (result.length) result.push({ divider: true }); result.push(...buckets.administration); }
-  if (buckets.modules.length)               { if (result.length) result.push({ divider: true }); result.push(...buckets.modules); }
-  if (buckets.others.length)                result.push(...buckets.others);
+  for (const { key, title, icon } of ordered) {
+    const items = dedup(buckets[key] ?? []);
+    if (!items.length) continue;
+    if (!title) {
+      // Untitled section (dashboards) — pinned at the top, no wrapper.
+      result.push(...items);
+      continue;
+    }
+    const children = subGroup(items);
+    result.push({
+      label: title,
+      icon: icon ? mapIcon(icon) : undefined,
+      isSection: true,
+      count: children.filter((c) => !c.heading).length,
+      hasActiveChild: items.some((it) => it.active || it.hasActiveChild),
+      children,
+    });
+  }
 
   return result.length ? result : null;
 }
 
-function transformNavigationGroups(backendGroups, activeHref) {
-  if (!backendGroups?.length) return null;
+// Regroup a product section's features into its declared semantic sub-groups
+// (nav_group). Each sub-group is itself a collapsible, icon'd section nested
+// under the product header. Ungrouped items stay directly under the header.
+function subGroup(items) {
+  if (!items.some((it) => it.group)) return items;
+  const groups = new Map();
+  const ungrouped = [];
+  for (const it of items) {
+    if (!it.group) { ungrouped.push(it); continue; }
+    if (!groups.has(it.group)) {
+      groups.set(it.group, { label: it.groupLabel ?? humanize(it.group), order: it.groupOrder ?? 500, icon: it.groupIcon, items: [] });
+    }
+    groups.get(it.group).items.push(it);
+  }
+  const out = [...ungrouped];
+  for (const g of [...groups.values()].sort((a, b) => (a.order ?? 500) - (b.order ?? 500))) {
+    out.push({
+      label: g.label,
+      icon: g.icon ? mapIcon(g.icon) : undefined,
+      isSection: true,
+      isSubSection: true,
+      count: g.items.length,
+      hasActiveChild: g.items.some((it) => it.active || it.hasActiveChild),
+      children: g.items,
+    });
+  }
+  return out;
+}
 
-  return backendGroups
-    .map(group => ({
-      title: group.title ?? '',
-      items: (group.items ?? []).map(item => mapItem(item, activeHref)),
-    }))
-    .filter(g => g.items.length > 0);
+/**
+ * Exactly ONE leaf may light up as active. Backend nav can list the same href
+ * under several groups (e.g. a module landing page doubling as "Directory");
+ * path-equality would mark them ALL active. Document-order first wins; every
+ * ancestor's active/hasActiveChild is recomputed from the surviving leaf.
+ */
+function dedupeActive(items) {
+  let found = false;
+  const walk = (list) => {
+    let subtreeActive = false;
+    for (const it of list ?? []) {
+      if (it.children && it.children.length) {
+        const childActive = walk(it.children);
+        it.hasActiveChild = childActive;
+        it.active = childActive;
+        if (childActive) subtreeActive = true;
+      } else if (it.active) {
+        if (found) it.active = false;
+        else { found = true; subtreeActive = true; }
+      }
+    }
+    return subtreeActive;
+  };
+  walk(items);
+  return items;
 }
 
 const FALLBACK_NAV = [
@@ -146,8 +258,25 @@ function buildFallbackNav(activeHref) {
 // ─── App layout ───────────────────────────────────────────────────────────────
 export default function App({ title, rail, railTitle = 'Context', children }) {
   const page = usePage();
-  const { auth, navigation, navigationGroups } = page.props;
+  const { auth, navigation, navigationGroups, navSections } = page.props;
   const theme = useTheme();
+
+  // App-wide flash → toast bridge. Controllers that `back()->with('success'|'error'
+  // |'warning'|'info', …)` surface a toast on the next Inertia render. Guarded so
+  // the same flash isn't re-toasted on unrelated prop updates.
+  const toast = useToast();
+  const lastFlash = useRef(null);
+  useEffect(() => {
+    const f = page.props.flash;
+    if (!f) return;
+    const msg = f.success || f.error || f.warning || f.info;
+    if (!msg || msg === lastFlash.current) return;
+    lastFlash.current = msg;
+    if (f.success) toast.success(f.success);
+    else if (f.error) toast.error(f.error);
+    else if (f.warning) toast({ intent: 'warning', title: f.warning });
+    else if (f.info) toast({ intent: 'info', title: f.info });
+  }, [page.props.flash]); // eslint-disable-line react-hooks/exhaustive-deps
   // Inertia's top-level `page.url` is the request PATH (e.g. "/tenants?p=2"),
   // whereas `page.props.url` is the FULL absolute URL from HandleInertiaRequests.
   // Active-state matching needs the path, so read the top-level url and strip
@@ -168,21 +297,20 @@ export default function App({ title, rail, railTitle = 'Context', children }) {
     url: currentUrl,
   });
 
-  const isCommand = theme.shell === 'command';
-  // Flat nav is the canonical list; the command shell uses grouped nav, but the
-  // mobile shell always wants the flat tree regardless of the desktop variant.
-  const flatNav = transformNavigation(navigation, activeHref) ?? buildFallbackNav(activeHref);
-  const nav = isCommand
-    ? (transformNavigationGroups(navigationGroups, activeHref) ?? [])
-    : flatNav;
+  // Section titles/icons/order come from the package-owned catalog (props.navSections).
+  const sections = buildSections(navSections);
+  // ONE canonical nav tree for EVERY shell (sidebar / floating / command /
+  // topnav / mobile): sections are collapsible folder items with count badges
+  // (Guardian pattern), so all shells render the identical structure.
+  const nav = dedupeActive(transformNavigation(navigation, activeHref, sections) ?? buildFallbackNav(activeHref));
 
   return (
     <>
-      {title && <Head title={`${title} · aeos365`} />}
+      {title && <Head title={`${title} · ${page.props?.branding?.name || 'aeos365'}`} />}
       <AppShell
         brand={<AppBrand href="/dashboard" size={28} />}
         nav={nav}
-        mobileNav={flatNav}
+        mobileNav={nav}
         topbar={<AppTopbarTitle title={title} />}
         actions={<GlobalActions user={auth?.user} />}
         rail={rail}

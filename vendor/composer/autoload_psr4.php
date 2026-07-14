@@ -171,4 +171,5 @@ return array(
     'Aero\\Contracts\\' => array($vendorDir . '/aero/contracts/src'),
     'Aero\\Auth\\Database\\Factories\\' => array($vendorDir . '/aero/auth/database/factories'),
     'Aero\\Auth\\' => array($vendorDir . '/aero/auth/src'),
+    'Aero\\Assistant\\' => array($vendorDir . '/aero/assistant/src'),
 );

@@ -1,6 +1,6 @@
 {
   "vendor/aero/ui/resources/css/app.css": {
-    "file": "assets/app-BjIt7e9w.css",
+    "file": "assets/app-B8asxZei.css",
     "src": "vendor/aero/ui/resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -9,13 +9,25 @@
     ]
   },
   "vendor/aero/ui/resources/js/app.jsx": {
-    "file": "assets/app-BhWJZ1Wd.js",
+    "file": "assets/app-DQl5v9Wu.js",
     "name": "app",
     "src": "vendor/aero/ui/resources/js/app.jsx",
     "isEntry": true,
     "css": [
-      "assets/app-Ccc6x0X1.css",
-      "assets/app-BjIt7e9w.css"
+      "assets/app-Cv3DRm7O.css",
+      "assets/app-B8asxZei.css"
+    ],
+    "assets": [
+      "assets/lockup-horizontal-Dem8SVVB.svg",
+      "assets/lockup-horizontal-dark-DmHCPf8o.svg"
     ]
+  },
+  "vendor/aero/ui/resources/js/assets/brand/lockup-horizontal-dark.svg": {
+    "file": "assets/lockup-horizontal-dark-DmHCPf8o.svg",
+    "src": "vendor/aero/ui/resources/js/assets/brand/lockup-horizontal-dark.svg"
+  },
+  "vendor/aero/ui/resources/js/assets/brand/lockup-horizontal.svg": {
+    "file": "assets/lockup-horizontal-Dem8SVVB.svg",
+    "src": "vendor/aero/ui/resources/js/assets/brand/lockup-horizontal.svg"
   }
 }

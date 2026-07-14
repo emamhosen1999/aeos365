@@ -19,6 +19,7 @@
     ],
     "require": {
         "php": "^8.2",
+        "aero/assistant": "@dev",
         "aero/auth": "@dev",
         "aero/core": "@dev",
         "aero/hrm": "@dev",

@@ -38,6 +38,36 @@ return [
     'release_date' => '2024-01-01',
     'enabled' => true,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Navigation IA — package-owned (core aggregates generically)
+    |--------------------------------------------------------------------------
+    | `nav_sections`   : this package's section catalog (label/icon/order).
+    | `nav_section_map`: which section each submodule falls under, keyed by the
+    |                    first segment of its route. Core reads these; it never
+    |                    hardcodes platform/product knowledge.
+    */
+    'nav_sections' => [
+        ['key' => 'ov', 'label' => 'Overview',                 'icon' => 'Squares2X2Icon',      'order' => 10],
+        ['key' => 'tn', 'label' => 'Tenants & Onboarding',     'icon' => 'BuildingOffice2Icon', 'order' => 20],
+        ['key' => 'rv', 'label' => 'Revenue & Catalog',        'icon' => 'CurrencyDollarIcon',  'order' => 30],
+        ['key' => 'gr', 'label' => 'Growth & Marketing',       'icon' => 'MegaphoneIcon',       'order' => 40],
+        ['key' => 'access', 'label' => 'Access & Security',        'icon' => 'ShieldCheckIcon',     'order' => 50],
+        ['key' => 'cf', 'label' => 'Configuration',            'icon' => 'Cog6ToothIcon',       'order' => 60],
+        ['key' => 'op', 'label' => 'Operations & Reliability', 'icon' => 'BoltIcon',            'order' => 70],
+        ['key' => 'cs', 'label' => 'Customer Success',         'icon' => 'LifebuoyIcon',        'order' => 80],
+    ],
+    'nav_section_map' => [
+        'analytics' => 'ov', 'product-analytics' => 'ov',
+        'tenants' => 'tn', 'onboarding' => 'tn', 'quotas' => 'tn', 'provisioning' => 'tn',
+        'plans' => 'rv', 'billing' => 'rv', 'products' => 'rv', 'modules' => 'rv', 'licenses' => 'rv', 'contracts' => 'rv',
+        'leads' => 'gr', 'newsletter' => 'gr', 'affiliates' => 'gr', 'partners' => 'gr', 'seo' => 'gr', 'social-auth' => 'gr',
+        'users' => 'access', 'roles' => 'access', 'security' => 'access', 'security-center' => 'access', 'secrets' => 'access', 'entitlements' => 'access',
+        'settings' => 'cf', 'integrations' => 'cf', 'feature-flags' => 'cf', 'white-label' => 'cf', 'developer' => 'cf', 'releases' => 'cf',
+        'error-logs' => 'op', 'audit-logs' => 'op', 'access-logs' => 'op', 'backup' => 'op', 'status' => 'op', 'observability' => 'op', 'disaster-recovery' => 'op', 'api-gateway' => 'op',
+        'customer-success' => 'cs', 'help-center' => 'cs', 'enterprise-scim' => 'cs',
+    ],
+
     'submodules' => [
         /*
         |--------------------------------------------------------------------------
@@ -141,6 +171,7 @@ return [
                     'code' => 'pending-approvals',
                     'name' => 'Pending Approvals',
                     'route' => '/onboarding/pending',
+                    'show_in_nav' => false, // subsumed by the Onboarding console; kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Pending'],
                         ['code' => 'approve', 'name' => 'Approve Tenant'],
@@ -151,6 +182,7 @@ return [
                     'code' => 'provisioning',
                     'name' => 'Provisioning',
                     'route' => '/onboarding/provisioning',
+                    'show_in_nav' => false, // subsumed by the Onboarding console; kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Provisioning'],
                         ['code' => 'retry', 'name' => 'Retry Failed'],
@@ -160,6 +192,7 @@ return [
                     'code' => 'trials',
                     'name' => 'Trials',
                     'route' => '/onboarding/trials',
+                    'show_in_nav' => false, // subsumed by the Onboarding console; kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Trials'],
                         ['code' => 'extend', 'name' => 'Extend Trial'],
@@ -170,6 +203,7 @@ return [
                     'code' => 'onboarding-analytics',
                     'name' => 'Analytics',
                     'route' => '/onboarding/analytics',
+                    'show_in_nav' => false, // subsumed by the Onboarding console; kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Analytics'],
                         ['code' => 'export', 'name' => 'Export Reports'],
@@ -179,6 +213,7 @@ return [
                     'code' => 'onboarding-automation',
                     'name' => 'Automation',
                     'route' => '/onboarding/automation',
+                    'show_in_nav' => false, // subsumed by the Onboarding console; kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Automation'],
                         ['code' => 'manage', 'name' => 'Manage Rules'],
@@ -280,6 +315,15 @@ return [
                         ['code' => 'export', 'name' => 'Export Reports'],
                     ],
                 ],
+                [
+                    'code' => 'ai-assistant',
+                    'name' => 'AI Assistant',
+                    'route' => '/ai-assistant',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View AI Assistant'],
+                        ['code' => 'configure', 'name' => 'Configure AI Assistant'],
+                    ],
+                ],
             ],
         ],
 
@@ -311,8 +355,10 @@ return [
                     'route' => '/billing/subscriptions',
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Subscriptions'],
+                        ['code' => 'create', 'name' => 'Create Subscription'],
                         ['code' => 'cancel', 'name' => 'Cancel Subscription'],
                         ['code' => 'upgrade', 'name' => 'Upgrade/Downgrade'],
+                        ['code' => 'manage', 'name' => 'Manage Lifecycle (pause/trial/dunning)'],
                     ],
                 ],
                 [
@@ -324,6 +370,10 @@ return [
                         ['code' => 'generate', 'name' => 'Generate Invoice'],
                         ['code' => 'send', 'name' => 'Send Invoice'],
                         ['code' => 'mark-paid', 'name' => 'Mark as Paid'],
+                        ['code' => 'void', 'name' => 'Void Invoice'],
+                        ['code' => 'refund', 'name' => 'Refund Invoice'],
+                        ['code' => 'remind', 'name' => 'Send Payment Reminder'],
+                        ['code' => 'bulk', 'name' => 'Bulk Invoice Actions'],
                     ],
                 ],
                 [
@@ -333,6 +383,62 @@ return [
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Gateways'],
                         ['code' => 'configure', 'name' => 'Configure Gateway'],
+                    ],
+                ],
+            ],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | 6a. Entitlement overrides — comp/trial/grandfather module access
+        |--------------------------------------------------------------------------
+        */
+        [
+            'code' => 'entitlement-overrides',
+            'name' => 'Entitlements',
+            'description' => 'Grant or revoke module access outside a purchase, with an audit ledger',
+            'icon' => 'KeyIcon',
+            'route' => '/entitlements',
+            'priority' => 5,
+
+            'components' => [
+                [
+                    'code' => 'overrides',
+                    'name' => 'Entitlement Overrides',
+                    'route' => '/entitlements',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Overrides'],
+                        ['code' => 'grant', 'name' => 'Grant Override'],
+                        ['code' => 'revoke', 'name' => 'Revoke Override'],
+                    ],
+                ],
+            ],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | 6b. Products (Catalog) — monetisation-governance command centre
+        |--------------------------------------------------------------------------
+        */
+        [
+            'code' => 'product-catalog',
+            'name' => 'Products',
+            'description' => 'Sellable product catalog — bundled modules, pricing, adoption & MRR',
+            'icon' => 'RectangleStackIcon',
+            'route' => '/products',
+            'priority' => 6,
+
+            'components' => [
+                [
+                    'code' => 'catalog',
+                    'name' => 'Product Catalog',
+                    'route' => '/products',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Products'],
+                        ['code' => 'create', 'name' => 'Create Product'],
+                        ['code' => 'edit', 'name' => 'Edit Product'],
+                        ['code' => 'bundle', 'name' => 'Manage Product Modules'],
+                        ['code' => 'pricing', 'name' => 'Edit Product Pricing'],
                     ],
                 ],
             ],
@@ -437,6 +543,7 @@ return [
                     'code' => 'api-keys',
                     'name' => 'API Keys',
                     'route' => '/integrations/api',
+                    'show_in_nav' => false, // subsumed by the Integrations console; kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View API Keys'],
                         ['code' => 'create', 'name' => 'Create API Key'],
@@ -447,6 +554,7 @@ return [
                     'code' => 'webhooks',
                     'name' => 'Webhooks',
                     'route' => '/integrations/webhooks',
+                    'show_in_nav' => false, // subsumed by the Integrations console; kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Webhooks'],
                         ['code' => 'manage', 'name' => 'Manage Webhooks'],
@@ -456,6 +564,7 @@ return [
                     'code' => 'connectors',
                     'name' => 'Connectors',
                     'route' => '/integrations/connectors',
+                    'show_in_nav' => false, // subsumed by the Integrations console; kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Connectors'],
                         ['code' => 'configure', 'name' => 'Configure Connector'],
@@ -677,6 +786,7 @@ return [
                     'code' => 'revenue-reports',
                     'name' => 'Revenue',
                     'route' => '/analytics/revenue',
+                    'show_in_nav' => false, // subsumed by the Analytics console; kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Revenue'],
                         ['code' => 'export', 'name' => 'Export Reports'],
@@ -686,6 +796,7 @@ return [
                     'code' => 'tenant-analytics',
                     'name' => 'Tenant Analytics',
                     'route' => '/analytics/tenants',
+                    'show_in_nav' => false, // subsumed by the Analytics console; kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Tenant Analytics'],
                     ],
@@ -777,15 +888,19 @@ return [
                     'code' => 'lead-pipeline',
                     'name' => 'Pipeline',
                     'route' => '/leads/pipeline',
+                    'show_in_nav' => false, // subsumed by the Leads console (drag-drop board); kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Pipeline'],
                         ['code' => 'manage', 'name' => 'Manage Pipeline'],
+                        ['code' => 'move', 'name' => 'Move Stage'],
+                        ['code' => 'convert', 'name' => 'Convert to Tenant'],
                     ],
                 ],
                 [
                     'code' => 'lead-analytics',
                     'name' => 'Lead Analytics',
                     'route' => '/leads/analytics',
+                    'show_in_nav' => false, // subsumed by the Leads console (analytics band); kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Analytics'],
                         ['code' => 'export', 'name' => 'Export Reports'],
@@ -812,21 +927,37 @@ return [
                     'code' => 'subscriber-list',
                     'name' => 'Subscribers',
                     'route' => '/newsletter/subscribers',
+                    'show_in_nav' => false, // subsumed by the Newsletter console at /newsletter (no standalone page); kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Subscribers'],
                         ['code' => 'create', 'name' => 'Add Subscriber'],
+                        ['code' => 'update', 'name' => 'Update Subscriber'],
                         ['code' => 'delete', 'name' => 'Remove Subscriber'],
                         ['code' => 'import', 'name' => 'Import Subscribers'],
                         ['code' => 'export', 'name' => 'Export Subscribers'],
                     ],
                 ],
                 [
+                    'code' => 'campaigns',
+                    'name' => 'Campaigns',
+                    'route' => '/newsletter/campaigns',
+                    'show_in_nav' => false, // part of the Newsletter console (campaigns tab + composer); kept for HRMAC
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Campaigns'],
+                        ['code' => 'create', 'name' => 'Compose Campaign'],
+                        ['code' => 'send', 'name' => 'Send Campaign'],
+                        ['code' => 'delete', 'name' => 'Delete Campaign'],
+                    ],
+                ],
+                [
                     'code' => 'newsletter-settings',
                     'name' => 'Settings',
                     'route' => '/newsletter/settings',
+                    'show_in_nav' => false, // subsumed by the Newsletter console (settings modal); kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Settings'],
                         ['code' => 'edit', 'name' => 'Edit Settings'],
+                        ['code' => 'update', 'name' => 'Update Settings'],
                     ],
                 ],
             ],
@@ -856,6 +987,7 @@ return [
                         ['code' => 'edit', 'name' => 'Edit Affiliate'],
                         ['code' => 'delete', 'name' => 'Delete Affiliate'],
                         ['code' => 'approve', 'name' => 'Approve Affiliate'],
+                        ['code' => 'reject', 'name' => 'Reject Affiliate'],
                         ['code' => 'suspend', 'name' => 'Suspend Affiliate'],
                     ],
                 ],
@@ -863,6 +995,7 @@ return [
                     'code' => 'affiliate-referrals',
                     'name' => 'Referrals',
                     'route' => '/affiliates/referrals',
+                    'show_in_nav' => false, // subsumed by the Affiliates console (drawer); kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Referrals'],
                         ['code' => 'approve-commission', 'name' => 'Approve Commission'],
@@ -872,25 +1005,30 @@ return [
                     'code' => 'affiliate-payouts',
                     'name' => 'Payouts',
                     'route' => '/affiliates/payouts',
+                    'show_in_nav' => false, // subsumed by the Affiliates console (payouts ledger); kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Payouts'],
                         ['code' => 'create', 'name' => 'Create Payout'],
                         ['code' => 'process', 'name' => 'Process Payout'],
+                        ['code' => 'complete', 'name' => 'Complete Payout'],
                     ],
                 ],
                 [
                     'code' => 'affiliate-settings',
                     'name' => 'Settings',
                     'route' => '/affiliates/settings',
+                    'show_in_nav' => false, // subsumed by the Affiliates console (settings modal); kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Settings'],
                         ['code' => 'edit', 'name' => 'Edit Settings'],
+                        ['code' => 'update', 'name' => 'Update Settings'],
                     ],
                 ],
                 [
                     'code' => 'affiliate-analytics',
                     'name' => 'Analytics',
                     'route' => '/affiliates/analytics',
+                    'show_in_nav' => false, // subsumed by the Affiliates console (analytics band); kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Analytics'],
                         ['code' => 'export', 'name' => 'Export Reports'],
@@ -1354,6 +1492,7 @@ return [
                 ],
                 [
                     'code' => 'partner-commissions', 'name' => 'Commission Rules', 'route' => '/partners/commissions',
+                    'show_in_nav' => false, // subsumed by the Partners console (ledger tab); kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Commissions'],
                         ['code' => 'manage', 'name' => 'Manage Commission Rules'],
@@ -1362,6 +1501,7 @@ return [
                 ],
                 [
                     'code' => 'partner-tenants', 'name' => 'Partner-Managed Tenants', 'route' => '/partners/tenants',
+                    'show_in_nav' => false, // subsumed by the Partners console (drawer Tenants tab); kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Partner Tenants'],
                         ['code' => 'reassign', 'name' => 'Reassign Tenant'],
@@ -1369,6 +1509,7 @@ return [
                 ],
                 [
                     'code' => 'partner-portal', 'name' => 'Partner Portal', 'route' => '/partners/portal',
+                    'show_in_nav' => false, // subsumed by the Partners console (drawer Portal tab); kept for HRMAC
                     'actions' => [
                         ['code' => 'configure', 'name' => 'Configure Portal'],
                     ],
@@ -1389,9 +1530,12 @@ return [
             'route' => '/white-label',
             'priority' => 29,
 
+            // Components stay as HRMAC permission nodes; the /white-label command
+            // center subsumes their pages, so none of them appear in the nav.
             'components' => [
                 [
                     'code' => 'custom-domains', 'name' => 'Custom Domains', 'route' => '/white-label/domains',
+                    'show_in_nav' => false,
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Custom Domains'],
                         ['code' => 'add', 'name' => 'Add Custom Domain'],
@@ -1401,6 +1545,7 @@ return [
                 ],
                 [
                     'code' => 'ssl-provisioning', 'name' => 'SSL Provisioning (Lets Encrypt)', 'route' => '/white-label/ssl',
+                    'show_in_nav' => false,
                     'actions' => [
                         ['code' => 'view', 'name' => 'View SSL'],
                         ['code' => 'provision', 'name' => 'Provision SSL'],
@@ -1410,6 +1555,7 @@ return [
                 ],
                 [
                     'code' => 'tenant-branding', 'name' => 'Tenant Branding', 'route' => '/white-label/branding',
+                    'show_in_nav' => false,
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Branding'],
                         ['code' => 'manage', 'name' => 'Manage Per-Tenant Branding'],
@@ -1417,6 +1563,7 @@ return [
                 ],
                 [
                     'code' => 'custom-css', 'name' => 'Custom CSS / Code Injection', 'route' => '/white-label/custom-css',
+                    'show_in_nav' => false,
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Custom CSS'],
                         ['code' => 'edit', 'name' => 'Edit Custom CSS'],
@@ -1424,6 +1571,7 @@ return [
                 ],
                 [
                     'code' => 'tenant-email-branding', 'name' => 'Tenant Email Sender (DKIM)', 'route' => '/white-label/email',
+                    'show_in_nav' => false,
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Email Senders'],
                         ['code' => 'configure', 'name' => 'Configure DKIM per Tenant'],
@@ -2834,70 +2982,10 @@ return [
         ],
 
         /*
-        |--------------------------------------------------------------------------
-        | P-10: White-Label
-        |--------------------------------------------------------------------------
+        | (P-10 White-Label lived here as an exact duplicate of module 29 —
+        |  same code + identical HRMAC component/action codes. Removed; the
+        |  single source of truth is entry 29 above.)
         */
-        [
-            'code' => 'white-label',
-            'name' => 'White-Label',
-            'description' => 'Custom domains, SSL provisioning, tenant branding, CSS, and email branding',
-            'icon' => 'PaintBrushIcon',
-            'route' => '/white-label',
-            'priority' => 30,
-
-            'components' => [
-                [
-                    'code' => 'custom-domains',
-                    'name' => 'Custom Domains',
-                    'route' => '/white-label/domains',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Custom Domains'],
-                        ['code' => 'add', 'name' => 'Add Domain'],
-                        ['code' => 'verify', 'name' => 'Verify Domain'],
-                        ['code' => 'remove', 'name' => 'Remove Domain'],
-                    ],
-                ],
-                [
-                    'code' => 'ssl-provisioning',
-                    'name' => 'SSL Provisioning',
-                    'route' => '/white-label/ssl',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View SSL Status'],
-                        ['code' => 'provision', 'name' => 'Provision SSL'],
-                        ['code' => 'renew', 'name' => 'Renew SSL'],
-                    ],
-                ],
-                [
-                    'code' => 'tenant-branding',
-                    'name' => 'Tenant Branding',
-                    'route' => '/white-label/branding',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Branding'],
-                        ['code' => 'manage', 'name' => 'Manage Branding'],
-                    ],
-                ],
-                [
-                    'code' => 'custom-css',
-                    'name' => 'Custom CSS',
-                    'route' => '/white-label/css',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Custom CSS'],
-                        ['code' => 'edit', 'name' => 'Edit Custom CSS'],
-                    ],
-                ],
-                [
-                    'code' => 'tenant-email-branding',
-                    'name' => 'Email Branding',
-                    'route' => '/white-label/email-branding',
-                    'actions' => [
-                        ['code' => 'view', 'name' => 'View Email Branding'],
-                        ['code' => 'configure', 'name' => 'Configure Email Branding'],
-                        ['code' => 'verify', 'name' => 'Verify DKIM'],
-                    ],
-                ],
-            ],
-        ],
 
         /*
         |--------------------------------------------------------------------------

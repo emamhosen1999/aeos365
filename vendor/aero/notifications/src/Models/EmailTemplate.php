@@ -11,6 +11,19 @@ class EmailTemplate extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /**
+     * Bind explicitly to this package's own table.
+     *
+     * Without it, Eloquent inferred `email_templates` — which is aero-core's table,
+     * with a DIFFERENT schema (slug/body_html/body_text/is_locked, and no deleted_at).
+     * Every query through this model therefore hit the wrong table and blew up on
+     * `email_templates.deleted_at` the moment SoftDeletes added its scope.
+     *
+     * The canonical email-template model — the one the notifications command centre
+     * and the app's transactional mail both use — is Aero\Core\Models\EmailTemplate.
+     */
+    protected $table = 'notification_templates';
+
     protected $fillable = [
         'tenant_id',
         'name',

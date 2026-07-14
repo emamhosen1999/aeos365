@@ -1,4 +1,11 @@
 <?php return array (
+  'aero/assistant' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Aero\\Assistant\\Providers\\AeonServiceProvider',
+    ),
+  ),
   'aero/auth' => 
   array (
     'providers' => 

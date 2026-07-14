@@ -197,6 +197,12 @@ class AeroCoreServiceProvider extends ServiceProvider
                 $this->app->singleton('Aero\\Notifications\\Contracts\\MailContextResolver', CoreMailContextResolver::class);
                 $this->app->singleton('Aero\\Notifications\\Contracts\\SmsContextResolver', CoreSmsContextResolver::class);
             }
+            if (class_exists('Aero\\Notifications\\Contracts\\BrandingResolver')) {
+                $this->app->singleton(
+                    'Aero\\Notifications\\Contracts\\BrandingResolver',
+                    \Aero\Core\Services\Notifications\CoreBrandingResolver::class,
+                );
+            }
 
             // Register Module Access Services (with error handling for missing tables)
             // These services are lazy-loaded, so they won't cause issues pre-install
@@ -395,6 +401,11 @@ class AeroCoreServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Tenant uploads (branding logos, avatars, …) must generate URLs through
+        // tenant_asset() — the default Spatie generator points at the central
+        // /storage symlink and 404s on every tenant-suffixed file.
+        config(['media-library.url_generator' => \Aero\Core\Support\Media\TenantAwareUrlGenerator::class]);
+
         // Dependency decoupling (Phase 2): decouple the User morph identity from its
         // namespace. model_has_roles / model_has_permissions persist a polymorphic
         // model_type; binding it to a stable morph key ('user') instead of the class
@@ -1030,6 +1041,12 @@ class AeroCoreServiceProvider extends ServiceProvider
             $submoduleIcon = $submodule['icon'] ?? 'FolderIcon';
             $components = $submodule['components'] ?? [];
 
+            // IA section from core's own config (nav_section, else nav_section_map
+            // keyed by first route segment).
+            $navRoute = $submodule['route'] ?? ($components[0]['route'] ?? '');
+            $navSeg = strtolower(trim(explode('/', ltrim((string) $navRoute, '/'))[0] ?? ''));
+            $navSection = $submodule['nav_section'] ?? ($config['nav_section_map'][$navSeg] ?? null);
+
             // collapse_nav: render as a single leaf link (no child pages). The
             // component HRMAC actions are still defined/synced; collapsing only
             // hides the child links so an in-page rail owns sub-navigation
@@ -1042,6 +1059,7 @@ class AeroCoreServiceProvider extends ServiceProvider
                     'access' => 'core.'.$submoduleCode,
                     'priority' => $submodule['priority'] ?? 100,
                     'type' => 'page',
+                    'nav_section' => $navSection,
                     // No children - the in-page rail handles sub-navigation.
                 ];
             } elseif (count($components) === 1) {
@@ -1053,6 +1071,7 @@ class AeroCoreServiceProvider extends ServiceProvider
                     'access' => 'core.'.$submoduleCode.'.'.($component['code'] ?? ''),
                     'priority' => $submodule['priority'] ?? 100,
                     'type' => $component['type'] ?? 'page',
+                    'nav_section' => $navSection,
                     // No children - single component becomes the page
                 ];
             } else {
@@ -1076,12 +1095,18 @@ class AeroCoreServiceProvider extends ServiceProvider
                     'access' => 'core.'.$submoduleCode,
                     'priority' => $submodule['priority'] ?? 100,
                     'children' => $componentNav, // Include children for submenu
+                    'nav_section' => $navSection,
                 ];
             }
         }
 
         // Sort submodules by priority
         usort($submoduleNav, fn ($a, $b) => ($a['priority'] ?? 100) <=> ($b['priority'] ?? 100));
+
+        // Publish core's tenant section catalog to the generic aggregator.
+        if (! empty($config['nav_sections'])) {
+            $registry->registerSections('tenant', $config['nav_sections']);
+        }
 
         // Register core navigation with highest priority (1)
         // Core uses is_core=true so its children flatten to top level

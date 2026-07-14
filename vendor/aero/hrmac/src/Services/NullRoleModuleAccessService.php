@@ -26,6 +26,11 @@ class NullRoleModuleAccessService implements RoleModuleAccessInterface
         return false;
     }
 
+    public function getUserModuleScope(mixed $user, string $moduleCode): string
+    {
+        return 'own'; // fail closed: the narrowest scope
+    }
+
     public function canAccessSubModule(mixed $role, int $subModuleId): bool
     {
         return false;

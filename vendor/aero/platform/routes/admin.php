@@ -8,6 +8,7 @@ use Aero\Platform\Http\Controllers\Admin\AdminDashboardController;
 use Aero\Platform\Http\Controllers\Admin\AffiliateController;
 use Aero\Platform\Http\Controllers\Admin\AnalyticsController;
 use Aero\Platform\Http\Controllers\Admin\ApiKeyAdminController;
+use Aero\Platform\Http\Controllers\Admin\IntegrationsController;
 use Aero\Platform\Http\Controllers\Admin\AuditLogAdminController;
 use Aero\Platform\Http\Controllers\Admin\BillingDashboardController;
 use Aero\Platform\Http\Controllers\Admin\BroadcastController;
@@ -46,12 +47,15 @@ use Aero\Platform\Http\Controllers\Admin\InvoiceController as AdminInvoiceContro
 use Aero\HRMAC\Http\Controllers\ModuleController as HrmacModuleController;
 use Aero\HRMAC\Http\Controllers\RoleController;
 use Aero\Auth\Http\Controllers\Admin\UserAdminController;
+use Aero\Platform\Http\Controllers\Admin\PlatformUserController;
 use Aero\Platform\Http\Controllers\Admin\LeadController;
 use Aero\Platform\Http\Controllers\Admin\MaintenanceWindowController;
 use Aero\Platform\Http\Controllers\Admin\ModuleAdminController;
 use Aero\Platform\Http\Controllers\Admin\ModuleController;
 use Aero\Platform\Http\Controllers\Admin\NewsletterController;
-use Aero\Platform\Http\Controllers\Admin\OnboardingController as AdminOnboardingController;
+use Aero\Platform\Http\Controllers\Admin\AdminOnboardingController;
+use Aero\Platform\Http\Controllers\Admin\EntitlementOverrideController;
+use Aero\Platform\Http\Controllers\Admin\ProductCatalogController;
 use Aero\Platform\Http\Controllers\Admin\PaymentGatewayController;
 use Aero\Platform\Http\Controllers\Admin\PlanController as AdminP2PlanController;
 use Aero\Platform\Http\Controllers\Admin\PlatformAddonController;
@@ -63,6 +67,7 @@ use Aero\Platform\Http\Controllers\Admin\ReportController;
 use Aero\Platform\Http\Controllers\Admin\SeoController;
 use Aero\Platform\Http\Controllers\Admin\SocialAuthController;
 use Aero\Platform\Http\Controllers\Admin\QuotaController as P3QuotaController;
+use Aero\Platform\Http\Controllers\Admin\AiAssistantController;
 use Aero\Platform\Http\Controllers\Admin\SubscriptionController as AdminSubscriptionController;
 use Aero\Platform\Http\Controllers\Admin\TenantController as AdminTenantController;
 use Aero\Platform\Http\Controllers\Admin\TenantDatabaseController;
@@ -172,23 +177,27 @@ Route::middleware('admin.domain')->group(function () {
         // =========================================================================
         // Note: require.saas middleware blocks these routes in standalone mode
         Route::middleware(['require.saas', 'hrmac:tenants'])->prefix('tenants')->name('admin.tenants.')->group(function () {
-            Route::get('/', function () {
-                return Inertia::render('Platform/Admin/Tenants/Index');
-            })->middleware(['hrmac:tenants.tenant-list'])->name('index');
+            // Command centre. This group is registered before the P-1 lifecycle
+            // group below, so it wins dispatch for GET /tenants — the controller
+            // renders the full overview payload here (mirrors InvoiceController).
+            Route::get('/', [AdminTenantController::class, 'index'])
+                ->middleware(['hrmac:tenants.tenant-list'])->name('index');
+
+            // CSV export — MUST precede the /{tenant} route below or it is captured
+            // as a tenant id.
+            Route::get('/export', [AdminTenantController::class, 'export'])
+                ->middleware(['hrmac:tenants.tenant-list'])->name('export');
 
             Route::get('/create', function () {
                 return Inertia::render('Platform/Admin/Tenants/Create');
             })->middleware(['hrmac:tenants.tenant-list.tenant-management.create'])->name('create');
 
-            // Domain Management (MUST be before /{tenant} to avoid being matched as tenant ID)
-            Route::get('/domains', function () {
-                return Inertia::render('Platform/Admin/Tenants/Domains');
-            })->middleware(['hrmac:tenants.domains'])->name('domains');
-
-            // Database Management (MUST be before /{tenant} to avoid being matched as tenant ID)
-            Route::get('/databases', function () {
-                return Inertia::render('Platform/Admin/Tenants/Databases');
-            })->middleware(['hrmac:tenants.databases'])->name('databases');
+            // Domain & Database management pages are not built yet. Per the nav
+            // consistency rule, unbuilt features stay in config/module.php (HRMAC +
+            // roadmap) but expose NO route, so the nav prunes them instead of
+            // rendering a link to a missing component (blank page). Re-add these
+            // routes together with their Tenants/Domains + Tenants/Databases pages
+            // when the feature is built.
 
             // Tenant Management (bulk operations) (MUST be before /{tenant} to avoid being matched as tenant ID)
             Route::get('/management', function () {
@@ -226,6 +235,12 @@ Route::middleware('admin.domain')->group(function () {
 
                 return Inertia::render('Platform/Admin/Tenants/Edit', ['tenantId' => $tenant]);
             })->middleware(['hrmac:tenants.tenant-list.tenant-management.update'])->name('edit');
+
+            // Drawer detail payload (subscription + invoices + audit activity) for
+            // the command-centre drawer. JSON, fetched client-side.
+            Route::get('/{tenant}/detail', [AdminTenantController::class, 'detail'])
+                ->middleware(['hrmac:tenants.tenant-list.tenant-management.view'])
+                ->name('detail');
 
             // Tenant Impersonation
             Route::post('/{tenant}/impersonate', [ImpersonationController::class, 'impersonate'])
@@ -267,10 +282,30 @@ Route::middleware('admin.domain')->group(function () {
         // =========================================================================
         // Subscription Plans
         Route::middleware(['hrmac:subscriptions'])->prefix('plans')->name('admin.plans.')->group(function () {
-            // Plan List Page
-            Route::get('/', function () {
-                return Inertia::render('Platform/Admin/Plans/PlanList');
-            })->middleware(['hrmac:subscriptions.plans'])->name('index');
+            // Plans command centre. Registered before the P-2 lifecycle group, so
+            // it wins dispatch for GET /plans — the controller renders the full
+            // overview payload (mirrors the Tenants/Invoices command centres).
+            Route::get('/', [AdminP2PlanController::class, 'index'])
+                ->middleware(['hrmac:subscriptions.plans'])->name('index');
+
+            // CSV export — MUST precede the /{plan} route below or it is captured
+            // as a plan id.
+            Route::get('/export', [AdminP2PlanController::class, 'export'])
+                ->middleware(['hrmac:subscriptions.plans'])->name('export');
+
+            // Reorder the public pricing page (drag-to-sort).
+            Route::post('/reorder', [AdminP2PlanController::class, 'reorder'])
+                ->middleware(['hrmac:plan-management.plan-list.edit'])->name('reorder');
+
+            // Drawer detail (subscribers + revenue + activity), JSON.
+            Route::get('/{plan}/detail', [AdminP2PlanController::class, 'detail'])
+                ->middleware(['hrmac:plan-management.plan-details.view'])->name('detail');
+
+            // Visibility + featured toggles.
+            Route::post('/{plan}/toggle-public', [AdminP2PlanController::class, 'togglePublic'])
+                ->middleware(['hrmac:plan-management.plan-list.edit'])->name('toggle-public');
+            Route::post('/{plan}/toggle-featured', [AdminP2PlanController::class, 'toggleFeatured'])
+                ->middleware(['hrmac:plan-management.plan-list.edit'])->name('toggle-featured');
 
             // Create Plan Page
             Route::get('/create', function () {
@@ -372,9 +407,11 @@ Route::middleware('admin.domain')->group(function () {
 
         // Billing & Invoices
         Route::middleware(['hrmac:subscriptions'])->prefix('billing')->name('admin.billing.')->group(function () {
-            Route::get('/', function () {
-                return Inertia::render('Platform/Admin/Billing/Dashboard');
-            })->middleware(['hrmac:subscriptions.tenant-subscriptions'])->name('index');
+            // Base /billing IS the billing command center (the nav "Billing"
+            // link targets this). Serve it through the real controller so it
+            // renders with data instead of a bare, empty component.
+            Route::get('/', [BillingDashboardController::class, 'index'])
+                ->middleware(['hrmac:subscriptions.tenant-subscriptions'])->name('index');
 
             Route::get('/subscriptions', function () {
                 return Inertia::render('Platform/Admin/Billing/Subscriptions');
@@ -578,17 +615,17 @@ Route::middleware('admin.domain')->group(function () {
         // 12. PLATFORM INTEGRATIONS MODULE (platform-integrations)
         // =========================================================================
         Route::middleware(['hrmac:platform-integrations'])->prefix('integrations')->name('admin.integrations.')->group(function () {
-            Route::get('/', function () {
-                return Inertia::render('Platform/Admin/Integrations/Connectors');
-            })->middleware(['hrmac:platform-integrations.global-connectors'])->name('index');
+            // Command centre — the nav "Integrations" link lands here (data-backed).
+            Route::get('/', [IntegrationsController::class, 'overview'])
+                ->middleware(['hrmac:platform-integrations.global-connectors'])->name('index');
 
-            Route::get('/connectors', function () {
-                return Inertia::render('Platform/Admin/Integrations/Connectors');
-            })->middleware(['hrmac:platform-integrations.global-connectors'])->name('connectors');
+            // Connectors + API keys are subsumed by the Integrations command
+            // centre. Legacy sub-routes redirect so old links keep working.
+            Route::get('/connectors', fn () => redirect('/integrations'))
+                ->middleware(['hrmac:platform-integrations.global-connectors'])->name('connectors');
 
-            Route::get('/api', function () {
-                return Inertia::render('Platform/Admin/Integrations/Api');
-            })->middleware(['hrmac:platform-integrations.api-management'])->name('api');
+            Route::get('/api', fn () => redirect('/integrations'))
+                ->middleware(['hrmac:platform-integrations.api-management'])->name('api');
 
             Route::get('/webhooks', function () {
                 return Inertia::render('Platform/Admin/Integrations/Webhooks');
@@ -801,10 +838,18 @@ Route::middleware('admin.domain')->group(function () {
         // 14. PLATFORM ONBOARDING MODULE (platform-onboarding)
         // =========================================================================
         Route::middleware(['hrmac:platform-onboarding'])->prefix('onboarding')->name('admin.onboarding.')->group(function () {
-            // Page routes
-            Route::get('/', [AdminOnboardingController::class, 'dashboard'])
+            // Page routes — command centre (full lifecycle console) is the landing.
+            Route::get('/', [AdminOnboardingController::class, 'overview'])
                 ->middleware(['hrmac:platform-onboarding.onboarding_dashboard.view'])
                 ->name('dashboard');
+
+            // Drawer detail (JSON) + bulk lifecycle action.
+            Route::get('/tenants/{tenant}/detail', [AdminOnboardingController::class, 'detail'])
+                ->middleware(['hrmac:platform-onboarding.onboarding_dashboard.view'])
+                ->name('detail');
+            Route::post('/bulk', [AdminOnboardingController::class, 'bulk'])
+                ->middleware(['hrmac:platform-onboarding.pending_approvals.approve', 'throttle:10,1'])
+                ->name('bulk');
 
             Route::get('/pending', [AdminOnboardingController::class, 'pending'])
                 ->middleware(['hrmac:platform-onboarding.pending_approvals.view'])
@@ -925,9 +970,14 @@ Route::middleware('admin.domain')->group(function () {
         // 16. LEAD MANAGEMENT MODULE (lead-management)
         // =========================================================================
         Route::middleware(['hrmac:lead-management'])->prefix('leads')->name('admin.leads.')->group(function () {
-            Route::get('/', [LeadController::class, 'index'])
+            // Command centre — the nav "Leads" link lands here (data-backed CRM console).
+            Route::get('/', [LeadController::class, 'overview'])
                 ->middleware(['hrmac:lead-management.all-leads.view'])
                 ->name('index');
+
+            Route::post('/bulk', [LeadController::class, 'bulk'])
+                ->middleware(['hrmac:lead-management.all-leads.assign'])
+                ->name('bulk');
 
             Route::get('/paginate', [LeadController::class, 'paginate'])
                 ->middleware(['hrmac:lead-management.all-leads.view'])
@@ -978,9 +1028,24 @@ Route::middleware('admin.domain')->group(function () {
         // 17. NEWSLETTER MANAGEMENT MODULE (newsletter-management)
         // =========================================================================
         Route::middleware(['hrmac:newsletter-management'])->prefix('newsletter')->name('admin.newsletter.')->group(function () {
-            Route::get('/', [NewsletterController::class, 'index'])
+            // Command centre — the nav "Newsletter" link lands here (audience + campaigns).
+            Route::get('/', [NewsletterController::class, 'overview'])
                 ->middleware(['hrmac:newsletter-management.subscribers.view'])
                 ->name('index');
+
+            Route::post('/bulk', [NewsletterController::class, 'bulk'])
+                ->middleware(['hrmac:newsletter-management.subscribers.update'])
+                ->name('bulk');
+
+            // Campaigns (broadcast composer + send).
+            Route::post('/campaigns', [NewsletterController::class, 'storeCampaign'])
+                ->middleware(['hrmac:newsletter-management.campaigns.create'])->name('campaigns.store');
+            Route::put('/campaigns/{campaign}', [NewsletterController::class, 'updateCampaign'])
+                ->middleware(['hrmac:newsletter-management.campaigns.create'])->name('campaigns.update');
+            Route::delete('/campaigns/{campaign}', [NewsletterController::class, 'destroyCampaign'])
+                ->middleware(['hrmac:newsletter-management.campaigns.delete'])->name('campaigns.destroy');
+            Route::post('/campaigns/{campaign}/send', [NewsletterController::class, 'sendCampaign'])
+                ->middleware(['hrmac:newsletter-management.campaigns.send'])->name('campaigns.send');
 
             Route::get('/paginate', [NewsletterController::class, 'paginate'])
                 ->middleware(['hrmac:newsletter-management.subscribers.view'])
@@ -1039,9 +1104,14 @@ Route::middleware('admin.domain')->group(function () {
         // 18. AFFILIATE PROGRAM MODULE (affiliate-program)
         // =========================================================================
         Route::middleware(['hrmac:affiliate-program'])->prefix('affiliates')->name('admin.affiliates.')->group(function () {
-            Route::get('/', [AffiliateController::class, 'index'])
+            // Command centre — the nav "Affiliates" link lands here (data-backed console).
+            Route::get('/', [AffiliateController::class, 'overview'])
                 ->middleware(['hrmac:affiliate-program.affiliates.view'])
                 ->name('index');
+
+            Route::post('/bulk', [AffiliateController::class, 'bulk'])
+                ->middleware(['hrmac:affiliate-program.affiliates.approve'])
+                ->name('bulk');
 
             Route::get('/paginate', [AffiliateController::class, 'paginate'])
                 ->middleware(['hrmac:affiliate-program.affiliates.view'])
@@ -1237,24 +1307,52 @@ Route::middleware('admin.domain')->group(function () {
 
             Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
                 Route::get('/', [AdminSubscriptionController::class, 'index'])->name('index')->middleware('hrmac:billing-management.subscriptions.view');
+                Route::post('/', [AdminSubscriptionController::class, 'store'])->name('store')->middleware('hrmac:billing-management.subscriptions.create');
+                // Static segments MUST be registered before the /{subscription} wildcard.
+                Route::get('/export', [AdminSubscriptionController::class, 'export'])->name('export')->middleware('hrmac:billing-management.subscriptions.view');
+                Route::get('/detail/{kind}/{id}', [AdminSubscriptionController::class, 'detail'])->name('detail')->middleware('hrmac:billing-management.subscriptions.view');
+                Route::post('/bulk', [AdminSubscriptionController::class, 'bulk'])->name('bulk')->middleware('hrmac:billing-management.subscriptions.cancel');
+                Route::post('/product/{productSubscription}/cancel', [AdminSubscriptionController::class, 'cancelProduct'])->name('product.cancel')->middleware('hrmac:billing-management.subscriptions.cancel');
                 Route::get('/{subscription}', [AdminSubscriptionController::class, 'show'])->name('show')->middleware('hrmac:billing-management.subscriptions.view');
                 Route::post('/{subscription}/cancel', [AdminSubscriptionController::class, 'cancel'])->name('cancel')->middleware('hrmac:billing-management.subscriptions.cancel');
                 Route::post('/{subscription}/upgrade', [AdminSubscriptionController::class, 'upgrade'])->name('upgrade')->middleware('hrmac:billing-management.subscriptions.upgrade');
+                Route::post('/{subscription}/change-plan', [AdminSubscriptionController::class, 'changePlan'])->name('change-plan')->middleware('hrmac:billing-management.subscriptions.upgrade');
+                Route::post('/{subscription}/reactivate', [AdminSubscriptionController::class, 'reactivate'])->name('reactivate')->middleware('hrmac:billing-management.subscriptions.upgrade');
+                Route::post('/{subscription}/pause', [AdminSubscriptionController::class, 'pause'])->name('pause')->middleware('hrmac:billing-management.subscriptions.manage');
+                Route::post('/{subscription}/resume', [AdminSubscriptionController::class, 'resume'])->name('resume')->middleware('hrmac:billing-management.subscriptions.manage');
+                Route::post('/{subscription}/trial/extend', [AdminSubscriptionController::class, 'extendTrial'])->name('trial.extend')->middleware('hrmac:billing-management.subscriptions.manage');
+                Route::post('/{subscription}/trial/convert', [AdminSubscriptionController::class, 'convertTrial'])->name('trial.convert')->middleware('hrmac:billing-management.subscriptions.manage');
+                Route::post('/{subscription}/change-cycle', [AdminSubscriptionController::class, 'changeCycle'])->name('change-cycle')->middleware('hrmac:billing-management.subscriptions.upgrade');
+                Route::post('/{subscription}/retry-charge', [AdminSubscriptionController::class, 'retryCharge'])->name('retry-charge')->middleware('hrmac:billing-management.subscriptions.manage');
+                Route::post('/{subscription}/remind', [AdminSubscriptionController::class, 'remind'])->name('remind')->middleware('hrmac:billing-management.subscriptions.manage');
             });
 
             Route::prefix('invoices')->name('invoices.')->group(function () {
                 Route::get('/', [AdminInvoiceController::class, 'index'])->name('index')->middleware('hrmac:billing-management.invoices.view');
-                Route::get('/{invoice}', [AdminInvoiceController::class, 'show'])->name('show')->middleware('hrmac:billing-management.invoices.view');
+                // Static segments MUST be registered before the /{invoice} wildcard.
                 Route::post('/generate', [AdminInvoiceController::class, 'generate'])->name('generate')->middleware('hrmac:billing-management.invoices.generate');
+                Route::get('/export', [AdminInvoiceController::class, 'export'])->name('export')->middleware('hrmac:billing-management.invoices.view');
+                Route::post('/bulk', [AdminInvoiceController::class, 'bulk'])->name('bulk')->middleware('hrmac:billing-management.invoices.bulk');
+                Route::get('/detail/{invoice}', [AdminInvoiceController::class, 'detail'])->name('detail')->middleware('hrmac:billing-management.invoices.view');
+                Route::get('/{invoice}', [AdminInvoiceController::class, 'show'])->name('show')->middleware('hrmac:billing-management.invoices.view');
                 Route::post('/{invoice}/send', [AdminInvoiceController::class, 'send'])->name('send')->middleware('hrmac:billing-management.invoices.send');
                 Route::post('/{invoice}/mark-paid', [AdminInvoiceController::class, 'markPaid'])->name('mark-paid')->middleware('hrmac:billing-management.invoices.mark-paid');
+                Route::post('/{invoice}/void', [AdminInvoiceController::class, 'void'])->name('void')->middleware('hrmac:billing-management.invoices.void');
+                Route::post('/{invoice}/remind', [AdminInvoiceController::class, 'remind'])->name('remind')->middleware('hrmac:billing-management.invoices.remind');
+                Route::post('/{invoice}/refund', [AdminInvoiceController::class, 'refund'])->name('refund')->middleware('hrmac:billing-management.invoices.refund');
                 Route::get('/{invoice}/download', [AdminInvoiceController::class, 'download'])->name('download')->middleware('hrmac:billing-management.invoices.view');
             });
 
             Route::prefix('gateways')->name('gateways.')->group(function () {
                 Route::get('/', [PaymentGatewayController::class, 'index'])->name('index')->middleware('hrmac:billing-management.payment-gateways.view');
-                Route::put('/{code}', [PaymentGatewayController::class, 'update'])->name('update')->middleware('hrmac:billing-management.payment-gateways.configure');
-                Route::post('/{code}/test', [PaymentGatewayController::class, 'test'])->name('test')->middleware('hrmac:billing-management.payment-gateways.view');
+                Route::post('/', [PaymentGatewayController::class, 'store'])->name('store')->middleware('hrmac:billing-management.payment-gateways.configure');
+                // Bind by the natural key (code); sub-segment routes stay distinct from the bare wildcard.
+                Route::put('/{gateway:code}', [PaymentGatewayController::class, 'update'])->name('update')->middleware('hrmac:billing-management.payment-gateways.configure');
+                Route::put('/{gateway:code}/config', [PaymentGatewayController::class, 'saveConfig'])->name('config')->middleware('hrmac:billing-management.payment-gateways.configure');
+                Route::post('/{gateway:code}/toggle', [PaymentGatewayController::class, 'toggle'])->name('toggle')->middleware('hrmac:billing-management.payment-gateways.configure');
+                Route::post('/{gateway:code}/default', [PaymentGatewayController::class, 'setDefault'])->name('default')->middleware('hrmac:billing-management.payment-gateways.configure');
+                Route::post('/{gateway:code}/test', [PaymentGatewayController::class, 'test'])->name('test')->middleware('hrmac:billing-management.payment-gateways.view');
+                Route::delete('/{gateway:code}', [PaymentGatewayController::class, 'destroy'])->name('destroy')->middleware('hrmac:billing-management.payment-gateways.configure');
             });
         });
 
@@ -1285,10 +1383,19 @@ Route::middleware('admin.domain')->group(function () {
                 ->put('/settings', [P3QuotaController::class, 'updateSettings'])->name('settings.update');
         });
 
+        // AI Assistant (Aeon) fleet control — governs the tenant-facing assistant.
+        Route::prefix('ai-assistant')->name('platform.admin.ai-assistant.')->group(function () {
+            Route::middleware('hrmac:quota-management.ai-assistant.view')
+                ->get('/', [AiAssistantController::class, 'index'])->name('index');
+            Route::middleware('hrmac:quota-management.ai-assistant.configure')
+                ->put('/settings', [AiAssistantController::class, 'updateSettings'])->name('settings.update');
+        });
+
         // Platform Analytics (P-3)
         Route::prefix('analytics')->name('platform.admin.analytics.')->group(function () {
+            // Command centre — the nav "Analytics" link lands here (data-backed roll-up).
             Route::middleware('hrmac:platform-analytics.analytics-dashboard.view')
-                ->get('/', [AnalyticsController::class, 'dashboard'])->name('index');
+                ->get('/', [AnalyticsController::class, 'overview'])->name('index');
             Route::middleware('hrmac:platform-analytics.revenue-reports.view')
                 ->get('/revenue', [AnalyticsController::class, 'revenue'])->name('revenue');
             Route::middleware('hrmac:platform-analytics.tenant-analytics.view')
@@ -1348,6 +1455,11 @@ Route::middleware('admin.domain')->group(function () {
                 ->get('/branding', [PlatformSettingController::class, 'branding'])->name('branding');
             Route::middleware('hrmac:system-settings.branding-settings.edit')
                 ->put('/branding', [PlatformSettingController::class, 'updateBranding'])->name('branding.update');
+            // BrandStudio posts multipart — POST alias + reset
+            Route::middleware('hrmac:system-settings.branding-settings.edit')
+                ->post('/branding', [PlatformSettingController::class, 'updateBranding'])->name('branding.save');
+            Route::middleware('hrmac:system-settings.branding-settings.edit')
+                ->post('/branding/reset', [PlatformSettingController::class, 'resetBranding'])->name('branding.reset');
 
             Route::middleware('hrmac:system-settings.email-settings.view')
                 ->get('/email', [PlatformSettingController::class, 'email'])->name('email');
@@ -1383,12 +1495,42 @@ Route::middleware('admin.domain')->group(function () {
                 'hrmac_scope' => 'platform',
                 'hrmac_dashboard_route' => 'platform.admin.dashboard',
                 'hrmac_user_impersonation' => true,
-                'hrmac_user_invitations' => false,
+                'hrmac_user_invitations' => true,
             ];
 
-            Route::get('/', [UserAdminController::class, 'index'])->name('index')
-                ->middleware('hrmac:auth.user_management.users.view')
-                ->setDefaults($platformUserCtx + ['hrmac_user_view' => 'Shared/UserManagement/Users/Index']);
+            // Command centre — platform-scoped overview (mirrors Tenants/Plans).
+            Route::get('/', [PlatformUserController::class, 'index'])->name('index')
+                ->middleware('hrmac:auth.user_management.users.view');
+
+            // CSV export — MUST precede /{id} (whereNumber already excludes it, but
+            // keep the static route ahead for clarity).
+            Route::get('/export', [PlatformUserController::class, 'export'])->name('export')
+                ->middleware('hrmac:auth.user_management.users.view');
+
+            // Drawer detail (sessions + activity), JSON.
+            Route::get('/{id}/detail', [PlatformUserController::class, 'detail'])->name('detail')->whereNumber('id')
+                ->middleware('hrmac:auth.user_management.users.view');
+
+            // Security operations not covered by the shared user CRUD.
+            Route::post('/{id}/lock', [PlatformUserController::class, 'toggleLock'])->name('lock')->whereNumber('id')
+                ->middleware('hrmac:auth.user_management.users.edit');
+            Route::post('/{id}/force-reset', [PlatformUserController::class, 'forcePasswordReset'])->name('force-reset')->whereNumber('id')
+                ->middleware('hrmac:auth.user_management.users.edit');
+            Route::post('/{id}/revoke-sessions', [PlatformUserController::class, 'revokeSessions'])->name('revoke-sessions')->whereNumber('id')
+                ->middleware('hrmac:auth.user_management.users.edit');
+            Route::post('/{id}/reset-2fa', [PlatformUserController::class, 'resetTwoFactor'])->name('reset-2fa')->whereNumber('id')
+                ->middleware('hrmac:auth.user_management.users.edit');
+
+            // Bulk role assignment + staff invitations (shared controller).
+            Route::post('/bulk/assign-roles', [UserAdminController::class, 'bulkAssignRoles'])->name('bulk.assign-roles')
+                ->middleware('hrmac:auth.user_management.users.edit')->setDefaults($platformUserCtx);
+            Route::post('/invite', [UserAdminController::class, 'invite'])->name('invite')
+                ->middleware('hrmac:auth.user_management.users.create')->setDefaults($platformUserCtx);
+            Route::post('/invitations/{invitationId}/resend', [UserAdminController::class, 'resendInvitation'])->name('invitations.resend')->whereNumber('invitationId')
+                ->middleware('hrmac:auth.user_management.users.create')->setDefaults($platformUserCtx);
+            Route::delete('/invitations/{invitationId}', [UserAdminController::class, 'cancelInvitation'])->name('invitations.cancel')->whereNumber('invitationId')
+                ->middleware('hrmac:auth.user_management.users.create')->setDefaults($platformUserCtx);
+
             Route::get('/create', [UserAdminController::class, 'create'])->name('create')
                 ->middleware('hrmac:auth.user_management.users.create')
                 ->setDefaults($platformUserCtx + ['hrmac_user_create_view' => 'Shared/UserManagement/Users/Create']);
@@ -1442,16 +1584,43 @@ Route::middleware('admin.domain')->group(function () {
                     ->post('/assign-user', [RoleController::class, 'assignUser'])->name('assign-user');
             });
 
+        // Entitlement overrides — grant/revoke a module to a tenant outside a purchase.
+        Route::prefix('entitlements')->name('platform.admin.entitlements.')->group(function () {
+            Route::middleware('hrmac:entitlement-overrides.overrides.view')
+                ->get('/', [EntitlementOverrideController::class, 'index'])->name('index');
+            Route::middleware('hrmac:entitlement-overrides.overrides.grant')
+                ->post('/', [EntitlementOverrideController::class, 'store'])->name('store');
+            Route::middleware('hrmac:entitlement-overrides.overrides.revoke')
+                ->delete('/{entitlement}', [EntitlementOverrideController::class, 'destroy'])->name('destroy');
+        });
+
+        // Products (Catalog) — monetisation-governance command centre.
+        // Sellable products (bundled modules, price, adoption, MRR). The technical
+        // module registry lives on the Modules page below.
+        Route::prefix('products')->name('platform.admin.products.')->group(function () {
+            Route::middleware('hrmac:product-catalog.catalog.view')
+                ->get('/', [ProductCatalogController::class, 'index'])->name('index');
+            Route::middleware('hrmac:product-catalog.catalog.create')
+                ->post('/', [ProductCatalogController::class, 'store'])->name('store');
+            Route::middleware('hrmac:product-catalog.catalog.edit')
+                ->put('/{product}', [ProductCatalogController::class, 'update'])->name('update');
+            Route::middleware('hrmac:product-catalog.catalog.edit')
+                ->delete('/{product}', [ProductCatalogController::class, 'destroy'])->name('destroy');
+        });
+
         // Module Management (P-4)
         Route::prefix('modules')->name('platform.admin.modules.')->group(function () {
             Route::middleware('hrmac:module-management.module-list.view')
                 ->get('/', [ModuleAdminController::class, 'index'])->name('index');
             Route::middleware('hrmac:module-management.module-list.toggle-active')
+                ->post('/resync', [ModuleAdminController::class, 'resync'])->name('resync');
+            Route::middleware('hrmac:module-management.module-list.toggle-active')
                 ->post('/{module}/toggle', [ModuleAdminController::class, 'toggle'])->name('toggle');
             Route::middleware('hrmac:module-management.module-list.configure')
                 ->put('/{module}/config', [ModuleAdminController::class, 'configure'])->name('configure');
-            Route::middleware('hrmac:module-management.module-pricing.edit')
-                ->put('/{module}/pricing', [ModuleAdminController::class, 'updatePricing'])->name('pricing');
+            // Pricing lives on the Products (Catalog) page now — the vestigial
+            // per-module pricing editor (writing non-billed modules.price_* columns)
+            // was retired. See platform.admin.products.*.
 
             // Per-role module-access data contract for the shared RBAC access Drawer
             // (platform context). Backed by the shared aero-hrmac ModuleController.
@@ -1600,7 +1769,8 @@ Route::middleware('admin.domain')->group(function () {
 
         // Audit Logs (P-5)
         Route::prefix('audit-logs')->name('platform.admin.audit-logs.')->group(function () {
-            Route::get('/', [AuditLogAdminController::class, 'index'])
+            // Command centre — the nav "Audit Logs" link lands here (investigative console).
+            Route::get('/', [AuditLogAdminController::class, 'overview'])
                 ->name('index')
                 ->middleware('hrmac:audit-logs.audit-log-list.view');
             Route::get('/export', [AuditLogAdminController::class, 'export'])
@@ -2142,6 +2312,12 @@ Route::middleware('admin.domain')->group(function () {
             Route::post('/tenants/{tenantId}/reassign', [Finance\PartnerController::class, 'reassign'])
                 ->name('tenants.reassign')
                 ->middleware('hrmac:reseller-partners.partner-tenants.reassign');
+            Route::post('/commissions/{commissionId}/approve', [Finance\PartnerController::class, 'approveCommission'])
+                ->name('commissions.approve')
+                ->middleware('hrmac:reseller-partners.partner-commissions.manage');
+            Route::post('/commissions/{commissionId}/pay', [Finance\PartnerController::class, 'payCommission'])
+                ->name('commissions.pay')
+                ->middleware('hrmac:reseller-partners.partner-commissions.payout');
             Route::get('/', [Finance\PartnerController::class, 'index'])
                 ->name('index')
                 ->middleware('hrmac:reseller-partners.partners.view');
@@ -2178,6 +2354,11 @@ Route::middleware('admin.domain')->group(function () {
         // P-10: White-Label
         // =========================================================================
         Route::prefix('white-label')->name('platform.admin.white-label.')->group(function () {
+            // Command center — every white-label surface in one console
+            Route::get('/', [WhiteLabelController::class, 'overview'])
+                ->name('overview')
+                ->middleware('hrmac:white-label.custom-domains.view');
+
             // Custom Domains
             Route::get('/domains', [WhiteLabelController::class, 'domainsIndex'])
                 ->name('domains')
@@ -2200,20 +2381,35 @@ Route::middleware('admin.domain')->group(function () {
                 ->name('ssl.renew')
                 ->middleware('hrmac:white-label.ssl-provisioning.renew');
 
-            // Branding
+            // Branding — shared BrandStudio contract, per tenant
+            Route::get('/branding/{tenantId}/studio', [WhiteLabelController::class, 'studio'])
+                ->name('branding.studio')
+                ->middleware('hrmac:white-label.tenant-branding.view');
             Route::get('/branding/{tenantId}', [WhiteLabelController::class, 'showBranding'])
                 ->name('branding.show')
                 ->middleware('hrmac:white-label.tenant-branding.view');
-            Route::post('/branding', [WhiteLabelController::class, 'updateBranding'])
+            Route::post('/branding/{tenantId}/reset', [WhiteLabelController::class, 'resetBranding'])
+                ->name('branding.reset')
+                ->middleware('hrmac:white-label.tenant-branding.manage');
+            Route::post('/branding/{tenantId}', [WhiteLabelController::class, 'updateBranding'])
                 ->name('branding.update')
                 ->middleware('hrmac:white-label.tenant-branding.manage');
 
             // Custom CSS
+            Route::get('/css/{tenantId}/content', [WhiteLabelController::class, 'cssContent'])
+                ->name('css.content')
+                ->middleware('hrmac:white-label.custom-css.view');
             Route::get('/css/{tenantId}', [WhiteLabelController::class, 'showCss'])
                 ->name('css.show')
                 ->middleware('hrmac:white-label.custom-css.view');
             Route::post('/css', [WhiteLabelController::class, 'updateCss'])
                 ->name('css.update')
+                ->middleware('hrmac:white-label.custom-css.edit');
+            Route::post('/css/{tenantId}/toggle', [WhiteLabelController::class, 'toggleCss'])
+                ->name('css.toggle')
+                ->middleware('hrmac:white-label.custom-css.edit');
+            Route::delete('/css/{tenantId}', [WhiteLabelController::class, 'destroyCss'])
+                ->name('css.destroy')
                 ->middleware('hrmac:white-label.custom-css.edit');
 
             // Email Branding / DKIM
@@ -2226,6 +2422,9 @@ Route::middleware('admin.domain')->group(function () {
             Route::post('/email-branding/dkim/{branding}/verify', [WhiteLabelController::class, 'verifyDkim'])
                 ->name('email-branding.dkim.verify')
                 ->middleware('hrmac:white-label.tenant-email-branding.verify');
+            Route::delete('/email-branding/dkim/{branding}', [WhiteLabelController::class, 'destroyDkim'])
+                ->name('email-branding.dkim.destroy')
+                ->middleware('hrmac:white-label.tenant-email-branding.configure');
         });
 
         // =========================================================================

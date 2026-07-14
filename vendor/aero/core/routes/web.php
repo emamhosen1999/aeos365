@@ -26,7 +26,6 @@ use Aero\Core\Http\Controllers\Admin\UserPreferenceController;
 use Aero\Core\Http\Controllers\Admin\WebhookController;
 use Aero\Core\Http\Controllers\DashboardController;
 use Aero\Core\Http\Controllers\Navigation\UserNavigationController;
-use Aero\Core\Http\Controllers\Notification\NotificationController;
 use Aero\Core\Http\Controllers\Profile\NotificationPreferenceController;
 use Aero\Core\Http\Controllers\Profile\UserProfileController;
 use Aero\Core\Http\Controllers\Profile\UserProfileImageController;
@@ -506,15 +505,17 @@ Route::middleware('auth:web')->group(function () {
     });
 
     // ========================================================================
-    // NOTIFICATIONS MANAGEMENT
+    // NOTIFICATIONS
     // ========================================================================
-    Route::prefix('notifications')->name('core.notifications.')->group(function () {
-        Route::get('/', [NotificationController::class, 'index'])->name('index');
-        Route::get('/list', [NotificationController::class, 'list'])->name('list');
-        Route::post('/{id}/read', [NotificationController::class, 'markAsRead'])->name('read');
-        Route::post('/read-all', [NotificationController::class, 'markAllAsRead'])->name('read-all');
-        Route::delete('/{id}', [NotificationController::class, 'destroy'])->name('destroy');
-    });
+    // Owned by aero-notifications: NotificationCenterController serves the whole
+    // surface at /notifications?tab=… (inbox, delivery log, bounces, suppression,
+    // deliverability, templates, channels, preferences), registered on this same
+    // tenant domain by AeroNotificationsServiceProvider.
+    //
+    // The old core.notifications.* group shadowed it: being domain-scoped it won
+    // the match, and its index() rendered Core/Notifications/Index with no props
+    // while the page fetched /notifications/list over JSON. Nothing referenced
+    // those route names.
 
     // ========================================================================
     // COMMENTS & MENTIONS
@@ -585,6 +586,7 @@ Route::middleware('auth:web')->group(function () {
         Route::prefix('branding')->name('branding.')->middleware('hrmac:core.settings.branding.view')->group(function () {
             Route::get('/', [BrandingSettingsController::class, 'index'])->name('index');
             Route::post('/', [BrandingSettingsController::class, 'update'])->name('update')->middleware('hrmac:core.settings.branding.update');
+            Route::post('/reset', [BrandingSettingsController::class, 'reset'])->name('reset')->middleware('hrmac:core.settings.branding.update');
         });
         // Localization Settings
         Route::prefix('localization')->name('localization.')->middleware('hrmac:core.settings.localization.view')->group(function () {

@@ -50,6 +50,17 @@ class PlanStoreRequest extends FormRequest
             'tier' => ['nullable', 'string', Rule::in(['free', 'starter', 'professional', 'enterprise'])],
             'plan_type' => ['nullable', 'string', Rule::in(['trial', 'free', 'paid', 'custom'])],
             'stripe_product_id' => ['nullable', 'string', 'max:255'],
+
+            // Quotas & lifecycle policies (editable from the command-centre editor)
+            'grace_days' => ['nullable', 'integer', 'min:0', 'max:365'],
+            'max_users' => ['nullable', 'integer', 'min:0'],
+            'max_storage_gb' => ['nullable', 'integer', 'min:0'],
+            // AI Assistant allowance (folded into limits by the controller).
+            'ai_enabled' => ['boolean'],
+            'ai_model' => ['nullable', 'string', Rule::in(['flash', 'pro', 'all'])],
+            'ai_messages' => ['nullable', 'integer', 'min:0'],
+            'downgrade_policy' => ['nullable', 'string', 'max:50'],
+            'cancellation_policy' => ['nullable', 'string', 'max:50'],
         ];
     }
 

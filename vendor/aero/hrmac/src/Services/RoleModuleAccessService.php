@@ -170,6 +170,67 @@ class RoleModuleAccessService implements RoleModuleAccessInterface
     }
 
     /**
+     * The user's effective DATA scope for a module: 'all' | 'department' | 'team' | 'own'.
+     *
+     * Grants live at every level of the tree (module / sub-module / component / action),
+     * each carrying its own access_scope, and a user may hold several roles. The scope
+     * that governs is the BROADEST one any granted row gives them for this module —
+     * a role that can see all payroll rows is not narrowed by another that can see only
+     * its own. Fails closed: no grant, no module, or a super-admin-less unknown → 'own'.
+     */
+    public function getUserModuleScope(mixed $user, string $moduleCode): string
+    {
+        if (! $user) {
+            return RoleModuleAccess::SCOPE_OWN;
+        }
+
+        if ($this->isSuperAdmin($user)) {
+            return RoleModuleAccess::SCOPE_ALL;
+        }
+
+        $module = Module::where('code', $moduleCode)->where('is_active', true)->first();
+
+        if (! $module) {
+            return RoleModuleAccess::SCOPE_OWN;
+        }
+
+        $roleIds = $user->roles->pluck('id')->all();
+
+        if (empty($roleIds)) {
+            return RoleModuleAccess::SCOPE_OWN;
+        }
+
+        // Grants are written at the SUB-MODULE level and carry a NULL module_id (verified
+        // against live data: every row has sub_module_id set, none has module_id). Matching
+        // on module_id alone would find nothing and collapse every user to 'own', so reach
+        // the module's rows through its sub-modules — and still honour a module-level row
+        // should one ever be written.
+        $subModuleIds = SubModule::where('module_id', $module->id)->pluck('id')->all();
+
+        $scopes = $this->accessModel()::query()
+            ->whereIn('role_id', $roleIds)
+            ->where('status', RoleModuleAccess::STATUS_ACTIVE) // suspended rows grant nothing
+            ->where(function ($q) use ($module, $subModuleIds) {
+                $q->where('module_id', $module->id);
+                if (! empty($subModuleIds)) {
+                    $q->orWhereIn('sub_module_id', $subModuleIds);
+                }
+            })
+            ->pluck('access_scope')
+            ->filter()
+            ->all();
+
+        // Broadest wins.
+        foreach ([RoleModuleAccess::SCOPE_ALL, RoleModuleAccess::SCOPE_DEPARTMENT, RoleModuleAccess::SCOPE_TEAM] as $scope) {
+            if (in_array($scope, $scopes, true)) {
+                return $scope;
+            }
+        }
+
+        return RoleModuleAccess::SCOPE_OWN;
+    }
+
+    /**
      * Check if a user (through their roles) can access a sub-module by codes.
      */
     public function userCanAccessSubModule(mixed $user, string $moduleCode, string $subModuleCode): bool

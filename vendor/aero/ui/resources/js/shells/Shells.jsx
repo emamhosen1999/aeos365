@@ -41,18 +41,79 @@ function saveShellPrefs(patch) {
   } catch { /* quota / private mode — non-fatal */ }
 }
 
+// Per-group open/closed state (nav sections + module accordions), persisted so a
+// user's collapse choices survive reloads and Inertia navigations. Keyed by a
+// stable id ('sec:<label>' / 'mod:<href|label>'); value is the explicit isOpen.
+const NAV_STATE_KEY = 'aeos-nav-state';
+
+function loadNavState() {
+  try {
+    const raw = typeof localStorage !== 'undefined' && localStorage.getItem(NAV_STATE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+function saveNavState(key, open) {
+  if (!key) return;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(NAV_STATE_KEY, JSON.stringify({ ...loadNavState(), [key]: open }));
+    }
+  } catch { /* non-fatal */ }
+}
+
 /* ─── RecursiveNavItem ──────────────────────────────────────────────────── */
 function RecursiveNavItem({ item, depth = 0, isCommand = false, expanded = true }) {
-  const [isOpen, setIsOpen] = useState(item.hasActiveChild ?? false);
   const hasChildren = Array.isArray(item.children) && item.children.length > 0;
+  // Stable key for persisting this group's open/closed state.
+  const navKey = item.isSection
+    ? (item.label ? `sec:${item.label}` : null)
+    : (hasChildren ? `mod:${item.href ?? item.label ?? ''}` : null);
+
+  // Restore the saved open state; else default (sections open, modules closed
+  // unless they contain the active page).
+  const [isOpen, setIsOpen] = useState(() => {
+    const saved = navKey ? loadNavState()[navKey] : undefined;
+    if (saved !== undefined) return saved;
+    // Industry-standard (Guardian) default: everything collapsed except the
+    // branch that contains the current page.
+    return item.hasActiveChild ?? false;
+  });
+  // Hooks must run unconditionally before any early return (React rules-of-hooks):
+  // `expanded` changes at runtime, so a return above this would drop a hook.
+  const toggle = useCallback((e) => {
+    e.preventDefault();
+    if (expanded || isCommand) {
+      setIsOpen(v => { const next = !v; saveNavState(navKey, next); return next; });
+    }
+  }, [expanded, isCommand, navKey]);
+  // Guardian pattern: navigating INTO a branch auto-expands it so the active
+  // item is always visible. Ephemeral (not persisted) — a user's explicit
+  // collapse while on the page sticks until they navigate into it again.
+  useEffect(() => {
+    if (item.hasActiveChild) setIsOpen(true);
+  }, [item.hasActiveChild]);
 
   if (item.divider) return <div className="aeos-shell-sidebar-divider" aria-hidden="true" />;
   if (item.spacer)  return <div className="aeos-shell-sidebar-spacer"  aria-hidden="true" />;
-
-  const toggle = useCallback((e) => {
-    e.preventDefault();
-    if (expanded || isCommand) setIsOpen(v => !v);
-  }, [expanded, isCommand]);
+  // Section heading. Collapsed (icon-only) rail can't show text, so degrade to a
+  // divider; the command shell (isCommand) always has room for the label.
+  if (item.heading) {
+    return (expanded || isCommand)
+      ? <div className="aeos-shell-sidebar-heading">{item.heading}</div>
+      : <div className="aeos-shell-sidebar-divider" aria-hidden="true" />;
+  }
+  // A collapsible section on an icon-only rail has no room for its header —
+  // render the modules directly so the rail stays usable.
+  if (item.isSection && !expanded && !isCommand) {
+    return (
+      <>
+        {(item.children ?? []).map((child, i) => (
+          <RecursiveNavItem key={i} item={child} depth={0} isCommand={isCommand} expanded={expanded} />
+        ))}
+      </>
+    );
+  }
 
   const isLink     = Boolean(item.href) && !hasChildren;
   const isInternal = isLink && !/^(https?:|\/\/|mailto:|tel:)/.test(item.href);
@@ -65,6 +126,8 @@ function RecursiveNavItem({ item, depth = 0, isCommand = false, expanded = true 
   const baseClass = isCommand ? 'aeos-shell-nav-item' : 'aeos-shell-sidebar-item';
   const itemClass = cx(
     baseClass,
+    item.isSection                && 'is-section',
+    item.isSubSection             && 'is-subsection',
     item.active && !hasChildren && 'active',
     item.hasActiveChild           && 'active-parent',
     depthClass,
@@ -122,24 +185,14 @@ function RecursiveNavItem({ item, depth = 0, isCommand = false, expanded = true 
     <div className="aeos-nav-item-wrapper">
       {content}
 
-      {hasChildren && (expanded || isCommand) && (
-        <div
-          className="aeos-shell-sidebar-children"
-          // Collapsed children are visually clipped (grid 0fr) but stay in the DOM.
-          // `inert` removes them from tab order, pointer hit-testing and the a11y
-          // tree so a collapsed group can't steal focus or intercept clicks.
-          {...(isOpen ? {} : { inert: '' })}
-          style={{
-            display: 'grid',
-            gridTemplateRows: isOpen ? '1fr' : '0fr',
-            transition: 'grid-template-rows var(--aeos-dur-base) var(--aeos-ease-out)',
-          }}
-        >
-          <div style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            {item.children.map((child, i) => (
-              <RecursiveNavItem key={i} item={child} depth={depth + 1} isCommand={isCommand} expanded={expanded} />
-            ))}
-          </div>
+      {/* Children render only when open — a conditional (not an overflow:hidden
+          collapse) so nothing clips horizontally and the rail can auto-size to
+          the widest, deepest item. A light fade-in stands in for the slide. */}
+      {hasChildren && (expanded || isCommand) && isOpen && (
+        <div className="aeos-shell-sidebar-children aeos-nav-children-reveal">
+          {item.children.map((child, i) => (
+            <RecursiveNavItem key={i} item={child} depth={depth + 1} isCommand={isCommand} expanded={expanded} />
+          ))}
         </div>
       )}
     </div>
@@ -347,6 +400,54 @@ function TopNavLink({ item, role, className, onNavigate }) {
   );
 }
 
+/* A collapsible group inside the top-nav dropdown — same folder-item pattern as
+   the rest of the nav (icon + label + count badge + chevron), not a static
+   uppercase label. Default collapsed unless it holds the active page. */
+function TopNavMenuGroup({ item, onNavigate }) {
+  const [open, setOpen] = useState(item.hasActiveChild ?? false);
+  return (
+    <div className="aeos-topnav-menu-group">
+      <button
+        type="button"
+        className={cx('aeos-topnav-menu-item aeos-topnav-menu-groupbtn', item.hasActiveChild && 'active-parent')}
+        aria-expanded={open}
+        onClick={() => setOpen(v => !v)}
+      >
+        {item.icon && <item.icon className="aeos-shell-nav-icon" aria-hidden="true" />}
+        <span className="aeos-shell-nav-item-label">{item.label}</span>
+        {item.count != null && <span className="aeos-shell-cmd-nav-count">{item.count}</span>}
+        <span className={cx('aeos-shell-nav-chevron', open && 'is-open')} aria-hidden="true">
+          <ChevronRightIcon />
+        </span>
+      </button>
+      {open && (
+        <div className="aeos-topnav-menu-children">
+          <TopNavMenuItems items={item.children} onNavigate={onNavigate} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Recursive dropdown body — nested sub-groups render as collapsible folder
+   groups (consistent with the sidebar), so a 3rd/4th-level item (HR → People →
+   Employees → …) is grouped, not dropped. */
+function TopNavMenuItems({ items, onNavigate }) {
+  return items.map((child, i) =>
+    (Array.isArray(child.children) && child.children.length > 0) ? (
+      <TopNavMenuGroup key={i} item={child} onNavigate={onNavigate} />
+    ) : (
+      <TopNavLink
+        key={i}
+        item={child}
+        role="menuitem"
+        className={cx('aeos-topnav-menu-item', child.active && 'active')}
+        onNavigate={onNavigate}
+      />
+    )
+  );
+}
+
 function TopNavItem({ item }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState(null);
@@ -410,15 +511,7 @@ function TopNavItem({ item }) {
           role="menu"
           style={{ position: 'fixed', left: coords.left, top: coords.top }}
         >
-          {item.children.map((child, i) => (
-            <TopNavLink
-              key={i}
-              item={child}
-              role="menuitem"
-              className={cx('aeos-topnav-menu-item', child.active && 'active')}
-              onNavigate={() => setOpen(false)}
-            />
-          ))}
+          <TopNavMenuItems items={item.children} onNavigate={() => setOpen(false)} />
         </div>
       )}
     </div>
@@ -491,30 +584,7 @@ function MoreMenu({ items }) {
           role="menu"
           style={{ position: 'fixed', left: coords.left, top: coords.top }}
         >
-          {items.map((it, i) => (
-            (Array.isArray(it.children) && it.children.length > 0) ? (
-              <div key={i} className="aeos-topnav-menu-group">
-                <div className="aeos-topnav-menu-grouplabel">{it.label}</div>
-                {it.children.map((c, j) => (
-                  <TopNavLink
-                    key={j}
-                    item={c}
-                    role="menuitem"
-                    className={cx('aeos-topnav-menu-item', c.active && 'active')}
-                    onNavigate={() => setOpen(false)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <TopNavLink
-                key={i}
-                item={it}
-                role="menuitem"
-                className={cx('aeos-topnav-menu-item', (it.active || it.hasActiveChild) && 'active')}
-                onNavigate={() => setOpen(false)}
-              />
-            )
-          ))}
+          <TopNavMenuItems items={items} onNavigate={() => setOpen(false)} />
         </div>
       )}
     </div>
@@ -687,8 +757,13 @@ export function FloatingShell({
 
 /* ─── CommandSection ────────────────────────────────────────────────────── */
 function CommandSection({ group }) {
-  const [isOpen, setIsOpen] = useState(true);
-  const toggle = useCallback(() => setIsOpen(v => !v), []);
+  // Share the persisted open state with the sidebar (same 'sec:<title>' key).
+  const navKey = group.title ? `sec:${group.title}` : null;
+  const [isOpen, setIsOpen] = useState(() => {
+    const saved = navKey ? loadNavState()[navKey] : undefined;
+    return saved !== undefined ? saved : true;
+  });
+  const toggle = useCallback(() => setIsOpen(v => { const next = !v; saveNavState(navKey, next); return next; }), [navKey]);
 
   return (
     <div className="aeos-shell-cmd-nav-group">

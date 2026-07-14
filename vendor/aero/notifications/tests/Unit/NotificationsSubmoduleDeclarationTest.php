@@ -51,20 +51,57 @@ class NotificationsSubmoduleDeclarationTest extends TestCase
             "DeliverabilityController, BounceController).');
     }
 
-    public function test_sms_engine_submodule_declared(): void
+    /**
+     * A submodule component becomes a sidebar link AND an HRMAC permission set.
+     * sms_engine/push_engine were declared with gateway/log/topic PAGES that have
+     * no controller, no route and no JSX behind them — five phantom nav links that
+     * 404'd. SMS and push are real as *channels* (services + pipeline adapters) and
+     * are configured through the `settings` → Channels tab, which exists.
+     *
+     * Re-declare them only when the pages are actually built.
+     */
+    public function test_phantom_engine_submodules_are_not_declared(): void
     {
         $codes = array_column($this->config()['submodules'], 'code');
-        $this->assertContains('sms_engine', $codes,
-            'sms_engine submodule MUST be declared (SmsService + SmsGatewayService ".
-            "+ SmsChannelAdapter all live in this package).');
+
+        $this->assertNotContains('sms_engine', $codes,
+            'sms_engine declares gateway/log/template PAGES that do not exist — '.
+            'it produces dead sidebar links. Configure SMS via the Channels tab.');
+
+        $this->assertNotContains('push_engine', $codes,
+            'push_engine declares FCM-config/topic PAGES that do not exist — '.
+            'it produces dead sidebar links. Configure push via the Channels tab.');
     }
 
-    public function test_push_engine_submodule_declared(): void
+    /** Every declared component must be a real tab of the command centre. */
+    public function test_every_declared_component_maps_to_a_real_tab(): void
     {
-        $codes = array_column($this->config()['submodules'], 'code');
-        $this->assertContains('push_engine', $codes,
-            'push_engine submodule MUST be declared (FcmNotificationService + ".
-            "PushChannelAdapter live in this package).');
+        $tabs = ['inbox', 'log', 'bounces', 'suppression', 'deliverability', 'templates', 'channels', 'preferences'];
+
+        foreach ($this->config()['submodules'] as $submodule) {
+            foreach ($submodule['components'] as $component) {
+                $route = $component['route'] ?? '';
+                $tab = str_contains($route, 'tab=') ? explode('tab=', $route)[1] : null;
+
+                $this->assertContains($tab, $tabs,
+                    "Component '{$submodule['code']}.{$component['code']}' points at '{$route}', ".
+                    'which is not a tab of the notifications command centre. A component with no '.
+                    'page behind it becomes a dead sidebar link.');
+            }
+        }
+    }
+
+    public function test_channels_submodule_covers_sms_and_push_config(): void
+    {
+        $settings = collect($this->config()['submodules'])->firstWhere('code', 'settings');
+        $channels = collect($settings['components'])->firstWhere('code', 'channels');
+        $actions = array_column($channels['actions'], 'code');
+
+        foreach (['view', 'configure', 'test'] as $required) {
+            $this->assertContains($required, $actions,
+                "Channels must expose '{$required}' — it is where email, SMS, push and ".
+                'in-app are enabled, credentialed and test-fired.');
+        }
     }
 
     public function test_in_app_inbox_declared(): void

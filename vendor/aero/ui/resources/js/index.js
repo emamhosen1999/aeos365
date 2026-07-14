@@ -48,6 +48,19 @@ export {
   ProgressRow, DataTable, EmptyState,
 }                                           from './components/Data.jsx';
 
+// ── Charts ────────────────────────────────────────────────────────
+export {
+  AreaTrend, AreaSpark, BarMini, Donut,
+  BarsDiverging, CohortGrid,
+}                                           from './components/Charts.jsx';
+
+// ── Workbench (shared command-center table kit) ───────────────────
+export {
+  useWorkbench, useCtxMenu,
+  WbToolbar, WbSearch, WbViews, WbBulkBar, WbColumns,
+  WbTable, WbFooter, WbDrawer,
+}                                           from './components/Workbench.jsx';
+
 // ── Navigation ────────────────────────────────────────────────────
 export {
   Tabs, Breadcrumb,
@@ -99,9 +112,13 @@ export { default as Icon } from './icons/icons.jsx';
 
 // ── App Chrome ───────────────────────────────────────────────
 export {
-  AeosLogo, AppBrand, AppTopbarTitle, AppUserMenu,
+  AeosLogo, AppBrand, BrandLockup, AppTopbarTitle, AppUserMenu,
   GlobalActions, GlobalSearchTrigger, GlobalNotifications,
 }                                           from './components/AppChrome.jsx';
+
+// ── Branding ─────────────────────────────────────────────────
+// BrandStudio: the shared white-label editor (tenant, platform, per-tenant)
+export { BrandStudio }                      from './components/branding/BrandStudio.jsx';
 
 // ── Global Search ───────────────────────────────────────────
 export { default as SearchOverlay }         from './components/SearchOverlay.jsx';
@@ -116,6 +133,11 @@ export {
   SavedViewsList,
   ShareViewDialog,
 }                                           from './components/SavedViews.jsx';
+
+// ── Aeon (AI assistant) ──────────────────────────────────────────
+export { default as FloatingAeon }      from './aeon/FloatingAeon.jsx';
+export { default as AeonBlockRenderer } from './aeon/BlockRenderer.jsx';
+export { useAeon }                      from './aeon/useAeon.js';
 
 // ── Public (Marketing) Components ────────────────────────────────
 export {

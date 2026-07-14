@@ -1,0 +1,44 @@
+{
+    "name": "aero/assistant",
+    "description": "Aeon — AEOS365 built-in AI assistant (provider-agnostic; Gemini default)",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^12.0",
+        "aero/core": "@dev",
+        "aero/contracts": "@dev"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0",
+        "orchestra/testbench": "^10.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Aero\\Assistant\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Aero\\Assistant\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Aero\\Assistant\\Providers\\AeonServiceProvider"
+            ]
+        },
+        "aero": {
+            "package": "assistant",
+            "version": "1.0.0",
+            "category": "product",
+            "tier": "sharable"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true
+    }
+}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Aero\Notifications;
 
+use Aero\Core\Http\Middleware\InitializeTenancyIfNotCentral;
 use Aero\Notifications\Contracts\MailContextResolver;
 use Aero\Notifications\Contracts\SmsContextResolver;
 use Aero\Notifications\Services\Mail\MailService;
@@ -14,6 +15,7 @@ use Aero\Notifications\Services\Push\FcmNotificationService;
 use Aero\Notifications\Services\Sms\SmsGatewayService;
 use Aero\Notifications\Services\Sms\SmsService;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 class AeroNotificationsServiceProvider extends ServiceProvider
@@ -85,13 +87,56 @@ class AeroNotificationsServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
-        $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
+        $this->registerWebRoutes();
         $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
+
+        // White-label mail chrome: our markdown-mail overrides (header logo,
+        // branded footer) resolve the BrandingResolver chain at render time —
+        // the framework's views fill everything we don't override.
+        config(['mail.markdown.paths' => array_merge(
+            [__DIR__.'/../resources/views/mail'],
+            config('mail.markdown.paths', []),
+        )]);
 
         if ($this->app->runningInConsole()) {
             $this->registerCommands();
             $this->registerSchedule();
         }
+    }
+
+    /**
+     * The notifications command centre is tenant-scoped: its logs, templates,
+     * suppression list and preferences all live in the TENANT database.
+     *
+     * A bare loadRoutesFrom() registers no domain and no tenancy middleware, so on
+     * {tenant}.example.com the controller would read the CENTRAL database — the
+     * pages would silently show another workspace's data (or nothing at all). Bind
+     * the routes to the tenant domain with the tenancy initializer, exactly as
+     * aero-core and the feature packages do.
+     */
+    protected function registerWebRoutes(): void
+    {
+        $routes = __DIR__.'/../routes/web.php';
+
+        if (! is_saas_mode()) {
+            // Standalone: one domain, one database — no tenant resolution needed.
+            Route::middleware(['web'])->group($routes);
+
+            return;
+        }
+
+        $platformDomain = config('aero.platform_domain', 'localhost');
+        $reserved = config('tenancy.reserved_subdomains', ['admin', 'www', 'api']);
+        $tenantConstraint = '(?!(?:'.implode('|', $reserved).')\.)[A-Za-z0-9-]+';
+
+        Route::domain('{tenant}.'.$platformDomain)
+            ->where(['tenant' => $tenantConstraint])
+            ->middleware([
+                'web',
+                InitializeTenancyIfNotCentral::class,
+                'tenant',
+            ])
+            ->group($routes);
     }
 
     protected function registerHelpers(): void

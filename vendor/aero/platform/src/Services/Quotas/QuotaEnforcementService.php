@@ -320,6 +320,122 @@ class QuotaEnforcementService
         return (int) TenantCache::get($key, 0);
     }
 
+    // ── AI Assistant (Aeon) quota ──────────────────────────────────────────
+    // AI is a plan attribute like any other quota: `max_ai_messages` (monthly
+    // message allowance) + `ai_model` (capability tier). Enforced the same way
+    // as monthly API calls; the tenant-facing assistant checks these via a
+    // contract so it never depends on this package directly.
+
+    /** Is the AI assistant available to this tenant (plan allowance or override)? */
+    public function aiEnabled(Tenant|string $tenant): bool
+    {
+        $limit = $this->getAiMessageLimit($tenant);
+
+        return $limit === -1 || $limit > 0;
+    }
+
+    /**
+     * Monthly AI message allowance (-1 unlimited, 0 = AI not in plan).
+     * A per-tenant override on the Quotas page (TenantQuotaOverride, resource
+     * 'ai_messages') wins over the plan allowance so ops can grant exceptions.
+     */
+    public function getAiMessageLimit(Tenant|string $tenant): int
+    {
+        $tenantId = $tenant instanceof Tenant ? $tenant->id : $tenant;
+
+        $override = \Aero\Platform\Models\TenantQuotaOverride::query()
+            ->where('tenant_id', $tenantId)
+            ->where('resource', 'ai_messages')
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->orderByDesc('id')
+            ->first();
+
+        if ($override) {
+            return (int) $override->limit_value === 0 ? -1 : (int) $override->limit_value;
+        }
+
+        return $this->getQuotaLimit($tenant, 'ai_messages');
+    }
+
+    /** AI messages the tenant has used this billing month. */
+    public function getAiMessagesUsed(Tenant|string $tenant): int
+    {
+        $tenantId = $tenant instanceof Tenant ? $tenant->id : $tenant;
+        $month = now()->format('Y-m');
+
+        return (int) TenantCache::get("quota:ai_messages:{$tenantId}:{$month}", 0);
+    }
+
+    /** May the tenant send another AI message this period? */
+    public function canSendAiMessage(Tenant|string $tenant): bool
+    {
+        if (! $this->aiEnabled($tenant)) {
+            return false;
+        }
+        $limit = $this->getAiMessageLimit($tenant);
+        if ($limit === -1) {
+            return true;
+        }
+
+        return $this->getAiMessagesUsed($tenant) < $limit;
+    }
+
+    /**
+     * Count one AI message against the monthly allowance.
+     *
+     * Read-modify-write via get/put rather than TenantCache::increment (which
+     * doesn't exist) so it persists on any cache store; the ±1 race under truly
+     * simultaneous requests is immaterial for message metering. Expires two
+     * months out so a month boundary can never strand a stale counter.
+     */
+    public function incrementAiMessages(Tenant|string $tenant): void
+    {
+        $tenantId = $tenant instanceof Tenant ? $tenant->id : $tenant;
+        $month = now()->format('Y-m');
+        $key = "quota:ai_messages:{$tenantId}:{$month}";
+
+        $used = (int) TenantCache::get($key, 0);
+        TenantCache::put($key, $used + 1, now()->addMonths(2)->startOfMonth());
+    }
+
+    /**
+     * Model tier this plan may use: 'flash' (fast, all tiers), 'pro'
+     * (premium unlocked) or 'all'. Read from the plan's `ai_model` quota,
+     * default 'flash'.
+     */
+    public function getAiModelTier(Tenant|string $tenant): string
+    {
+        if (is_string($tenant)) {
+            $tenant = Tenant::find($tenant);
+        }
+        $plan = $tenant?->plan ?? $tenant?->subscription?->plan;
+        $limits = is_array($plan?->limits) ? $plan->limits : [];
+        $tier = (string) ($limits['ai_model'] ?? 'flash');
+
+        return in_array($tier, ['flash', 'pro', 'all'], true) ? $tier : 'flash';
+    }
+
+    /**
+     * Compact AI usage snapshot for dashboards / the tenant-side gate.
+     *
+     * @return array{enabled:bool,limit:int,used:int,remaining:int,model:string,unlimited:bool,resets_at:string}
+     */
+    public function getAiSummary(Tenant|string $tenant): array
+    {
+        $limit = $this->getAiMessageLimit($tenant);
+        $used = $this->getAiMessagesUsed($tenant);
+
+        return [
+            'enabled' => $limit === -1 || $limit > 0,
+            'limit' => $limit,
+            'used' => $used,
+            'remaining' => $limit === -1 ? -1 : max(0, $limit - $used),
+            'model' => $this->getAiModelTier($tenant),
+            'unlimited' => $limit === -1,
+            'resets_at' => now()->addMonth()->startOfMonth()->toIso8601String(),
+        ];
+    }
+
     /**
      * Get all quotas and usage for a tenant.
      */

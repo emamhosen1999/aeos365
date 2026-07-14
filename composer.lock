@@ -4,18 +4,70 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "20ba268e119731475fa6447f7f263e32",
+    "content-hash": "3323ade3e8bf4c41ef6cb27a90eaaf02",
     "packages": [
         {
+            "name": "aero/assistant",
+            "version": "dev-feat/aeon-ai-assistant",
+            "dist": {
+                "type": "path",
+                "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-assistant",
+                "reference": "d98ae423bd86e0a01ea058b33613ab4ebb18cb75"
+            },
+            "require": {
+                "aero/contracts": "@dev",
+                "aero/core": "@dev",
+                "laravel/framework": "^12.0",
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^10.0",
+                "phpunit/phpunit": "^11.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Aero\\Assistant\\Providers\\AeonServiceProvider"
+                    ]
+                },
+                "aero": {
+                    "package": "assistant",
+                    "version": "1.0.0",
+                    "category": "product",
+                    "tier": "product"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Aero\\Assistant\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Aero\\Assistant\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Aeon — AEOS365 built-in AI assistant (provider-agnostic; Gemini default)",
+            "transport-options": {
+                "symlink": true,
+                "relative": false
+            }
+        },
+        {
             "name": "aero/auth",
-            "version": "dev-feature/core-admin-ca1-ca7",
+            "version": "dev-feat/aeon-ai-assistant",
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-auth",
-                "reference": "16b41518ef593dcb601d5d47d31b104b08c2f28f"
+                "reference": "287d7297bf13d59702767259f0bc106f8f966d27"
             },
             "require": {
                 "aero/contracts": "^1.0",
+                "aero/kernel": "^1.0",
                 "jenssegers/agent": "^2.6|^3.0",
                 "laravel/fortify": "^1.24",
                 "laravel/framework": "^11.0|^12.0",
@@ -38,7 +90,8 @@
                     "package": "auth",
                     "version": "1.0.0",
                     "category": "foundation",
-                    "description": "Unified authentication package for tenant and platform/landlord contexts"
+                    "description": "Unified authentication package for tenant and platform/landlord contexts",
+                    "tier": "sharable"
                 }
             },
             "autoload": {
@@ -82,7 +135,7 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-contracts",
-                "reference": "5c79cfec5cfccc5a57ef9b666ecadaaee3fc812e"
+                "reference": "914d4e8aa63587228f68dd9eec1f88786d44272e"
             },
             "require": {
                 "illuminate/database": "^11.0|^12.0",
@@ -95,7 +148,8 @@
                     "package": "contracts",
                     "version": "1.0.0",
                     "category": "foundation",
-                    "description": "Shared interface contracts for all Aero packages"
+                    "description": "Shared interface contracts for all Aero packages",
+                    "tier": "sharable"
                 }
             },
             "autoload": {
@@ -130,7 +184,7 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-core",
-                "reference": "e81ceb0fc01a2d29cc83f58cfb0e0395f9e54897"
+                "reference": "2369b792998f8e0a8993ec1137e33a32d3f2e640"
             },
             "require": {
                 "aero/contracts": "^1.0",
@@ -170,7 +224,8 @@
                     "package": "core",
                     "version": "1.0.0",
                     "category": "foundation",
-                    "description": "Foundation package providing User, Auth, Roles, Permissions, Modules"
+                    "description": "Foundation package providing User, Auth, Roles, Permissions, Modules",
+                    "tier": "core"
                 }
             },
             "autoload": {
@@ -219,11 +274,12 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-hrm",
-                "reference": "ebb27aa5dbe014f9ff2c73b0356c5e21a8801483"
+                "reference": "8c66229b075e7d95807f1e11cd1e56be8aa41426"
             },
             "require": {
                 "aero/contracts": "^1.0",
                 "aero/core": "^1.0",
+                "aero/kernel": "^1.0",
                 "barryvdh/laravel-dompdf": "^3.1",
                 "inertiajs/inertia-laravel": "^2.0",
                 "laravel/framework": "^11.0|^12.0",
@@ -248,7 +304,8 @@
                     "package": "hrm",
                     "version": "1.0.0",
                     "category": "product",
-                    "description": "Complete HR management system with employee records, attendance, leave, payroll, performance reviews, and recruitment"
+                    "description": "Complete HR management system with employee records, attendance, leave, payroll, performance reviews, and recruitment",
+                    "tier": "product"
                 }
             },
             "autoload": {
@@ -287,16 +344,20 @@
         },
         {
             "name": "aero/hrmac",
-            "version": "dev-feature/core-admin-ca1-ca7",
+            "version": "dev-feat/aeon-ai-assistant",
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-hrmac",
-                "reference": "4f8bdf578ae376ca3c79369f84e9f09c055bf5c8"
+                "reference": "d24265fe413fa50be70276a1cfb9872d803e382f"
             },
             "require": {
                 "aero/contracts": "^1.0",
                 "laravel/framework": "^11.0|^12.0",
                 "php": "^8.2"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^9.0|^10.0",
+                "phpunit/phpunit": "^11.0"
             },
             "type": "library",
             "extra": {
@@ -312,7 +373,8 @@
                     "package": "hrmac",
                     "version": "1.0.0",
                     "category": "foundation",
-                    "description": "Hierarchical Role-Module Access Control for aeos365"
+                    "description": "Hierarchical Role-Module Access Control for aeos365",
+                    "tier": "sharable"
                 }
             },
             "autoload": {
@@ -337,11 +399,11 @@
         },
         {
             "name": "aero/i18n",
-            "version": "dev-feature/core-admin-ca1-ca7",
+            "version": "dev-feat/aeon-ai-assistant",
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-i18n",
-                "reference": "f774ef7ff08a49a585554135035f49a08a7ca7bd"
+                "reference": "e3d1b26a3d29dfcc387b096a17289874d6a790c8"
             },
             "require": {
                 "laravel/framework": "^11.0|^12.0",
@@ -362,7 +424,8 @@
                     "package": "i18n",
                     "version": "1.0.0",
                     "category": "foundation",
-                    "description": "Internationalisation: locale config, middleware, dictionaries, locale switching"
+                    "description": "Internationalisation: locale config, middleware, dictionaries, locale switching",
+                    "tier": "sharable"
                 }
             },
             "autoload": {
@@ -404,7 +467,7 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-infrastructure",
-                "reference": "a77c5c1112f442c492b96fcdf4336394e336c8b9"
+                "reference": "880558a7b22c4d71543465683626fe321d6afb59"
             },
             "type": "library",
             "extra": {
@@ -416,7 +479,8 @@
                 "aero": {
                     "package": "infrastructure",
                     "category": "foundation",
-                    "description": "Shared database infrastructure for aero-core and aero-platform"
+                    "description": "Shared database infrastructure for aero-core and aero-platform",
+                    "tier": "sharable"
                 }
             },
             "autoload": {
@@ -435,15 +499,16 @@
         },
         {
             "name": "aero/installation",
-            "version": "dev-feature/core-admin-ca1-ca7",
+            "version": "dev-feat/aeon-ai-assistant",
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-installation",
-                "reference": "8d5ad9fcb54fb0d364bfcbf87d92a860589158e0"
+                "reference": "e8ca549d8b41cf3d2e5f57307af6d1a52f35a7fe"
             },
             "require": {
                 "aero/contracts": "^1.0",
                 "aero/core": "^1.0",
+                "aero/kernel": "@dev",
                 "inertiajs/inertia-laravel": "^2.0",
                 "laravel/framework": "^11.0|^12.0",
                 "php": "^8.2",
@@ -465,7 +530,8 @@
                     "package": "installation",
                     "version": "1.0.0",
                     "category": "foundation",
-                    "description": "Installation wizard for SaaS and standalone modes"
+                    "description": "Installation wizard for SaaS and standalone modes",
+                    "tier": "sharable"
                 }
             },
             "autoload": {
@@ -506,7 +572,7 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-kernel",
-                "reference": "ab67fdc4041bbd9dc63f3c93b80ddf75a5c83ef7"
+                "reference": "88a97c357cd7ac031f7ea810af2d879d091bfe26"
             },
             "require": {
                 "aero/contracts": "^1.0",
@@ -524,7 +590,8 @@
                 "aero": {
                     "package": "kernel",
                     "category": "foundation",
-                    "description": "Shared runtime services consumed by core and platform"
+                    "description": "Shared runtime services consumed by core and platform",
+                    "tier": "sharable"
                 }
             },
             "autoload": {
@@ -547,7 +614,7 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-license",
-                "reference": "6794661789300a3b60521c36df2f94b964a48990"
+                "reference": "3f9d6fac52414da86bb751c99ada42a1f13f6afa"
             },
             "require": {
                 "aero/contracts": "^1.0",
@@ -559,7 +626,8 @@
                 "aero": {
                     "package": "license",
                     "category": "foundation",
-                    "description": "Shared license signing/checksum core (validator + issuer consume it)"
+                    "description": "Shared license signing/checksum core (validator + issuer consume it)",
+                    "tier": "sharable"
                 }
             },
             "autoload": {
@@ -578,11 +646,11 @@
         },
         {
             "name": "aero/notifications",
-            "version": "dev-feature/core-admin-ca1-ca7",
+            "version": "dev-feat/aeon-ai-assistant",
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-notifications",
-                "reference": "30b91716dcac3b006ee5c8b65299e9371af58a46"
+                "reference": "5e6803a98166911b8f0d7ff40c242b0b030d4ff2"
             },
             "require": {
                 "laravel/framework": "^11.0|^12.0",
@@ -612,7 +680,8 @@
                     "package": "notifications",
                     "version": "1.0.0",
                     "category": "foundation",
-                    "description": "Unified notification engine supporting mail, SMS, push, broadcast, and database channels"
+                    "description": "Unified notification engine supporting mail, SMS, push, broadcast, and database channels",
+                    "tier": "sharable"
                 }
             },
             "autoload": {
@@ -660,13 +729,14 @@
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-platform",
-                "reference": "8da6ccd5eaad3451f9db322dcad15c69dcb95212"
+                "reference": "8a4f88946d6f486d62b197d3b8242a0f1b3490e3"
             },
             "require": {
                 "aero/auth": "*",
                 "aero/contracts": "^1.0",
                 "aero/core": "^1.0",
                 "aero/infrastructure": "self.version",
+                "aero/kernel": "@dev",
                 "aero/license": "^1.0",
                 "aero/notifications": "@dev",
                 "inertiajs/inertia-laravel": "^2.0",
@@ -697,7 +767,8 @@
                     "category": "foundation",
                     "description": "Platform management package providing multi-tenancy orchestration, landlord authentication, and platform administration",
                     "has-assets": true,
-                    "build-command": "php artisan aero:build-assets"
+                    "build-command": "php artisan aero:build-assets",
+                    "tier": "platform"
                 }
             },
             "autoload": {
@@ -744,11 +815,11 @@
         },
         {
             "name": "aero/ui",
-            "version": "dev-feature/core-admin-ca1-ca7",
+            "version": "dev-feat/aeon-ai-assistant",
             "dist": {
                 "type": "path",
                 "url": "C:/laragon/www/Aero-Enterprise-Suite-Saas/packages/aero-ui",
-                "reference": "f3421d81ea558cb609c3e1ebd9784568497849c1"
+                "reference": "5efe8d865f8c27de059cd21f1ce641186c04f5a3"
             },
             "require": {
                 "php": "^8.2"
@@ -764,7 +835,8 @@
                     "package": "ui",
                     "version": "1.0.0",
                     "category": "foundation",
-                    "description": "Shared React component library for all Aero modules"
+                    "description": "Shared React component library for all Aero modules",
+                    "tier": "sharable"
                 }
             },
             "autoload": {
@@ -13756,6 +13828,7 @@
     "aliases": [],
     "minimum-stability": "dev",
     "stability-flags": {
+        "aero/assistant": 20,
         "aero/auth": 20,
         "aero/core": 20,
         "aero/hrm": 20,
