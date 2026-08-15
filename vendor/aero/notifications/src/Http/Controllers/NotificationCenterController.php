@@ -6,11 +6,14 @@ namespace Aero\Notifications\Http\Controllers;
 
 use Aero\Contracts\AuditServiceInterface;
 use Aero\Core\Models\EmailTemplate;
+use Aero\HRMAC\Facades\HRMAC;
 use Aero\Kernel\Http\Controllers\Controller;
 use Aero\Notifications\Jobs\SendEmailJob;
 use Aero\Notifications\Models\NotificationLog;
 use Aero\Notifications\Models\NotificationSetting;
 use Aero\Notifications\Models\UserNotificationPreference;
+use Aero\Notifications\Services\ProviderResolutionService;
+use Aero\Notifications\Services\TemplateResolverService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,16 +21,29 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * NotificationCenterController — the tenant Notifications command centre.
+ * NotificationCenterController — the Notifications command centre, SHARED by the
+ * SaaS platform, SaaS tenants and standalone.
  *
  * One page, eight HRMAC-gated tabs (?tab=): inbox, log, bounces, suppression,
  * deliverability, templates, channels, preferences. Replaces the five scattered
  * pages plus two JSON-only endpoints that previously made up this surface.
+ *
+ * CONTEXT-FREE (see [[dependency-decoupling]] / the aero-hrmac + aero-auth pattern):
+ * this controller detects nothing and names no connection. Everything context-shaped
+ * — the Inertia view, the HRMAC namespace, the URL base, the scope, which tabs are
+ * mountable — arrives as ROUTE DEFAULTS supplied by the host that registers the
+ * route (aero-core for tenant, aero-platform for platform). The models are likewise
+ * context-free: they use the default connection, which the host's runtime decides
+ * (stancl swaps it to the tenant DB; it is central for platform; the single DB in
+ * standalone).
+ *
+ * Consequently this package registers NO web routes of its own.
  *
  * The tab is read from the QUERY STRING, never a route parameter — tenant routes
  * carry a leading {tenant} segment that Laravel would otherwise bind positionally
@@ -35,17 +51,42 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class NotificationCenterController extends Controller
 {
-    /** Tabs, in nav order, with the permission that gates each (see config/module.php). */
+    /** Tabs in nav order → the permission SUFFIX that gates each, under the host's namespace. */
     private const TABS = [
-        'inbox' => 'notifications.in_app.inbox.view',
-        'log' => 'notifications.email_engine.logs.view',
-        'bounces' => 'notifications.email_engine.bounces.view',
-        'suppression' => 'notifications.email_engine.suppression_list.view',
-        'deliverability' => 'notifications.email_engine.deliverability.view',
-        'templates' => 'notifications.email_engine.templates.view',
-        'channels' => 'notifications.settings.channels.view',
+        'inbox' => 'in_app.inbox.view',
+        'log' => 'email_engine.logs.view',
+        'bounces' => 'email_engine.bounces.view',
+        'suppression' => 'email_engine.suppression_list.view',
+        'deliverability' => 'email_engine.deliverability.view',
+        'templates' => 'email_engine.templates.view',
+        'channels' => 'settings.channels.view',
+        // Platform-only tabs — a host mounts them via notifications_tabs (the tenant
+        // host does not). Fleet = cross-tenant delivery observability; Broadcasts =
+        // push an announcement to tenants. Both degrade to hidden when the platform
+        // services aren't installed (standalone) even if somehow mounted.
+        'fleet' => 'email_engine.fleet.view',
+        'broadcasts' => 'email_engine.broadcasts.send',
         // A user always governs their own inbox — preferences are never gated away.
         'preferences' => null,
+    ];
+
+    /** Action permission suffixes, exposed to the UI as the `can` map. */
+    private const ACTIONS = [
+        'logResend' => 'email_engine.logs.resend',
+        'logExport' => 'email_engine.logs.export',
+        'bounceSuppress' => 'email_engine.bounces.suppress',
+        'suppressionAdd' => 'email_engine.suppression_list.add',
+        'suppressionRemove' => 'email_engine.suppression_list.remove',
+        'suppressionExport' => 'email_engine.suppression_list.export',
+        'deliverabilityTest' => 'email_engine.deliverability.test_smtp',
+        'templateCreate' => 'email_engine.templates.create',
+        'templateUpdate' => 'email_engine.templates.update',
+        'templateDelete' => 'email_engine.templates.delete',
+        'templateDuplicate' => 'email_engine.templates.duplicate',
+        'channelConfigure' => 'settings.channels.configure',
+        'channelTest' => 'settings.channels.test',
+        'inboxMarkRead' => 'in_app.inbox.mark_read',
+        'inboxDelete' => 'in_app.inbox.delete',
     ];
 
     /** Events the preference matrix covers. */
@@ -58,72 +99,103 @@ class NotificationCenterController extends Controller
 
     private const PREF_CHANNELS = ['database' => 'In-app', 'mail' => 'Email', 'sms' => 'SMS', 'push' => 'Push'];
 
-    public function __construct(private AuditServiceInterface $audit) {}
+    public function __construct(
+        private AuditServiceInterface $audit,
+        private TemplateResolverService $templates,
+        private ProviderResolutionService $providers,
+    ) {}
 
     /* ===================================================== page ============ */
 
     public function index(Request $request): Response
     {
-        $can = $this->permissions();
+        $ctx = $this->context($request);
+        $can = $this->permissions($request, $ctx);
 
-        $tab = $request->query('tab', 'inbox');
-        // Unknown tab, or one this user may not see, falls back to the first tab
-        // they can actually open — never a blank page and never a silent 403.
-        if (! array_key_exists($tab, self::TABS) || ! ($can[$tab] ?? false)) {
-            $tab = collect(array_keys(self::TABS))->first(fn ($t) => $can[$t] ?? false) ?? 'preferences';
+        $tab = $request->query('tab', $ctx['tabs'][0] ?? 'inbox');
+        // Unknown tab, one this host doesn't mount, or one this user may not see:
+        // fall back to the first tab they can actually open — never a blank page,
+        // never a silent 403.
+        if (! in_array($tab, $ctx['tabs'], true) || ! ($can[$tab] ?? false)) {
+            $tab = collect($ctx['tabs'])->first(fn ($t) => $can[$t] ?? false) ?? 'preferences';
         }
 
-        return Inertia::render('Core/Notifications/Index', array_merge([
+        return Inertia::render($ctx['view'], array_merge([
             'tab' => $tab,
+            'tabs' => $ctx['tabs'],
             'can' => $can,
+            'scope' => $ctx['scope'],
+            'base' => $ctx['base'],
             'stats' => $this->stats(),
             'filters' => $request->only('search', 'status', 'channel', 'reason', 'category', 'date_from', 'date_to'),
         ], $this->tabPayload($tab, $request)));
     }
 
     /**
+     * Everything context-shaped, supplied by the host as route defaults.
+     *
+     * @return array{view:string, base:string, namespace:string, scope:string, tabs:array<int,string>}
+     */
+    private function context(Request $request): array
+    {
+        $d = $request->route()?->defaults ?? [];
+        $scope = $d['notifications_scope'] ?? 'tenant';
+
+        // A host may mount a subset — platform has no use for a personal inbox the
+        // way a tenant does, and can drop tabs it hasn't earned.
+        $tabs = $d['notifications_tabs'] ?? array_keys(self::TABS);
+
+        return [
+            'view' => $d['notifications_view'] ?? 'Shared/Notifications/Index',
+            // The URL the frontend builds every action path from. No leading-slash
+            // guessing in JS: the host owns the mount point, so the host states it.
+            'base' => rtrim($d['notifications_base'] ?? '/notifications', '/'),
+            'namespace' => $d['notifications_namespace'] ?? 'notifications',
+            'scope' => $scope,
+            'tabs' => array_values(array_filter($tabs, fn ($t) => array_key_exists($t, self::TABS))),
+        ];
+    }
+
+    /**
      * Which tabs and destructive actions this user may use. The route middleware is
      * the real enforcement — this only decides what the UI bothers to render.
      */
-    private function permissions(): array
+    private function permissions(Request $request, array $ctx): array
     {
+        $ns = $ctx['namespace'];
         $can = [];
-        foreach (self::TABS as $tab => $permission) {
-            $can[$tab] = $permission === null ? true : $this->allows($permission);
+
+        foreach (self::TABS as $tab => $suffix) {
+            $mounted = in_array($tab, $ctx['tabs'], true);
+            $can[$tab] = $mounted && ($suffix === null ? true : $this->allows("{$ns}.{$suffix}"));
         }
 
-        foreach ([
-            'logResend' => 'notifications.email_engine.logs.resend',
-            'logExport' => 'notifications.email_engine.logs.export',
-            'bounceSuppress' => 'notifications.email_engine.bounces.suppress',
-            'suppressionAdd' => 'notifications.email_engine.suppression_list.add',
-            'suppressionRemove' => 'notifications.email_engine.suppression_list.remove',
-            'suppressionExport' => 'notifications.email_engine.suppression_list.export',
-            'deliverabilityTest' => 'notifications.email_engine.deliverability.test_smtp',
-            'templateCreate' => 'notifications.email_engine.templates.create',
-            'templateUpdate' => 'notifications.email_engine.templates.update',
-            'templateDelete' => 'notifications.email_engine.templates.delete',
-            'templateDuplicate' => 'notifications.email_engine.templates.duplicate',
-            'channelConfigure' => 'notifications.settings.channels.configure',
-            'channelTest' => 'notifications.settings.channels.test',
-            'inboxMarkRead' => 'notifications.in_app.inbox.mark_read',
-            'inboxDelete' => 'notifications.in_app.inbox.delete',
-        ] as $key => $permission) {
-            $can[$key] = $this->allows($permission);
+        foreach (self::ACTIONS as $key => $suffix) {
+            $can[$key] = $this->allows("{$ns}.{$suffix}");
         }
 
         return $can;
     }
 
+    /**
+     * Mirror CheckRoleModuleAccess::parsePath — module is the FIRST segment, sub-module
+     * the SECOND, and the action the LAST. Everything between is the component, which
+     * userCanAccessAction() ignores (it finds the action in any component of the
+     * sub-module). Reading a fixed index instead would break the moment a host nests
+     * the surface at a different depth, which is exactly what platform does:
+     *
+     *   tenant    notifications.email_engine.logs.view   → (notifications, email_engine, view)
+     *   platform  platform.notifications.email_engine.logs.view → (platform, notifications, view)
+     */
     private function allows(string $permission): bool
     {
         try {
             $p = explode('.', $permission);
-            if (count($p) < 4) {
+            if (count($p) < 3) {
                 return false;
             }
 
-            return \Aero\HRMAC\Facades\HRMAC::userCanAccessAction(Auth::user(), $p[0], $p[1], $p[3]);
+            return HRMAC::userCanAccessAction(Auth::user(), $p[0], $p[1], end($p));
         } catch (\Throwable) {
             return false;
         }
@@ -143,13 +215,114 @@ class NotificationCenterController extends Controller
             'suppression' => ['suppression' => $this->suppressionQuery($request)->paginate(25)->withQueryString()],
             'deliverability' => ['deliverability' => $this->deliverability()],
             'templates' => [
-                'templates' => $this->templateQuery($request)->get(),
+                // Global Template Library: the tenant's own templates PLUS the
+                // platform-curated globals, deduped by slug (own wins). On platform
+                // this returns the globals it curates; on a tenant, globals appear
+                // read-only until cloned to edit.
+                'templates' => $this->templates->list($request->only('search', 'category'))->values(),
                 'categories' => EmailTemplate::query()->select('category')->distinct()->pluck('category')->filter()->values(),
             ],
-            'channels' => ['channels' => $this->channelSettings()],
+            'channels' => [
+                'channels' => $this->channelSettings(),
+                // Provider inheritance: is each channel using this workspace's own
+                // config, or inheriting the platform/deployment default?
+                'inheritance' => ['mail' => $this->providers->mail(), 'sms' => $this->providers->sms()],
+            ],
+            'fleet' => ['fleet' => $this->fleetPayload()],
+            'broadcasts' => ['broadcast' => $this->broadcastPayload()],
             'preferences' => ['preferences' => $this->preferencePayload()],
             default => ['inbox' => $this->inboxPayload($request)],
         };
+    }
+
+    /* ============================================ platform: fleet =========== */
+
+    /**
+     * Cross-tenant delivery observability, resolved SOFTLY from aero-platform so
+     * this shared controller keeps its one-way dependency (it must not require the
+     * platform package). Absent (standalone) → null, and the tab simply isn't
+     * mounted there anyway.
+     */
+    private function fleetPayload(): ?array
+    {
+        $service = 'Aero\\Platform\\Services\\FleetDeliverabilityService';
+        if (! class_exists($service)) {
+            return null;
+        }
+
+        try {
+            $fleet = app($service);
+
+            return [
+                'summary' => $fleet->summary(14),
+                'worstOffenders' => $fleet->worstOffenders(10),
+            ];
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
+    }
+
+    /* ======================================= platform: broadcasts ========== */
+
+    /** Active tenants the broadcast composer can target (soft platform dependency). */
+    private function broadcastPayload(): array
+    {
+        $tenantClass = 'Aero\\Platform\\Models\\Tenant';
+        if (! class_exists($tenantClass)) {
+            return ['tenants' => []];
+        }
+
+        try {
+            $tenants = $tenantClass::query()
+                ->when(method_exists($tenantClass, 'scopeActive'), fn ($q) => $q->active())
+                ->get(['id', 'name'])
+                ->map(fn ($t) => ['id' => (string) $t->id, 'name' => $t->name ?? (string) $t->id])
+                ->all();
+
+            return ['tenants' => $tenants];
+        } catch (\Throwable $e) {
+            report($e);
+
+            return ['tenants' => []];
+        }
+    }
+
+    /**
+     * Push an announcement to tenants. Platform-only; the service lives in
+     * aero-platform and is resolved softly so aero-notifications stays decoupled.
+     */
+    public function broadcastSend(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:160'],
+            'body' => ['required', 'string', 'max:5000'],
+            'type' => ['nullable', 'in:info,warning,success,danger'],
+            'priority' => ['nullable', 'in:low,normal,high,urgent'],
+            'is_pinned' => ['boolean'],
+            'tenant_ids' => ['array'],
+            'tenant_ids.*' => ['string'],
+        ]);
+
+        $service = 'Aero\\Platform\\Services\\TenantBroadcastService';
+        if (! class_exists($service)) {
+            return back()->with('error', 'Broadcasts are only available on the platform.');
+        }
+
+        try {
+            $count = app($service)->broadcast($data, $data['tenant_ids'] ?? []);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'The broadcast could not be sent.');
+        }
+
+        $this->audit->log('notification.broadcast_sent', 'created', null, "Broadcast sent to {$count} tenant(s)", null, null, [
+            'title' => $data['title'], 'tenants' => $count,
+        ]);
+
+        return back()->with('success', "Broadcast sent to {$count} tenant(s).");
     }
 
     /* ===================================================== KPIs ============ */
@@ -173,12 +346,15 @@ class NotificationCenterController extends Controller
                 'suppressed' => DB::table('email_suppression_list')->count(),
                 'deliverabilityScore' => $this->deliverability()['score'],
                 'unread' => Auth::user()?->unreadNotifications()->count() ?? 0,
+                // Monthly outbound-email allowance (plan quota; unlimited unless set).
+                'emailQuota' => app(\Aero\Notifications\Services\NotificationQuotaService::class)->emailQuota(),
             ];
         } catch (\Throwable $e) {
             report($e);
 
             return ['sent24h' => 0, 'failed24h' => 0, 'queued' => 0, 'deliveryRate' => null,
-                'suppressed' => 0, 'deliverabilityScore' => 0, 'unread' => 0];
+                'suppressed' => 0, 'deliverabilityScore' => 0, 'unread' => 0,
+                'emailQuota' => ['used' => 0, 'limit' => null, 'remaining' => null, 'unlimited' => true, 'exhausted' => false]];
         }
     }
 
@@ -232,9 +408,16 @@ class NotificationCenterController extends Controller
     private function severityFor(string $type): string
     {
         $t = strtolower($type);
-        if (str_contains($t, 'fail') || str_contains($t, 'error') || str_contains($t, 'bounce')) return 'danger';
-        if (str_contains($t, 'approv') || str_contains($t, 'request') || str_contains($t, 'pending')) return 'warning';
-        if (str_contains($t, 'complete') || str_contains($t, 'success')) return 'success';
+        if (str_contains($t, 'fail') || str_contains($t, 'error') || str_contains($t, 'bounce')) {
+            return 'danger';
+        }
+        if (str_contains($t, 'approv') || str_contains($t, 'request') || str_contains($t, 'pending')) {
+            return 'warning';
+        }
+        if (str_contains($t, 'complete') || str_contains($t, 'success')) {
+            return 'success';
+        }
+
         return 'info';
     }
 
@@ -504,7 +687,9 @@ class NotificationCenterController extends Controller
         $score = 0;
         foreach ($checks as $k => $c) {
             $w = $weights[$k] ?? 10;
-            $score += match ($c['status']) { 'pass' => $w, 'warn' => $w / 2, default => 0 };
+            $score += match ($c['status']) {
+                'pass' => $w, 'warn' => $w / 2, default => 0
+            };
         }
 
         return (int) $score;
@@ -596,6 +781,26 @@ class NotificationCenterController extends Controller
         return back()->with('success', $template->is_active ? 'Template activated.' : 'Template deactivated.');
     }
 
+    /**
+     * Clone a platform-curated GLOBAL template into an editable copy owned by
+     * the current workspace. The clone starts inactive so it must be reviewed
+     * before it can send. (Global Template Library — TemplateResolverService.)
+     */
+    public function templateCloneGlobal(Request $request): RedirectResponse
+    {
+        $template = EmailTemplate::findOrFail($request->route('id'));
+
+        if (! $template->is_global) {
+            return back()->with('error', 'Only shared library templates can be cloned to your workspace.');
+        }
+
+        $tenantId = function_exists('tenant') && tenant() ? (string) tenant('id') : null;
+        $this->templates->cloneGlobalToTenant($template, $tenantId);
+        $this->audit->log('notification.template_cloned', 'created', null, "Template {$template->name} cloned to workspace");
+
+        return back()->with('success', 'Template copied to your workspace — it starts inactive.');
+    }
+
     /** Render the template with sample data so the operator sees the real thing. */
     public function templatePreview(Request $request): JsonResponse
     {
@@ -611,7 +816,7 @@ class NotificationCenterController extends Controller
 
     private function uniqueSlug(string $name): string
     {
-        $base = \Illuminate\Support\Str::slug($name, '_') ?: 'template';
+        $base = Str::slug($name, '_') ?: 'template';
         $slug = $base;
         $n = 2;
 

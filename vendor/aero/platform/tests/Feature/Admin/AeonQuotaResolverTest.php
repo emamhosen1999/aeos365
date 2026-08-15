@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Aero\Platform\Tests\Feature\Admin;
 
 use Aero\Platform\Models\AeonTenantUsage;
-use Aero\Platform\Models\TenantQuotaOverride;
 use Aero\Platform\Models\Tenant;
+use Aero\Platform\Models\TenantQuotaOverride;
 use Aero\Platform\Services\Quotas\QuotaEnforcementService;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Tests\TestCase;

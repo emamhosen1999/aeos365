@@ -49,7 +49,7 @@ export default function HelpIndex({ categories = [] }) {
         </HStack>
       }
       table={
-        <VStack gap={6}>
+        <VStack gap={6} data-tour="help-center">
           {/* Quick Links */}
           <VStack gap={3}>
             <Eyebrow>Quick Links</Eyebrow>

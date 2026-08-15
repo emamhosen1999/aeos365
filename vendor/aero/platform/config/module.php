@@ -301,6 +301,7 @@ return [
                     'code' => 'quota-settings',
                     'name' => 'Enforcement Settings',
                     'route' => '/quotas/settings',
+                    'show_in_nav' => false, // subsumed by the Quota console (Policies tab); kept for HRMAC
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Enforcement Settings'],
                         ['code' => 'edit', 'name' => 'Edit Enforcement Settings'],
@@ -309,7 +310,8 @@ return [
                 [
                     'code' => 'quota-analytics',
                     'name' => 'Usage Analytics',
-                    'route' => '/quotas/analytics',
+                    'route' => '/quotas',
+                    'show_in_nav' => false, // subsumed by the Quota console (utilisation matrix + export)
                     'actions' => [
                         ['code' => 'view', 'name' => 'View Usage Analytics'],
                         ['code' => 'export', 'name' => 'Export Reports'],
@@ -2574,33 +2576,70 @@ return [
         | 40j. Notification Center (Landlord-Side)
         |--------------------------------------------------------------------------
         */
+        // The PLATFORM half of the SHARED notifications command centre
+        // (aero-notifications, mounted in routes/admin.php via NotificationRoutes).
+        // These submodule/component/action codes MUST mirror the package's own
+        // config/module.php, because the shared controller derives its permission
+        // paths from them ("{namespace}.{submodule}.{component}.{action}"). If they
+        // drift, every platform action silently fails its HRMAC gate.
+        //
+        // Replaces a declaration of staff-preferences/digest/escalation-routing
+        // pages at /notification-center/* that were never built — declaring a
+        // component publishes a nav link, so those were dead links.
         [
             'code' => 'notifications',
-            'name' => 'Notification Center (Landlord)',
-            'description' => 'Landlord staff notification preferences, digest, escalation routing',
+            'name' => 'Notifications',
+            'description' => 'Platform inbox, delivery log, bounces, suppression, deliverability, templates and channels.',
             'icon' => 'BellIcon',
-            'route' => '/notification-center',
+            'route' => '/notifications',
             'priority' => 48,
 
             'components' => [
                 [
-                    'code' => 'staff-preferences', 'name' => 'Staff Notification Preferences', 'route' => '/notification-center/preferences',
+                    'code' => 'in_app', 'name' => 'Inbox', 'route' => '/notifications?tab=inbox',
                     'actions' => [
-                        ['code' => 'view', 'name' => 'View Preferences'],
-                        ['code' => 'update', 'name' => 'Update Preferences'],
+                        ['code' => 'view', 'name' => 'View Inbox'],
+                        ['code' => 'mark_read', 'name' => 'Mark Read'],
+                        ['code' => 'delete', 'name' => 'Delete Notification'],
                     ],
                 ],
                 [
-                    'code' => 'digest', 'name' => 'Digest Configuration', 'route' => '/notification-center/digest',
+                    'code' => 'email_engine', 'name' => 'Email Engine', 'route' => '/notifications?tab=log',
                     'actions' => [
-                        ['code' => 'configure', 'name' => 'Configure Digest'],
+                        ['code' => 'view', 'name' => 'View Delivery Log'],
+                        ['code' => 'resend', 'name' => 'Resend Notification'],
+                        ['code' => 'export', 'name' => 'Export Delivery Log'],
+                        ['code' => 'suppress', 'name' => 'Suppress Bounced Address'],
+                        ['code' => 'add', 'name' => 'Add Suppression'],
+                        ['code' => 'remove', 'name' => 'Remove Suppression'],
+                        ['code' => 'test_smtp', 'name' => 'Re-check DNS / Test SMTP'],
+                        ['code' => 'create', 'name' => 'Create Template'],
+                        ['code' => 'update', 'name' => 'Update Template'],
+                        ['code' => 'delete', 'name' => 'Delete Template'],
+                        ['code' => 'duplicate', 'name' => 'Duplicate Template'],
                     ],
                 ],
                 [
-                    'code' => 'escalation-routing', 'name' => 'Escalation Routing', 'route' => '/notification-center/escalation',
+                    'code' => 'settings', 'name' => 'Channels', 'route' => '/notifications?tab=channels',
                     'actions' => [
-                        ['code' => 'view', 'name' => 'View Routing'],
-                        ['code' => 'manage', 'name' => 'Manage Escalation'],
+                        ['code' => 'view', 'name' => 'View Channels'],
+                        ['code' => 'configure', 'name' => 'Configure Channel'],
+                        ['code' => 'test', 'name' => 'Send Test Notification'],
+                    ],
+                ],
+                // Platform-only: cross-tenant delivery observability.
+                [
+                    'code' => 'fleet', 'name' => 'Fleet Deliverability', 'route' => '/notifications?tab=fleet',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Fleet Deliverability'],
+                    ],
+                ],
+                // Platform-only: push an announcement to tenants.
+                [
+                    'code' => 'broadcasts', 'name' => 'Broadcasts', 'route' => '/notifications?tab=broadcasts',
+                    'actions' => [
+                        ['code' => 'view', 'name' => 'View Broadcasts'],
+                        ['code' => 'send', 'name' => 'Send Broadcast'],
                     ],
                 ],
             ],

@@ -43,6 +43,7 @@ use Aero\Core\Http\Controllers\Upload\FileManagerController;
 use Aero\Core\Http\Middleware\EnsureTenantContext;
 use Aero\Core\Models\User;
 use Aero\Core\Services\PlatformErrorReporter;
+use Aero\Notifications\Support\NotificationRoutes;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -507,15 +508,36 @@ Route::middleware('auth:web')->group(function () {
     // ========================================================================
     // NOTIFICATIONS
     // ========================================================================
-    // Owned by aero-notifications: NotificationCenterController serves the whole
-    // surface at /notifications?tab=… (inbox, delivery log, bounces, suppression,
-    // deliverability, templates, channels, preferences), registered on this same
-    // tenant domain by AeroNotificationsServiceProvider.
+    // The notifications command centre is SHARED (aero-notifications) and registers
+    // no routes of its own — the host mounts it and states the context. This is the
+    // tenant mount: it inherits this file's tenant domain + tenancy middleware, so
+    // the context-free models resolve against the TENANT database.
     //
-    // The old core.notifications.* group shadowed it: being domain-scoped it won
-    // the match, and its index() rendered Core/Notifications/Index with no props
-    // while the page fetched /notifications/list over JSON. Nothing referenced
-    // those route names.
+    // The old core.notifications.* group shadowed it: being domain-scoped it won the
+    // match, and its index() rendered a page with no props while the JSX fetched
+    // /notifications/list over JSON. Nothing referenced those route names.
+    NotificationRoutes::register([
+        'notifications_view' => 'Shared/Notifications/Index',
+        'notifications_base' => '/notifications',
+        'notifications_namespace' => 'notifications',
+        'notifications_scope' => 'tenant',
+        // Tenants get the full personal + workspace surface, but NOT the
+        // platform-only fleet/broadcasts tabs (those are cross-tenant).
+        'notifications_tabs' => ['inbox', 'log', 'bounces', 'suppression', 'deliverability', 'templates', 'channels', 'preferences'],
+    ]);
+
+    // Legacy names → the tab that now owns each surface, so existing nav entries,
+    // bookmarks and Ziggy route() calls keep resolving.
+    Route::get('/notifications/preferences', fn () => redirect()->route('notifications.index', ['tab' => 'preferences']))
+        ->name('notifications.preferences.index');
+    Route::get('/email/logs', fn () => redirect()->route('notifications.index', ['tab' => 'log']))
+        ->name('core.email.logs.index');
+    Route::get('/email/deliverability', fn () => redirect()->route('notifications.index', ['tab' => 'deliverability']))
+        ->name('core.email.deliverability.index');
+    Route::get('/email/suppression', fn () => redirect()->route('notifications.index', ['tab' => 'suppression']))
+        ->name('core.email.suppression.index');
+    Route::get('/email/bounces', fn () => redirect()->route('notifications.index', ['tab' => 'bounces']))
+        ->name('core.email.bounces.index');
 
     // ========================================================================
     // COMMENTS & MENTIONS

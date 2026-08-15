@@ -90,11 +90,13 @@ export default function AttendanceDaily({ date, records, filters, stats }) {
         </HStack>
       }
       table={
-        <DataTable
-          columns={columns}
-          rows={records?.data ?? []}
-          empty="No attendance records for this date."
-        />
+        <div data-tour="attendance-view">
+          <DataTable
+            columns={columns}
+            rows={records?.data ?? []}
+            empty="No attendance records for this date."
+          />
+        </div>
       }
       pagination={
         totalPages > 1 && (

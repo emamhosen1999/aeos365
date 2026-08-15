@@ -499,12 +499,25 @@ class AeroPlatformServiceProvider extends ServiceProvider
                 PurgeSuspendedRoleAccess::class, // D17: daily hard-delete after 30-day grace
                 \Aero\Platform\Console\Commands\DemoResetCommand::class,
                 \Aero\Platform\Console\Commands\RollupAeonUsage::class, // AI fleet usage summary
+                \Aero\Platform\Console\Commands\RollUpNotificationsCommand::class, // notification fleet deliverability
             ]);
         }
 
         // Nightly AI usage roll-up → central aeon_tenant_usage (fleet console reads it).
         $this->callAfterResolving(\Illuminate\Console\Scheduling\Schedule::class, function ($schedule) {
             $schedule->command('aeon:rollup')->hourly();
+            // Notification deliverability roll-up → central notification_fleet_rollups
+            // (the platform Fleet tab reads it; job is idempotent on tenant/date/channel).
+            $schedule->command('notifications:rollup')->hourly()->withoutOverlapping();
+            // Six-hourly restore of the live-demo tenant(s) so public visitors
+            // always land on a clean, realistic state within hours of any
+            // vandalism (DemoGuard blocks only what a reset cannot heal).
+            $schedule->command('demo:reset')
+                ->cron('0 */6 * * *')
+                ->timezone('Asia/Dhaka')
+                ->withoutOverlapping()
+                ->runInBackground()
+                ->appendOutputTo(storage_path('logs/demo-reset.log'));
         });
 
         // Register platform navigation with NavigationRegistry

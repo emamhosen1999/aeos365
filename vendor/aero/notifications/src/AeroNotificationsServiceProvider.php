@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Aero\Notifications;
 
-use Aero\Core\Http\Middleware\InitializeTenancyIfNotCentral;
 use Aero\Notifications\Contracts\MailContextResolver;
 use Aero\Notifications\Contracts\SmsContextResolver;
 use Aero\Notifications\Services\Mail\MailService;
@@ -87,7 +86,7 @@ class AeroNotificationsServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
-        $this->registerWebRoutes();
+        // NOTE: no web routes here — the HOSTS register them. See the docblock below.
         $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
 
         // White-label mail chrome: our markdown-mail overrides (header logo,
@@ -105,40 +104,27 @@ class AeroNotificationsServiceProvider extends ServiceProvider
     }
 
     /**
-     * The notifications command centre is tenant-scoped: its logs, templates,
-     * suppression list and preferences all live in the TENANT database.
+     * This package deliberately registers NO web routes.
      *
-     * A bare loadRoutesFrom() registers no domain and no tenancy middleware, so on
-     * {tenant}.example.com the controller would read the CENTRAL database — the
-     * pages would silently show another workspace's data (or nothing at all). Bind
-     * the routes to the tenant domain with the tenancy initializer, exactly as
-     * aero-core and the feature packages do.
+     * aero-notifications is shared by the SaaS platform, SaaS tenants and standalone
+     * (the aero-hrmac / aero-auth pattern). A package that mounts its own routes has
+     * to pick a domain and a context — which is exactly the decision it must NOT make:
+     * binding to {tenant}.<domain> makes the platform mount impossible, and a bare
+     * loadRoutesFrom() with no tenancy middleware would read the CENTRAL database on a
+     * tenant subdomain (silently serving the wrong workspace's data).
+     *
+     * So the HOST owns registration and states the context via route defaults:
+     *   notifications_view / notifications_base / notifications_namespace /
+     *   notifications_scope / notifications_tabs
+     *
+     *   - tenant:     aero-core/routes/web.php      (tenant domain + tenancy middleware)
+     *   - platform:   aero-platform/routes/admin.php (admin domain, central connection)
+     *   - standalone: aero-core/routes/web.php      (single domain, single DB)
+     *
+     * The models name no connection, so each host's runtime resolves the right database.
+     *
+     * @see \Aero\Notifications\Http\Controllers\NotificationCenterController
      */
-    protected function registerWebRoutes(): void
-    {
-        $routes = __DIR__.'/../routes/web.php';
-
-        if (! is_saas_mode()) {
-            // Standalone: one domain, one database — no tenant resolution needed.
-            Route::middleware(['web'])->group($routes);
-
-            return;
-        }
-
-        $platformDomain = config('aero.platform_domain', 'localhost');
-        $reserved = config('tenancy.reserved_subdomains', ['admin', 'www', 'api']);
-        $tenantConstraint = '(?!(?:'.implode('|', $reserved).')\.)[A-Za-z0-9-]+';
-
-        Route::domain('{tenant}.'.$platformDomain)
-            ->where(['tenant' => $tenantConstraint])
-            ->middleware([
-                'web',
-                InitializeTenancyIfNotCentral::class,
-                'tenant',
-            ])
-            ->group($routes);
-    }
-
     protected function registerHelpers(): void
     {
         $helpers = __DIR__.'/helpers.php';

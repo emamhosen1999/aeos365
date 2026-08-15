@@ -1,13 +1,23 @@
 /**
- * Notifications command centre.
+ * Notifications command centre — SHARED by platform, tenant and standalone.
  *
  * One page owns the whole surface: inbox, delivery log, bounces, suppression,
  * deliverability, templates, channels and per-user preferences. Replaces five
  * scattered pages plus two endpoints that returned raw JSON to an Inertia visit
  * (the bell in AppChrome navigates here — it used to land on a JSON dump).
  *
- * Backend: NotificationCenterController. Every write is HRMAC-gated on the route;
- * the `can` map only decides what this UI bothers to render.
+ * Context-free, exactly like the backend: this component hardcodes NO url and NO
+ * context. The host mounts the route and states where it lives; the controller
+ * passes that down as props:
+ *
+ *   base   — url prefix every action path is built from ('/notifications',
+ *            '/admin/notifications', …). Never hand-write a path in here.
+ *   tabs   — which tabs this host mounts (platform may mount a subset).
+ *   scope  — 'tenant' | 'platform' | 'standalone', for copy that must differ.
+ *   can    — what this user may do. The route middleware is the real enforcement;
+ *            this only decides what the UI bothers to render.
+ *
+ * Backend: NotificationCenterController (aero-notifications).
  */
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
@@ -15,12 +25,13 @@ import { Card, CardBody, WbDrawer, useToast } from '@aero/ui';
 import App from '@/Pages/App.jsx';
 
 import '../../Platform/Admin/Products/products.css';
-import '../AuditLogs/audit.css';
+import '../../Core/AuditLogs/audit.css';
 import './notifications.css';
 
 import {
   InboxTab, LogTab, BouncesTab, SuppressionTab,
-  DeliverabilityTab, TemplatesTab, ChannelsTab, PreferencesTab, fmtTime,
+  DeliverabilityTab, TemplatesTab, ChannelsTab, PreferencesTab,
+  FleetTab, BroadcastsTab, fmtTime,
 } from './tabs.jsx';
 
 const TABS = [
@@ -31,6 +42,8 @@ const TABS = [
   { id: 'deliverability', label: 'Deliverability' },
   { id: 'templates', label: 'Templates' },
   { id: 'channels', label: 'Channels' },
+  { id: 'fleet', label: 'Fleet' },
+  { id: 'broadcasts', label: 'Broadcasts' },
   { id: 'preferences', label: 'Preferences' },
 ];
 
@@ -38,9 +51,21 @@ const TABS = [
 function Rail({ stats }) {
   const s = stats ?? {};
   const rate = s.deliveryRate;
+  const q = s.emailQuota;
 
   return (
     <div className="nc-rail">
+      {q && !q.unlimited && (
+        <div>
+          <div className="nc-rail__h">Email this month</div>
+          <div className="nc-rail__rows">
+            <div className="nc-rail__row"><span>Used</span><b className={q.exhausted ? 'is-bad' : ''}>{q.used.toLocaleString()} / {q.limit.toLocaleString()}</b></div>
+          </div>
+          <div className="nc-track" style={{ marginTop: 8 }}>
+            <i className={q.exhausted ? 'is-bad' : q.used / q.limit > 0.85 ? 'is-warn' : ''} style={{ width: `${Math.min(100, Math.round((q.used / q.limit) * 100))}%` }} />
+          </div>
+        </div>
+      )}
       <div>
         <div className="nc-rail__h">Live now</div>
         <div className="nc-rail__rows">
@@ -70,7 +95,7 @@ function Rail({ stats }) {
 
 /* ==================================================================== page */
 export default function NotificationsIndex(props) {
-  const { tab, can = {}, stats = {}, filters = {} } = props;
+  const { tab, can = {}, stats = {}, filters = {}, base = '/notifications', tabs: mounted } = props;
   const toast = useToast();
 
   const [detail, setDetail] = useState(null);     // delivery-log row drawer
@@ -78,13 +103,13 @@ export default function NotificationsIndex(props) {
   const [preview, setPreview] = useState(null);   // template preview modal
 
   /** Every tab filters through here — the active tab always rides along. */
-  const go = (params = {}) => router.get('/notifications', { tab, ...params }, {
+  const go = (params = {}) => router.get(base, { tab, ...params }, {
     preserveState: true, preserveScroll: true,
   });
-  const switchTab = (next) => router.get('/notifications', { tab: next }, { preserveScroll: true });
+  const switchTab = (next) => router.get(base, { tab: next }, { preserveScroll: true });
 
   const openPreview = (template) => {
-    fetch(`/notifications/templates/${template.id}/preview`, {
+    fetch(`${base}/templates/${template.id}/preview`, {
       headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
     })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('failed'))))
@@ -92,7 +117,8 @@ export default function NotificationsIndex(props) {
       .catch(() => toast.error('Could not render that template.'));
   };
 
-  const visibleTabs = TABS.filter((t) => can[t.id]);
+  // A tab shows only if this host mounts it AND this user may see it.
+  const visibleTabs = TABS.filter((t) => (mounted ? mounted.includes(t.id) : true) && can[t.id]);
   const rate = stats.deliveryRate;
   const score = stats.deliverabilityScore ?? 0;
 
@@ -120,7 +146,7 @@ export default function NotificationsIndex(props) {
     },
   ];
 
-  const tabProps = { ...props, can, filters, go };
+  const tabProps = { ...props, can, filters, go, base };
 
   return (
     <div className="pc nc">
@@ -163,10 +189,12 @@ export default function NotificationsIndex(props) {
       {tab === 'deliverability' && <DeliverabilityTab {...tabProps} />}
       {tab === 'templates' && <TemplatesTab {...tabProps} onEdit={setEditing} onPreview={openPreview} />}
       {tab === 'channels' && <ChannelsTab {...tabProps} />}
+      {tab === 'fleet' && <FleetTab {...tabProps} />}
+      {tab === 'broadcasts' && <BroadcastsTab {...tabProps} />}
       {tab === 'preferences' && <PreferencesTab {...tabProps} />}
 
       {detail && <LogDrawer row={detail} onClose={() => setDetail(null)} />}
-      {editing && <TemplateModal template={editing} onClose={() => setEditing(null)} />}
+      {editing && <TemplateModal template={editing} base={base} onClose={() => setEditing(null)} />}
       {preview && <PreviewModal preview={preview} onClose={() => setPreview(null)} />}
     </div>
   );
@@ -219,7 +247,7 @@ function LogDrawer({ row, onClose }) {
 /* --------------------------------------------------------- template editor */
 const VARIABLES = ['user_name', 'first_name', 'email', 'company_name', 'app_name', 'period', 'code', 'action_url', 'date'];
 
-function TemplateModal({ template, onClose }) {
+function TemplateModal({ template, base, onClose }) {
   const toast = useToast();
   const isNew = !template.id;
 
@@ -244,9 +272,9 @@ function TemplateModal({ template, onClose }) {
     };
 
     if (isNew) {
-      router.post('/notifications/templates', f, done);
+      router.post(`${base}/templates`, f, done);
     } else {
-      router.put(`/notifications/templates/${template.id}`, f, done);
+      router.put(`${base}/templates/${template.id}`, f, done);
     }
   };
 

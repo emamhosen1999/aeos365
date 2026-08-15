@@ -652,25 +652,29 @@ class AdminDashboardService
                     return [];
                 }
 
-                $user = auth()->user();
-
+                // The live `announcements` table (aero-hrm schema) is published_at-
+                // based and has columns title/content/type/priority/is_pinned — it has
+                // NO `forUser` scope and NO `body`/`is_dismissible` columns. The old
+                // code called ->forUser() (nonexistent), so this whole widget threw and
+                // silently returned [] via the catch — tenant dashboards showed zero
+                // announcements, and platform broadcasts (which write real rows here via
+                // TenantBroadcastService) never appeared. Map the real columns instead.
                 return Announcement::query()
                     ->active()
-                    ->forUser($user)
                     ->orderByDesc('is_pinned')
-                    ->orderByDesc('created_at')
+                    ->orderByDesc('published_at')
                     ->limit(10)
                     ->get()
                     ->map(fn ($a) => [
                         'id' => $a->id,
                         'title' => $a->title,
-                        'body' => $a->body,
-                        'type' => $a->type,
-                        'priority' => $a->priority,
-                        'isPinned' => $a->is_pinned,
-                        'isDismissible' => $a->is_dismissible,
+                        'body' => $a->content ?? $a->body ?? '',
+                        'type' => $a->type ?? 'info',
+                        'priority' => $a->priority ?? 'normal',
+                        'isPinned' => (bool) $a->is_pinned,
+                        'isDismissible' => false,
                         'authorName' => $a->author?->name ?? 'System',
-                        'createdAt' => $a->created_at->toISOString(),
+                        'createdAt' => optional($a->published_at ?? $a->created_at)->toISOString(),
                     ])
                     ->toArray();
             } catch (\Throwable $e) {

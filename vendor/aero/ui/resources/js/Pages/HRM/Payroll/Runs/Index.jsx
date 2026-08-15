@@ -100,7 +100,6 @@ export default function RunsIndex({ runs, filters, stats }) {
           {canExecute && (
             <Button
               intent="primary"
-              data-tour="payroll-run"
               onClick={() => router.get(route('hrm.payroll.runs.create'))}
             >
               New Run
@@ -109,11 +108,13 @@ export default function RunsIndex({ runs, filters, stats }) {
         </HStack>
       }
       table={
-        <DataTable
-          columns={columns}
-          rows={runs.data ?? []}
-          empty="No payroll runs found."
-        />
+        <div data-tour="payroll-run">
+          <DataTable
+            columns={columns}
+            rows={runs.data ?? []}
+            empty="No payroll runs found."
+          />
+        </div>
       }
       pagination={
         totalPages > 1 && (

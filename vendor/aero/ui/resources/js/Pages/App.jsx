@@ -289,10 +289,9 @@ export default function App({ title, rail, railTitle = 'Context', children }) {
   const groupItems = (navigationGroups ?? []).flatMap(g => g.items ?? []);
   const activeHref = computeActiveHref(currentUrl, navigation ?? [], groupItems, FALLBACK_NAV);
 
-  // Guided live-demo tour: auto-start once per browser on the demo tenant,
-  // and resume across Inertia navigations. No-op on non-demo tenants.
+  // Guided tours: resume an in-progress tour across Inertia navigations.
+  // First-run is owned by the welcome picker, not the engine. No-op when idle.
   useTourEngine({
-    isDemo: page.props.tenant?.demo === true,
     reduced: theme.motion !== 'full',
     url: currentUrl,
   });

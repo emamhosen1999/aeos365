@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Aero\Auth\Http\Controllers\Auth\ImpersonationController;
+use Aero\Notifications\Support\NotificationRoutes;
 use Aero\Platform\Http\Controllers\Admin\AccessLogController;
 use Aero\Platform\Http\Controllers\Admin\AdminDashboardController;
 use Aero\Platform\Http\Controllers\Admin\AffiliateController;
@@ -469,19 +470,37 @@ Route::middleware('admin.domain')->group(function () {
         // =========================================================================
         // 6. NOTIFICATIONS MODULE (notifications)
         // =========================================================================
-        Route::middleware(['hrmac:notifications'])->prefix('notifications')->name('admin.notifications.')->group(function () {
-            Route::get('/channels', function () {
-                return Inertia::render('Platform/Admin/Notifications/Channels');
-            })->middleware(['hrmac:notifications.channels'])->name('channels');
-
-            Route::get('/templates', function () {
-                return Inertia::render('Platform/Admin/Notifications/Templates');
-            })->middleware(['hrmac:notifications.templates'])->name('templates');
-
-            Route::get('/broadcasts', function () {
-                return Inertia::render('Platform/Admin/Notifications/Broadcasts');
-            })->middleware(['hrmac:notifications.broadcasts'])->name('broadcasts');
-        });
+        // The PLATFORM mount of the shared notifications command centre
+        // (aero-notifications). Same controller and same React page the tenants use;
+        // this group supplies the platform context via route defaults and inherits
+        // the landlord guard + central connection from the enclosing group, so the
+        // context-free models resolve against the CENTRAL database.
+        //
+        // Replaces three closure stubs that rendered
+        // Platform/Admin/Notifications/{Channels,Templates,Broadcasts} — JSX files
+        // that DO NOT EXIST. They were three dead nav links, the same defect as the
+        // phantom sms_engine/push_engine submodules.
+        //
+        // Platform sends invoices, dunning, trial and welcome mail and had zero
+        // delivery observability; it now gets the full surface.
+        // The namespace is 'platform.notifications', not 'notifications': the platform
+        // module tree nests one level deeper than the tenant's. In config/module.php
+        // here, `notifications` is a SUB-MODULE of the `platform` module (with
+        // in_app/email_engine/settings as its components), whereas the package
+        // declares `notifications` as the MODULE. HRMAC reads module from the first
+        // path segment and sub-module from the second, so the prefix absorbs the
+        // difference and both mounts gate correctly.
+        NotificationRoutes::register([
+            'notifications_view' => 'Shared/Notifications/Index',
+            'notifications_base' => '/notifications',
+            'notifications_namespace' => 'platform.notifications',
+            'notifications_scope' => 'platform',
+            // Platform gets the two cross-tenant tabs tenants don't: Fleet (delivery
+            // observability across all tenants) and Broadcasts (push an announcement
+            // to tenants). Personal inbox/preferences stay too — platform staff also
+            // receive notifications.
+            'notifications_tabs' => ['inbox', 'log', 'bounces', 'suppression', 'deliverability', 'templates', 'channels', 'fleet', 'broadcasts', 'preferences'],
+        ], prefix: 'notifications', name: 'admin.notifications.');
 
         // =========================================================================
         // 7. FILE MANAGER MODULE (file-manager)
@@ -1367,20 +1386,34 @@ Route::middleware('admin.domain')->group(function () {
             Route::get('/dashboard/health', [DashboardController::class, 'systemHealth'])->name('platform.admin.dashboard.health');
         });
 
-        // Quota Management (P-3)
+        // Quota Management (P-3) — the command centre at /quotas subsumes the
+        // old standalone Enforcement Settings screen (now the Policies tab).
         Route::prefix('quotas')->name('platform.admin.quotas.')->group(function () {
             Route::middleware('hrmac:quota-management.quota-dashboard.view')
                 ->get('/', [P3QuotaController::class, 'index'])->name('index');
 
+            // Static routes before parameterised ones.
+            Route::middleware('hrmac:quota-management.quota-settings.view')
+                ->get('/settings', [P3QuotaController::class, 'settings'])->name('settings');
+            Route::middleware('hrmac:quota-management.quota-settings.edit')->group(function () {
+                Route::put('/settings', [P3QuotaController::class, 'updateSettings'])->name('settings.update');
+                Route::post('/policies/preview', [P3QuotaController::class, 'previewPolicy'])->name('policies.preview');
+                Route::delete('/policies/{policy}', [P3QuotaController::class, 'deletePolicy'])->name('policies.delete');
+            });
+
+            Route::middleware('hrmac:quota-management.quota-dashboard.dismiss-warnings')->group(function () {
+                Route::post('/warnings/scan', [P3QuotaController::class, 'scanBreaches'])->name('warnings.scan');
+                Route::post('/warnings/dismiss', [P3QuotaController::class, 'dismissWarnings'])->name('warnings.dismiss-bulk');
+                Route::post('/warnings/{warning}/dismiss', [P3QuotaController::class, 'dismissWarning'])->name('warnings.dismiss');
+                Route::post('/warnings/{warning}/reopen', [P3QuotaController::class, 'reopenWarning'])->name('warnings.reopen');
+            });
+
             Route::middleware('hrmac:quota-management.quota-dashboard.override')->group(function () {
+                Route::post('/overrides/clear-expired', [P3QuotaController::class, 'clearExpiredOverrides'])->name('overrides.clear-expired');
+                Route::put('/overrides/{override}/extend', [P3QuotaController::class, 'extendOverride'])->name('overrides.extend');
                 Route::post('{tenant}/override', [P3QuotaController::class, 'override'])->name('override');
                 Route::delete('{tenant}/override/{resource}', [P3QuotaController::class, 'removeOverride'])->name('override.remove');
             });
-
-            Route::middleware('hrmac:quota-management.quota-settings.view')
-                ->get('/settings', [P3QuotaController::class, 'settings'])->name('settings');
-            Route::middleware('hrmac:quota-management.quota-settings.edit')
-                ->put('/settings', [P3QuotaController::class, 'updateSettings'])->name('settings.update');
         });
 
         // AI Assistant (Aeon) fleet control — governs the tenant-facing assistant.

@@ -64,11 +64,13 @@ export default function CyclesIndex({ cycles }) {
         </Button>
       }
       table={
-        <DataTable
-          columns={columns}
-          rows={cycles.data ?? []}
-          empty="No performance cycles found."
-        />
+        <div data-tour="performance-cycles">
+          <DataTable
+            columns={columns}
+            rows={cycles.data ?? []}
+            empty="No performance cycles found."
+          />
+        </div>
       }
       pagination={
         totalPages > 1 && (

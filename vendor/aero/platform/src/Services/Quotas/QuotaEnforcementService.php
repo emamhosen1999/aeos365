@@ -6,8 +6,9 @@ namespace Aero\Platform\Services\Quotas;
 
 use Aero\Core\Models\User;
 use Aero\Core\Support\TenantCache;
-use Aero\Platform\Models\Plan;
+use Aero\Platform\Models\QuotaEnforcementSetting;
 use Aero\Platform\Models\Tenant;
+use Aero\Platform\Models\TenantQuotaOverride;
 use Aero\Platform\Models\TenantStat;
 use Aero\Platform\Models\UsageRecord;
 use Illuminate\Support\Facades\Storage;
@@ -48,6 +49,7 @@ class QuotaEnforcementService
             'max_users' => 5,
             'max_storage_gb' => 1,
             'max_api_calls_monthly' => 10000,
+            'max_ai_messages' => 200,
             'max_employees' => 10,
             'max_projects' => 3,
             'max_customers' => 50,
@@ -57,6 +59,7 @@ class QuotaEnforcementService
             'max_users' => 25,
             'max_storage_gb' => 10,
             'max_api_calls_monthly' => 100000,
+            'max_ai_messages' => 1000,
             'max_employees' => 50,
             'max_projects' => 20,
             'max_customers' => 500,
@@ -66,6 +69,7 @@ class QuotaEnforcementService
             'max_users' => 100,
             'max_storage_gb' => 50,
             'max_api_calls_monthly' => 500000,
+            'max_ai_messages' => 5000,
             'max_employees' => 200,
             'max_projects' => 100,
             'max_customers' => 5000,
@@ -75,6 +79,7 @@ class QuotaEnforcementService
             'max_users' => -1, // Unlimited
             'max_storage_gb' => -1,
             'max_api_calls_monthly' => -1,
+            'max_ai_messages' => -1,
             'max_employees' => -1,
             'max_projects' => -1,
             'max_customers' => -1,
@@ -178,73 +183,187 @@ class QuotaEnforcementService
      * Get quota limit for a tenant and type.
      *
      * Resolution order (highest priority first):
-     *   1. Tenant-level admin override stored in tenant.data['quota_overrides']
-     *   2. Plan.limits JSON array (e.g. {"max_users": 50, "max_storage_gb": 20})
-     *   3. Plan dedicated integer columns (max_users, max_storage_gb)
-     *   4. Hardcoded tier defaults keyed by plan.slug
+     *   1. TenantQuotaOverride row — what the Quotas console writes
+     *   2. Legacy tenant.data['quota_overrides'] (pre-console overrides)
+     *   3. Plan.limits JSON array (e.g. {"max_users": 50, "max_storage_gb": 20})
+     *   4. Plan dedicated integer columns (max_users, max_storage_gb)
+     *   5. QuotaEnforcementSetting.default_limit — the fleet policy
+     *   6. Hardcoded tier defaults keyed by plan.slug
+     *
+     * Step 1 is the fix for the split-brain that made this system a lie: the
+     * admin UI has always written tenant_quota_overrides, while this gate only
+     * ever read tenant.data — so for every resource except ai_messages, setting
+     * an override in the console changed nothing. The table is now the single
+     * source of truth for all resources; step 2 keeps any pre-existing legacy
+     * override honoured until it is migrated.
      *
      * @return int -1 for unlimited, 0 if not found
      */
     public function getQuotaLimit(Tenant|string $tenant, string $quotaType): int
     {
+        $resource = QuotaResources::canonical($quotaType);
+        $tenantId = $tenant instanceof Tenant ? $tenant->id : $tenant;
+
+        // 1. Console-set override (authoritative, all resources)
+        $override = TenantQuotaOverride::activeFor((string) $tenantId, $resource);
+        if ($override !== null) {
+            // 0 means "explicitly unlimited" on an override row.
+            return (int) $override->limit_value === 0 ? -1 : (int) $override->limit_value;
+        }
+
         if (is_string($tenant)) {
             $tenant = Tenant::find($tenant);
         }
 
         if (! $tenant) {
-            return $this->defaultQuotas['free']["max_{$quotaType}"] ?? 0;
+            return $this->policyDefault($resource) ?? $this->tierDefault('free', $resource);
         }
 
-        // 1. Admin-set per-tenant override (stored in tenant.data['quota_overrides'])
+        // 2. Legacy per-tenant override (tenant.data['quota_overrides'])
         $tenantData = $tenant->data instanceof \ArrayObject ? $tenant->data->getArrayCopy() : (array) ($tenant->data ?? []);
-        $overrideValue = $tenantData['quota_overrides']["max_{$quotaType}"] ?? null;
+        $overrideValue = $tenantData['quota_overrides']["max_{$resource}"]
+            ?? $tenantData['quota_overrides']["max_{$quotaType}"]
+            ?? null;
         if ($overrideValue !== null) {
-            return (int) $overrideValue;
+            return (int) $overrideValue === 0 ? -1 : (int) $overrideValue;
         }
 
         $plan = $tenant->plan ?? $tenant->subscription?->plan;
 
         if (! $plan) {
-            return $this->defaultQuotas['free']["max_{$quotaType}"] ?? 0;
+            return $this->policyDefault($resource) ?? $this->tierDefault('free', $resource);
         }
 
-        // 2. Plan.limits JSON array (flexible per-plan overrides)
+        $planKey = QuotaResources::meta($resource)['plan_key'] ?? "max_{$resource}";
+
+        // 3. Plan.limits JSON array (flexible per-plan overrides)
         $planLimits = is_array($plan->limits) ? $plan->limits : [];
-        $limitsValue = $planLimits["max_{$quotaType}"] ?? null;
+        $limitsValue = $planLimits[$planKey] ?? null;
         if ($limitsValue !== null) {
             return (int) $limitsValue === 0 ? -1 : (int) $limitsValue;
         }
 
-        // 3. Plan dedicated columns (max_users, max_storage_gb)
-        $columnMap = [
-            'users' => 'max_users',
-            'storage_gb' => 'max_storage_gb',
-        ];
-        if (isset($columnMap[$quotaType]) && $plan->{$columnMap[$quotaType]} !== null) {
-            $colValue = (int) $plan->{$columnMap[$quotaType]};
+        // 4. Plan dedicated columns (max_users, max_storage_gb)
+        $planCol = QuotaResources::meta($resource)['plan_col'] ?? null;
+        if ($planCol !== null && ($plan->{$planCol} ?? null) !== null) {
+            $colValue = (int) $plan->{$planCol};
 
             // 0 on these columns means unlimited
             return $colValue === 0 ? -1 : $colValue;
         }
 
-        // 4. Hardcoded tier defaults keyed by plan slug
-        $planSlug = strtolower($plan->slug ?? 'free');
+        // 5. Fleet policy default
+        $policyDefault = $this->policyDefault($resource);
+        if ($policyDefault !== null) {
+            return $policyDefault;
+        }
 
-        return $this->defaultQuotas[$planSlug]["max_{$quotaType}"]
-            ?? $this->defaultQuotas['free']["max_{$quotaType}"]
-            ?? 0;
+        // 6. Hardcoded tier defaults keyed by plan slug (seat-count inferred
+        //    when the slug is not a named tier).
+        return $this->tierDefault(strtolower($plan->slug ?? 'free'), $resource, (int) ($plan->max_users ?? 0) ?: null);
     }
 
     /**
-     * Mapping of quota types to their TenantStat columns for fast central-DB reads.
-     * These are populated daily by the CollectTenantStats scheduled job.
+     * The enforcement policy row for a resource, or null when unconfigured.
+     * Statically memoised — the gate is hit many times per request.
      */
-    protected array $statColumns = [
-        'users' => 'total_users',
-        'employees' => 'total_employees',
-        'projects' => 'active_projects',
-        'storage_gb' => null, // derived from storage_used_mb
-    ];
+    public function getPolicy(string $resource): ?QuotaEnforcementSetting
+    {
+        $resource = QuotaResources::canonical($resource);
+
+        if (! array_key_exists($resource, self::$policyCache)) {
+            self::$policyCache[$resource] = QuotaEnforcementSetting::query()
+                ->where('resource', $resource)
+                ->first();
+        }
+
+        return self::$policyCache[$resource];
+    }
+
+    /** @var array<string, QuotaEnforcementSetting|null> */
+    private static array $policyCache = [];
+
+    public static function flushPolicyCache(): void
+    {
+        self::$policyCache = [];
+    }
+
+    /**
+     * The fleet-wide default limit from the policy row, or null to fall
+     * through to the tier default.
+     *
+     * default_limit = 0 means "no fleet cap configured for this resource" —
+     * NOT unlimited. Unlimited is expressed by the plan or an override (both
+     * of which use 0 = unlimited); the policy row is primarily thresholds +
+     * action, and its default_limit is an optional floor. Treating 0 as
+     * unlimited here would make every resource with a backfilled policy row
+     * unlimited and silently kill the tier defaults.
+     */
+    private function policyDefault(string $resource): ?int
+    {
+        $policy = $this->getPolicy($resource);
+
+        if ($policy === null || $policy->default_limit === null) {
+            return null;
+        }
+
+        $value = (int) $policy->default_limit;
+
+        return $value === 0 ? null : $value;
+    }
+
+    /**
+     * Hardcoded tier default for a plan + resource (-1 unlimited, 0 none).
+     *
+     * Keyed by the resource's canonical plan_key (so 'api_calls' correctly
+     * reads 'max_api_calls_monthly', not the non-existent 'max_api_calls').
+     * When the plan's slug is not one of the four named tiers — real catalogues
+     * use slugs like "business" / "growth" / "scale" — the tier is INFERRED
+     * from the plan's seat count rather than silently collapsing to the free
+     * tier, which used to hand a 100-seat plan a 10-employee free cap.
+     *
+     * Public so QuotaAdminService's fleet matrix resolves through the exact
+     * same final fallback the runtime gate uses — the two must agree.
+     */
+    public function tierDefault(string $slug, string $resource, ?int $maxUsers = null): int
+    {
+        $resource = QuotaResources::canonical($resource);
+        $key = QuotaResources::meta($resource)['plan_key'] ?? "max_{$resource}";
+        $tier = $this->resolveTier($slug, $maxUsers);
+
+        $value = $this->defaultQuotas[$tier][$key]
+            ?? $this->defaultQuotas['free'][$key]
+            ?? 0;
+
+        return (int) $value;
+    }
+
+    /** Map a plan slug (or seat count) onto one of the four tier tables. */
+    private function resolveTier(string $slug, ?int $maxUsers): string
+    {
+        $slug = strtolower($slug);
+        if (isset($this->defaultQuotas[$slug])) {
+            return $slug;
+        }
+
+        // 0 seats on a plan means "unlimited seats" → treat as enterprise.
+        return match (true) {
+            $maxUsers === 0 => 'enterprise',
+            $maxUsers === null => 'free',
+            $maxUsers >= 100 => 'professional',
+            $maxUsers >= 25 => 'starter',
+            default => 'free',
+        };
+    }
+
+    /**
+     * TenantStat columns per resource now come from QuotaResources — the one
+     * registry that also knows each resource's unit divisor (storage is stored
+     * in MB but quoted in GB).
+     *
+     * @deprecated Use QuotaResources::meta()['stat'].
+     */
+    protected array $statColumns = [];
 
     /**
      * Get current usage for a quota type.
@@ -258,27 +377,48 @@ class QuotaEnforcementService
      */
     public function getCurrentUsage(Tenant|string $tenant, string $quotaType): int
     {
+        $resource = QuotaResources::canonical($quotaType);
         $tenantId = $tenant instanceof Tenant ? $tenant->id : $tenant;
-        $cacheKey = "quota:usage:{$tenantId}:{$quotaType}";
+        $cacheKey = "quota:usage:{$tenantId}:{$resource}";
 
-        return TenantCache::remember($cacheKey, $this->cacheTtl, function () use ($tenantId, $quotaType) {
+        return TenantCache::remember($cacheKey, $this->cacheTtl, function () use ($tenantId, $resource) {
+            // Cache-metered resources (AI messages) never touch tenant_stats.
+            if ($resource === 'ai_messages') {
+                return $this->getAiMessagesUsed((string) $tenantId);
+            }
+
             // --- Try TenantStat (central DB, no tenant connection required) ---
-            $statColumn = $this->statColumns[$quotaType] ?? null;
+            $statColumn = QuotaResources::meta($resource)['stat'] ?? null;
 
             if ($statColumn !== null) {
+                // A monthly quota is measured month-to-date: tenant_stats holds
+                // a per-DAY counter, so the latest row alone would report a
+                // fraction of real consumption against a monthly cap.
+                if (QuotaResources::isMonthly($resource)) {
+                    $sum = TenantStat::query()
+                        ->where('tenant_id', $tenantId)
+                        ->whereDate('date', '>=', now()->startOfMonth())
+                        ->sum($statColumn);
+
+                    return (int) round(QuotaResources::toUnit($resource, $sum));
+                }
+
                 /** @var TenantStat|null $stat */
                 $stat = TenantStat::query()
                     ->where('tenant_id', $tenantId)
-                    ->whereDate('date', today())
+                    ->orderByDesc('date')
                     ->first();
 
                 if ($stat !== null) {
-                    return (int) $stat->{$statColumn};
+                    // toUnit converts the raw column into the resource's own
+                    // unit — storage_used_mb (MB) → GB. Comparing the raw MB
+                    // value against a GB limit was wrong by 1024x.
+                    return (int) round(QuotaResources::toUnit($resource, $stat->{$statColumn}));
                 }
             }
 
             // --- Fallback: live count from tenant DB ---
-            $modelClass = $this->quotaModels[$quotaType] ?? null;
+            $modelClass = $this->quotaModels[$resource] ?? null;
 
             if (! $modelClass || ! class_exists($modelClass)) {
                 return 0;
@@ -336,24 +476,14 @@ class QuotaEnforcementService
 
     /**
      * Monthly AI message allowance (-1 unlimited, 0 = AI not in plan).
-     * A per-tenant override on the Quotas page (TenantQuotaOverride, resource
-     * 'ai_messages') wins over the plan allowance so ops can grant exceptions.
+     *
+     * The override lookup that used to live here is now step 1 of
+     * getQuotaLimit() for every resource, so this is a plain delegation —
+     * ai_messages is no longer the one privileged resource whose console
+     * override actually took effect.
      */
     public function getAiMessageLimit(Tenant|string $tenant): int
     {
-        $tenantId = $tenant instanceof Tenant ? $tenant->id : $tenant;
-
-        $override = \Aero\Platform\Models\TenantQuotaOverride::query()
-            ->where('tenant_id', $tenantId)
-            ->where('resource', 'ai_messages')
-            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
-            ->orderByDesc('id')
-            ->first();
-
-        if ($override) {
-            return (int) $override->limit_value === 0 ? -1 : (int) $override->limit_value;
-        }
-
         return $this->getQuotaLimit($tenant, 'ai_messages');
     }
 
@@ -454,7 +584,7 @@ class QuotaEnforcementService
                 'remaining' => $limit === -1 ? -1 : max(0, $limit - $usage),
                 'percentage' => $percentage,
                 'unlimited' => $limit === -1,
-                'status' => $this->resolveStatus($percentage, $limit),
+                'status' => $this->resolveStatus($percentage, $limit, $type),
             ];
         }
 
@@ -471,7 +601,7 @@ class QuotaEnforcementService
             'remaining' => $storageLimit === -1 ? -1 : max(0, $storageLimit - $storageUsedGb),
             'percentage' => $storagePercentage,
             'unlimited' => $storageLimit === -1,
-            'status' => $this->resolveStatus($storagePercentage, $storageLimit),
+            'status' => $this->resolveStatus($storagePercentage, $storageLimit, 'storage_gb'),
         ];
 
         // Monthly API calls
@@ -561,27 +691,46 @@ class QuotaEnforcementService
     /**
      * Resolve a human-readable status from a usage percentage.
      *
+     * Thresholds come from the resource's QuotaEnforcementSetting when one is
+     * configured — the whole point of the Enforcement Settings screen, which
+     * until now persisted rows that nothing ever read. 80/90/100 remain the
+     * fallback for an unconfigured resource.
+     *
      * @return string 'ok' | 'warning' | 'critical' | 'exceeded' | 'unlimited'
      */
-    protected function resolveStatus(float $percentage, int $limit): string
+    protected function resolveStatus(float $percentage, int $limit, ?string $resource = null): string
     {
         if ($limit === -1) {
             return 'unlimited';
         }
 
-        if ($percentage >= 100) {
+        $policy = $resource !== null ? $this->getPolicy($resource) : null;
+        $warnAt = (int) ($policy->warning_threshold_pct ?? 80);
+        $hardAt = (int) ($policy->hard_limit_pct ?? 100);
+        $criticalAt = $warnAt + (int) round(($hardAt - $warnAt) / 2);
+
+        if ($percentage >= $hardAt) {
             return 'exceeded';
         }
 
-        if ($percentage >= 90) {
+        if ($percentage >= $criticalAt) {
             return 'critical';
         }
 
-        if ($percentage >= 80) {
+        if ($percentage >= $warnAt) {
             return 'warning';
         }
 
         return 'ok';
+    }
+
+    /**
+     * What enforcement does when a resource passes its hard limit:
+     * 'warn' | 'throttle' | 'block'. Defaults to warn when unconfigured.
+     */
+    public function enforcementAction(string $resource): string
+    {
+        return (string) ($this->getPolicy($resource)->action ?? QuotaEnforcementSetting::ACTION_WARN);
     }
 
     /**

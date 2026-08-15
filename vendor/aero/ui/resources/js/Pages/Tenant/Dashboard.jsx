@@ -126,7 +126,9 @@ export default function Dashboard({
         mode={mode}
       />
 
-      <KpiBand coreStats={coreStats} activity={activity.data} security={securityOverview} storage={storageAnalytics} />
+      <div data-tour="dashboard-kpis">
+        <KpiBand coreStats={coreStats} activity={activity.data} security={securityOverview} storage={storageAnalytics} />
+      </div>
 
       <div className="dash-split">
         {/* LEFT · analytics + narrative */}

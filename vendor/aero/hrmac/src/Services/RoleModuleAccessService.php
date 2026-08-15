@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Aero\HRMAC\Services;
 
 use Aero\Contracts\RoleModuleAccessInterface;
-use Aero\HRMAC\Models\ModuleComponentAction;
-use Aero\HRMAC\Models\ModuleComponent;
 use Aero\HRMAC\Models\HrmacAuditLog;
 use Aero\HRMAC\Models\Module;
+use Aero\HRMAC\Models\ModuleComponent;
+use Aero\HRMAC\Models\ModuleComponentAction;
 use Aero\HRMAC\Models\RoleModuleAccess;
 use Aero\HRMAC\Models\SubModule;
 use Illuminate\Support\Collection;

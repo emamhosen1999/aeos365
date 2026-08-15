@@ -489,7 +489,7 @@ export default function SettingsIndex(props) {
   ]), [s]);
 
   return (
-    <div className="pc set">
+    <div className="pc set" data-tour="settings-root">
       <div className="pc-head">
         <div>
           <div className="pc-eyebrow"><span className="pc-eyebrow__dot" /> Workspace · Configuration</div>

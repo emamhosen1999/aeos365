@@ -102,7 +102,7 @@ export default function AnalyticsDashboard({ kpis, turnover, distribution }) {
         </HStack>
       }
       table={
-        <VStack gap={6}>
+        <VStack gap={6} data-tour="hrm-analytics">
           <HStack gap={4} wrap>
             <StatCard label="Active Headcount" value={kpis.active ?? 0} />
             <StatCard label="Avg Tenure (years)" value={tenureYears} />

@@ -43,34 +43,73 @@ export default function Login({
   blockedDeviceInfo,
   demo = null,
 }) {
+  // Demo tenants ship persona chips (admin first). Non-demo tenants get `null`
+  // from the controller, so nothing below ever renders outside the demo.
+  const personas = Array.isArray(demo?.personas) ? demo.personas : [];
+
   const { data, setData, post, processing, errors, reset } = useForm({
-    email:     demo?.email ?? '',
-    password:  demo?.password ?? '',
+    email:     personas[0]?.email ?? '',
+    password:  personas[0]?.password ?? '',
     remember:  false,
     device_id: '',
   });
+
+  const activePersona = personas.find(p => p.email === data.email) ?? null;
 
   useEffect(() => {
     setData('device_id', getOrCreateDeviceId());
   }, []);
 
+  function pickPersona(persona) {
+    setData(d => ({ ...d, email: persona.email, password: persona.password }));
+  }
+
   function submit(e) {
-    e.preventDefault();
-    post(route('login'), { onFinish: () => reset('password') });
+    e?.preventDefault?.();
+    // On the demo the password is intentionally visible and pre-filled; clearing
+    // it on a failed attempt would silently restore the *first* persona's
+    // password instead of the selected one.
+    post(route('login'), { onFinish: () => { if (personas.length === 0) reset('password'); } });
   }
 
   return (
     <AuthLayout title="Sign in to your account">
       <form className="al-form" onSubmit={submit} noValidate>
-        {demo && (
+        {personas.length > 0 && (
           <Alert intent="info" title="Live demo — no sign-up needed">
             <VStack gap={2}>
-              <Text size="sm">Credentials are pre-filled. Click below to explore AEOS365.</Text>
+              <Text size="sm">Pick a persona — credentials are pre-filled. Nothing you do here is permanent.</Text>
+
+              {personas.length > 1 && (
+                <HStack gap={2} wrap="wrap">
+                  {personas.map(p => (
+                    <Button
+                      key={p.email}
+                      type="button"
+                      size="sm"
+                      intent={data.email === p.email ? 'primary' : 'soft'}
+                      aria-pressed={data.email === p.email}
+                      onClick={() => pickPersona(p)}
+                    >
+                      {p.label}
+                    </Button>
+                  ))}
+                </HStack>
+              )}
+
+              {activePersona?.name && (
+                <Text size="sm" tone="secondary">
+                  Signs in as {activePersona.name}
+                  {activePersona.role ? ` · ${activePersona.role}` : ''}
+                </Text>
+              )}
+
               <HStack gap={4} wrap="wrap">
-                <Text size="sm" tone="secondary">Email&nbsp;<Mono>{demo.email}</Mono></Text>
-                <Text size="sm" tone="secondary">Password&nbsp;<Mono>{demo.password}</Mono></Text>
+                <Text size="sm" tone="secondary">Email&nbsp;<Mono>{data.email}</Mono></Text>
+                <Text size="sm" tone="secondary">Password&nbsp;<Mono>{data.password}</Mono></Text>
               </HStack>
-              <Button type="button" intent="primary" onClick={submit} disabled={processing}>
+
+              <Button type="button" intent="primary" onClick={submit} loading={processing}>
                 Enter the demo
               </Button>
             </VStack>

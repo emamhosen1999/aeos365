@@ -25,6 +25,19 @@ class NotificationDemoSeeder extends Seeder
         $this->seedInbox();
     }
 
+    /**
+     * The polymorphic key for the app's user model.
+     *
+     * NEVER hardcode the class FQN: aero-core registers a morph map binding
+     * 'user' => Aero\Auth\Models\User so the model can move package without
+     * orphaning every polymorphic row. Writing the FQN produces rows that
+     * $user->notifications() will never match.
+     */
+    private function userMorphKey(): string
+    {
+        return (new (config('auth.providers.users.model')))->getMorphClass();
+    }
+
     /** @return array<int, array{id:int, name:string, email:string}> */
     private function recipients(): array
     {
@@ -60,6 +73,7 @@ class NotificationDemoSeeder extends Seeder
             'no.longer.here@outlook.com', 'typo.adress@gmail.com', 'bounced@hotmail.com',
         ];
 
+        $morph = $this->userMorphKey();
         $rows = [];
 
         for ($i = 0; $i < 140; $i++) {
@@ -85,7 +99,7 @@ class NotificationDemoSeeder extends Seeder
             $rows[] = [
                 'idempotency_key' => (string) Str::uuid(),
                 'user_id' => $person['id'],
-                'notifiable_type' => 'Aero\\Core\\Models\\User',
+                'notifiable_type' => $morph,
                 'notifiable_id' => $person['id'],
                 'channel' => $channel,
                 'notification_type' => "Aero\\Notifications\\Notifications\\{$type}",
@@ -180,13 +194,14 @@ class NotificationDemoSeeder extends Seeder
             ['InvoicePaidNotification', 'Invoice INV-2026-0042 was paid', 'BDT 45,000 received — thank you.', 'success', true, 60 * 72],
         ];
 
+        $morph = $this->userMorphKey();
         $rows = [];
         foreach ($items as [$type, $title, $message, $severity, $read, $minsAgo]) {
             $created = now()->subMinutes($minsAgo);
             $rows[] = [
                 'id' => (string) Str::uuid(),
                 'type' => "Aero\\Notifications\\Notifications\\{$type}",
-                'notifiable_type' => 'Aero\\Core\\Models\\User',
+                'notifiable_type' => $morph,
                 'notifiable_id' => $admin->id,
                 'data' => json_encode([
                     'title' => $title,

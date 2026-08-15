@@ -9,12 +9,12 @@
     ]
   },
   "vendor/aero/ui/resources/js/app.jsx": {
-    "file": "assets/app-DQl5v9Wu.js",
+    "file": "assets/app-6CYZjZNz.js",
     "name": "app",
     "src": "vendor/aero/ui/resources/js/app.jsx",
     "isEntry": true,
     "css": [
-      "assets/app-Cv3DRm7O.css",
+      "assets/app-Cmjx0jDn.css",
       "assets/app-B8asxZei.css"
     ],
     "assets": [

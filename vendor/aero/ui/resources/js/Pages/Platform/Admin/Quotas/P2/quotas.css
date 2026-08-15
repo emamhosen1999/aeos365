@@ -1,0 +1,109 @@
+/* Quota Management command centre — fleet capacity console. Extends products.css
+   (pc-* cards, chips, modal, drawer rows) + subscriptions.css (KPI/analytics band,
+   donut row, drawer head, mini-tables) + the @aero/ui workbench kit. All colour
+   via theme tokens / color-mix (dynamic per-status accents follow the same
+   inline `style={{ background: token }}` convention as the chip-dot pattern
+   used across every other P2 command centre). Scoped to `.qt`. */
+
+/* ---- status chips (utilization / override / warning rows) ---- */
+.pc-chip.qt-s-ok { background: color-mix(in srgb, var(--aeos-success) 15%, transparent); color: var(--aeos-success); border-color: color-mix(in srgb, var(--aeos-success) 34%, transparent); }
+.pc-chip.qt-s-warning { background: color-mix(in srgb, var(--aeos-warning) 15%, transparent); color: var(--aeos-warning); border-color: color-mix(in srgb, var(--aeos-warning) 34%, transparent); }
+.pc-chip.qt-s-critical { background: color-mix(in srgb, #fb923c 15%, transparent); color: #fb923c; border-color: color-mix(in srgb, #fb923c 34%, transparent); }
+.pc-chip.qt-s-exceeded { background: color-mix(in srgb, var(--aeos-danger) 14%, transparent); color: var(--aeos-danger); border-color: color-mix(in srgb, var(--aeos-danger) 35%, transparent); }
+.pc-chip.qt-s-unlimited { background: color-mix(in srgb, #22d3ee 15%, transparent); color: #22d3ee; border-color: color-mix(in srgb, #22d3ee 34%, transparent); }
+.pc-chip.qt-s-unset { background: var(--aeos-bg-subtle); color: var(--aeos-text-muted); border-color: var(--aeos-border); }
+
+/* ---- warning-level chips ---- */
+.pc-chip.qt-lvl--warning { background: color-mix(in srgb, var(--aeos-warning) 15%, transparent); color: var(--aeos-warning); border-color: color-mix(in srgb, var(--aeos-warning) 34%, transparent); }
+.pc-chip.qt-lvl--critical { background: color-mix(in srgb, #fb923c 15%, transparent); color: #fb923c; border-color: color-mix(in srgb, #fb923c 34%, transparent); }
+.pc-chip.qt-lvl--block { background: color-mix(in srgb, var(--aeos-danger) 14%, transparent); color: var(--aeos-danger); border-color: color-mix(in srgb, var(--aeos-danger) 35%, transparent); }
+
+/* ---- policy action chips ---- */
+.pc-chip.qt-act--warn { background: color-mix(in srgb, #22d3ee 15%, transparent); color: #22d3ee; border-color: color-mix(in srgb, #22d3ee 34%, transparent); }
+.pc-chip.qt-act--throttle { background: color-mix(in srgb, var(--aeos-warning) 15%, transparent); color: var(--aeos-warning); border-color: color-mix(in srgb, var(--aeos-warning) 34%, transparent); }
+.pc-chip.qt-act--block { background: color-mix(in srgb, var(--aeos-danger) 14%, transparent); color: var(--aeos-danger); border-color: color-mix(in srgb, var(--aeos-danger) 35%, transparent); }
+
+/* ---- source badges (utilization table + drawer resource rows) ---- */
+.qt-src { display: inline-flex; align-items: center; font-size: var(--aeos-text-xs); font-weight: 560; padding: 2px 8px; border-radius: 999px; border: var(--aeos-border-width) solid transparent; white-space: nowrap; }
+.qt-src--override { background: color-mix(in srgb, #8b5cf6 15%, transparent); color: #8b5cf6; border-color: color-mix(in srgb, #8b5cf6 34%, transparent); }
+.qt-src--plan { background: color-mix(in srgb, #22d3ee 15%, transparent); color: #22d3ee; border-color: color-mix(in srgb, #22d3ee 34%, transparent); }
+.qt-src--policy { background: var(--aeos-bg-subtle); color: var(--aeos-text-secondary); border-color: var(--aeos-border); }
+.qt-src--legacy { background: color-mix(in srgb, var(--aeos-warning) 15%, transparent); color: var(--aeos-warning); border-color: color-mix(in srgb, var(--aeos-warning) 34%, transparent); }
+.qt-src--unset { background: var(--aeos-bg-subtle); color: var(--aeos-text-muted); border-color: var(--aeos-border); }
+
+/* ---- misc text/number tokens ---- */
+.qt .num { font-variant-numeric: tabular-nums; }
+.qt-mono { font-family: var(--aeos-font-mono); font-size: 11px; color: var(--aeos-text-muted); }
+.qt-inf { color: var(--aeos-text-secondary); font-weight: 600; }
+.qt-neg { color: var(--aeos-danger); }
+.qt-trunc { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; color: var(--aeos-text-secondary); }
+.qt-amber { color: var(--aeos-warning); }
+.qt-red { color: var(--aeos-danger); }
+.qt-cyan { color: #22d3ee; }
+.qt-note { margin-top: var(--aeos-space-2); font-size: 11px; color: var(--aeos-text-muted); }
+
+/* ---- utilization meter (table cell) ---- */
+.qt-rate { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.qt-rate__track { width: 54px; height: 6px; background: var(--aeos-bg-subtle); border-radius: 6px; overflow: hidden; }
+.qt-rate__fill { display: block; height: 100%; border-radius: 6px; }
+
+/* ---- headroom / resource usage bars (analytics band + drawer) ---- */
+.qt-ubars { display: flex; flex-direction: column; gap: var(--aeos-space-3); }
+.qt-drrows { display: flex; flex-direction: column; gap: var(--aeos-space-4); }
+.qt-ubar-row { display: flex; flex-direction: column; gap: 4px; }
+.qt-ubar-top { display: flex; align-items: center; justify-content: space-between; gap: var(--aeos-space-2); font-size: var(--aeos-text-xs); }
+.qt-ubar-label { color: var(--aeos-text-secondary); font-weight: 560; }
+.qt-ubar-val { color: var(--aeos-text-muted); font-variant-numeric: tabular-nums; }
+.qt-ubar-track { position: relative; height: 8px; background: var(--aeos-bg-subtle); border-radius: 6px; }
+.qt-ubar-fill { position: absolute; inset: 0 auto 0 0; height: 100%; border-radius: 6px; }
+.qt-ubar-tick { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--aeos-text-secondary); opacity: .6; border-radius: 1px; }
+.qt-ubar-tick--hard { background: var(--aeos-danger); opacity: .85; }
+.qt-ubar-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--aeos-space-2); font-size: 10.5px; color: var(--aeos-text-muted); }
+.qt-ubar-meta { text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.qt-ubar-note { color: var(--aeos-text-muted); }
+.qt-ubar-summary { margin-top: var(--aeos-space-2); font-size: 11px; color: var(--aeos-text-muted); }
+
+/* ---- pressure leaderboard ---- */
+.qt-lb { display: flex; flex-direction: column; gap: var(--aeos-space-3); }
+.qt-lbrow { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: var(--aeos-space-3); background: none; border: 0; padding: 3px 0; cursor: pointer; text-align: left; width: 100%; }
+.qt-lbrow__rk { font-size: 11px; color: var(--aeos-text-muted); font-variant-numeric: tabular-nums; text-align: center; }
+.qt-lbrow__who { min-width: 0; }
+.qt-lbrow__nm { display: block; font-size: 12.5px; font-weight: 600; color: var(--aeos-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qt-lbrow__nm small { font-weight: 500; color: var(--aeos-text-muted); margin-left: 6px; }
+.qt-lbrow:hover .qt-lbrow__nm { color: var(--aeos-primary); }
+.qt-lbrow__track { display: block; height: 7px; background: var(--aeos-bg-subtle); border-radius: 6px; overflow: hidden; margin-top: 4px; }
+.qt-lbrow__fill { display: block; height: 100%; border-radius: 6px; }
+.qt-lbrow__amt { font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--aeos-text-primary); text-align: right; }
+
+/* ---- workbench tabs ---- */
+.qt-tabs { display: flex; gap: var(--aeos-space-2); margin-bottom: var(--aeos-space-3); border-bottom: var(--aeos-border-width) solid var(--aeos-border-subtle); }
+.qt-tab { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--aeos-text-secondary); font: inherit; font-size: var(--aeos-text-sm); font-weight: 560; padding: 6px 4px 9px; margin-bottom: -1px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+.qt-tab span { font-size: 10.5px; font-variant-numeric: tabular-nums; color: var(--aeos-text-muted); background: var(--aeos-bg-subtle); border: var(--aeos-border-width) solid var(--aeos-border-subtle); padding: 0 7px; border-radius: 20px; }
+.qt-tab.is-on { color: var(--aeos-primary); border-bottom-color: var(--aeos-primary); }
+.qt-tab.is-on span { color: var(--aeos-primary); background: var(--aeos-primary-tint); border-color: var(--aeos-primary-border); }
+
+/* ---- rail queues ---- */
+.qt-railq { display: flex; flex-direction: column; gap: 6px; }
+.qt-railq__it { display: flex; align-items: center; gap: 8px; }
+.qt-railq__nm { flex: 1; font-size: var(--aeos-text-sm); color: var(--aeos-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qt-railq__sub { font-size: 10.5px; color: var(--aeos-text-muted); font-weight: 600; }
+
+/* ---- form + modal helpers ---- */
+.qt-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--aeos-space-3); margin-bottom: var(--aeos-space-3); }
+.qt-usagehint { background: var(--aeos-bg-subtle); border: var(--aeos-border-width) solid var(--aeos-border-subtle); border-radius: var(--aeos-card-radius); padding: 9px 12px; font-size: 12px; color: var(--aeos-text-secondary); line-height: 1.5; }
+.qt-usagehint__note { margin-top: 4px; font-size: 11px; color: var(--aeos-text-muted); }
+.qt-usagehint__bad { color: var(--aeos-danger); font-weight: 600; }
+.pc-modal--sm { max-width: 420px; }
+
+/* ---- command-shell responsiveness (react to CONTENT width) ---- */
+@container (max-width: 1180px) {
+  .qt .pc-kpis.sc-kpis6 { grid-template-columns: repeat(3, 1fr); }
+  .qt .sc-band { grid-template-columns: 1fr; }
+}
+@container (max-width: 720px) {
+  .qt .pc-kpis.sc-kpis6 { grid-template-columns: repeat(2, 1fr); }
+  .qt .qt-form-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .qt .qt-form-grid { grid-template-columns: 1fr; }
+}

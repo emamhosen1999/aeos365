@@ -65,7 +65,7 @@ function useSelection() {
 }
 
 /* ==================================================================== INBOX */
-export function InboxTab({ inbox, filters, can, go }) {
+export function InboxTab({ inbox, filters, can, go, base }) {
   const toast = useToast();
   const sel = useSelection();
   const [search, setSearch] = useState(filters?.search ?? '');
@@ -87,7 +87,7 @@ export function InboxTab({ inbox, filters, can, go }) {
         </div>
         <div className="pc-actions">
           {can?.inboxMarkRead && (inbox?.unread ?? 0) > 0 && (
-            <button type="button" className="pc-btn pc-btn--sm" onClick={() => post('/notifications/inbox/read-all', {}, 'All notifications marked as read.')}>
+            <button type="button" className="pc-btn pc-btn--sm" onClick={() => post(`${base}/inbox/read-all`, {}, 'All notifications marked as read.')}>
               Mark all read
             </button>
           )}
@@ -111,7 +111,7 @@ export function InboxTab({ inbox, filters, can, go }) {
       <SelectionBar count={sel.ids.length} onClear={sel.clear}>
         {can?.inboxDelete && (
           <button type="button" className="pc-btn pc-btn--sm pc-btn--danger"
-            onClick={() => post('/notifications/inbox/bulk-delete', { ids: sel.ids }, `${sel.ids.length} notification(s) deleted.`)}>
+            onClick={() => post(`${base}/inbox/bulk-delete`, { ids: sel.ids }, `${sel.ids.length} notification(s) deleted.`)}>
             Delete selected
           </button>
         )}
@@ -145,13 +145,13 @@ export function InboxTab({ inbox, filters, can, go }) {
                   <span>{n.timeAgo}</span>
                   {can?.inboxMarkRead && (
                     <button type="button" className="pc-btn pc-btn--sm"
-                      onClick={() => post(`/notifications/inbox/${n.id}/${n.read ? 'unread' : 'read'}`, {}, n.read ? 'Marked as unread.' : 'Marked as read.')}>
+                      onClick={() => post(`${base}/inbox/${n.id}/${n.read ? 'unread' : 'read'}`, {}, n.read ? 'Marked as unread.' : 'Marked as read.')}>
                       {n.read ? 'Unread' : 'Read'}
                     </button>
                   )}
                   {can?.inboxDelete && (
                     <button type="button" className="pc-btn pc-btn--sm pc-btn--danger"
-                      onClick={() => router.delete(`/notifications/inbox/${n.id}`, { ...opts, onSuccess: () => toast.success('Notification deleted.') })}>
+                      onClick={() => router.delete(`${base}/inbox/${n.id}`, { ...opts, onSuccess: () => toast.success('Notification deleted.') })}>
                       Delete
                     </button>
                   )}
@@ -167,7 +167,7 @@ export function InboxTab({ inbox, filters, can, go }) {
 }
 
 /* ============================================================ DELIVERY LOG */
-export function LogTab({ logs, filters, can, go, onRow }) {
+export function LogTab({ logs, filters, can, go, onRow, base }) {
   const toast = useToast();
   const sel = useSelection();
   const [f, setF] = useState({
@@ -193,12 +193,12 @@ export function LogTab({ logs, filters, can, go, onRow }) {
         <div className="pc-actions">
           {can?.logResend && (
             <button type="button" className="pc-btn pc-btn--sm"
-              onClick={() => { if (window.confirm('Requeue every failed and bounced notification?')) post('/notifications/log/retry-failed', {}, 'Failed notifications requeued.'); }}>
+              onClick={() => { if (window.confirm('Requeue every failed and bounced notification?')) post(`${base}/log/retry-failed`, {}, 'Failed notifications requeued.'); }}>
               Retry all failed
             </button>
           )}
           {can?.logExport && (
-            <a className="pc-btn pc-btn--sm" href={`/notifications/log/export?${new URLSearchParams(Object.entries(f).filter(([, v]) => v))}`}>
+            <a className="pc-btn pc-btn--sm" href={`${base}/log/export?${new URLSearchParams(Object.entries(f).filter(([, v]) => v))}`}>
               Export CSV
             </a>
           )}
@@ -233,7 +233,7 @@ export function LogTab({ logs, filters, can, go, onRow }) {
       <SelectionBar count={sel.ids.length} onClear={sel.clear}>
         {can?.logResend && (
           <button type="button" className="pc-btn pc-btn--sm pc-btn--primary"
-            onClick={() => post('/notifications/log/bulk-resend', { ids: sel.ids }, `${sel.ids.length} notification(s) queued for resend.`)}>
+            onClick={() => post(`${base}/log/bulk-resend`, { ids: sel.ids }, `${sel.ids.length} notification(s) queued for resend.`)}>
             Resend selected
           </button>
         )}
@@ -265,7 +265,7 @@ export function LogTab({ logs, filters, can, go, onRow }) {
                     <td className="nc-r" onClick={(e) => e.stopPropagation()}>
                       {can?.logResend && (
                         <button type="button" className="pc-btn pc-btn--sm"
-                          onClick={() => post(`/notifications/log/${r.id}/resend`, {}, `Queued for resend to ${r.recipient}.`)}>
+                          onClick={() => post(`${base}/log/${r.id}/resend`, {}, `Queued for resend to ${r.recipient}.`)}>
                           Resend
                         </button>
                       )}
@@ -283,7 +283,7 @@ export function LogTab({ logs, filters, can, go, onRow }) {
 }
 
 /* ================================================================= BOUNCES */
-export function BouncesTab({ bounces, topDomains, filters, can, go }) {
+export function BouncesTab({ bounces, topDomains, filters, can, go, base }) {
   const toast = useToast();
   const sel = useSelection();
   const [search, setSearch] = useState(filters?.search ?? '');
@@ -292,7 +292,7 @@ export function BouncesTab({ bounces, topDomains, filters, can, go }) {
   const allIds = rows.map((r) => r.id);
   const max = Math.max(1, ...(topDomains ?? []).map((d) => Number(d.count ?? 0)));
 
-  const suppress = (ids) => router.post('/notifications/bounces/suppress', { ids }, {
+  const suppress = (ids) => router.post(`${base}/bounces/suppress`, { ids }, {
     ...opts,
     onSuccess: () => { toast.success('Added to the suppression list.'); sel.clear(); },
     onError: () => toast.error('Could not suppress those addresses.'),
@@ -382,7 +382,7 @@ export function BouncesTab({ bounces, topDomains, filters, can, go }) {
 const REASONS = ['manual', 'bounce', 'complaint', 'unsubscribe'];
 const REASON_INTENT = { bounce: 'danger', complaint: 'warning', unsubscribe: 'neutral', manual: 'info' };
 
-export function SuppressionTab({ suppression, filters, can, go }) {
+export function SuppressionTab({ suppression, filters, can, go, base }) {
   const toast = useToast();
   const sel = useSelection();
   const [search, setSearch] = useState(filters?.search ?? '');
@@ -394,7 +394,7 @@ export function SuppressionTab({ suppression, filters, can, go }) {
 
   const add = () => {
     if (!form.email) return toast.error('Enter an email address to suppress.');
-    router.post('/notifications/suppression', form, {
+    router.post(`${base}/suppression`, form, {
       ...opts,
       onSuccess: () => { toast.success(`${form.email} will no longer be emailed.`); setForm({ email: '', reason: 'manual', note: '' }); },
       onError: (e) => toast.error(e?.email ?? 'Could not add that address.'),
@@ -409,7 +409,7 @@ export function SuppressionTab({ suppression, filters, can, go }) {
           <div className="nc-ph__s">{suppression?.total ?? 0} address(es) this workspace will never email again</div>
         </div>
         {can?.suppressionExport && (
-          <a className="pc-btn pc-btn--sm" href={`/notifications/suppression/export?${new URLSearchParams({ ...(search && { search }), ...(reason && { reason }) })}`}>
+          <a className="pc-btn pc-btn--sm" href={`${base}/suppression/export?${new URLSearchParams({ ...(search && { search }), ...(reason && { reason }) })}`}>
             Export CSV
           </a>
         )}
@@ -450,7 +450,7 @@ export function SuppressionTab({ suppression, filters, can, go }) {
       <SelectionBar count={sel.ids.length} onClear={sel.clear}>
         {can?.suppressionRemove && (
           <button type="button" className="pc-btn pc-btn--sm pc-btn--danger"
-            onClick={() => router.post('/notifications/suppression/bulk-delete', { ids: sel.ids }, {
+            onClick={() => router.post(`${base}/suppression/bulk-delete`, { ids: sel.ids }, {
               ...opts, onSuccess: () => { toast.success('Removed.'); sel.clear(); },
             })}>
             Remove selected
@@ -480,7 +480,7 @@ export function SuppressionTab({ suppression, filters, can, go }) {
                     <td className="nc-r">
                       {can?.suppressionRemove && (
                         <button type="button" className="pc-btn pc-btn--sm pc-btn--danger"
-                          onClick={() => router.delete(`/notifications/suppression/${r.id}`, {
+                          onClick={() => router.delete(`${base}/suppression/${r.id}`, {
                             ...opts, onSuccess: () => toast.success('Removed from the suppression list.'),
                           })}>
                           Remove
@@ -503,7 +503,7 @@ export function SuppressionTab({ suppression, filters, can, go }) {
 const CHECK_INTENT = { pass: 'success', warn: 'warning', fail: 'danger' };
 const CHECK_LABEL = { pass: 'Pass', warn: 'Missing', fail: 'Fail' };
 
-export function DeliverabilityTab({ deliverability, can }) {
+export function DeliverabilityTab({ deliverability, can, base }) {
   const toast = useToast();
   const d = deliverability ?? {};
   const checks = Object.entries(d.checks ?? {});
@@ -527,7 +527,7 @@ export function DeliverabilityTab({ deliverability, can }) {
         </div>
         {can?.deliverabilityTest && (
           <button type="button" className="pc-btn pc-btn--sm"
-            onClick={() => router.post('/notifications/deliverability/recheck', {}, {
+            onClick={() => router.post(`${base}/deliverability/recheck`, {}, {
               ...opts, preserveState: false, onSuccess: () => toast.success('DNS records re-checked.'),
             })}>
             Re-run checks
@@ -559,11 +559,12 @@ export function DeliverabilityTab({ deliverability, can }) {
 }
 
 /* =============================================================== TEMPLATES */
-export function TemplatesTab({ templates, categories, filters, can, go, onEdit, onPreview }) {
+export function TemplatesTab({ templates, categories, filters, can, go, onEdit, onPreview, base, scope }) {
   const toast = useToast();
   const [search, setSearch] = useState(filters?.search ?? '');
   const [category, setCategory] = useState(filters?.category ?? '');
   const rows = templates ?? [];
+  const isPlatform = scope === 'platform';
 
   const act = (url, msg) => router.post(url, {}, { ...opts, onSuccess: () => toast.success(msg) });
 
@@ -575,7 +576,9 @@ export function TemplatesTab({ templates, categories, filters, can, go, onEdit, 
           <div className="nc-ph__s">{rows.length} template(s) · {'{{variables}}'} are filled in when the message is sent</div>
         </div>
         {can?.templateCreate && (
-          <button type="button" className="pc-btn pc-btn--sm pc-btn--primary" onClick={() => onEdit({})}>＋ New template</button>
+          <button type="button" className="pc-btn pc-btn--sm pc-btn--primary" onClick={() => onEdit(isPlatform ? { is_global: true } : {})}>
+            ＋ New{isPlatform ? ' shared template' : ' template'}
+          </button>
         )}
       </div>
 
@@ -610,27 +613,42 @@ export function TemplatesTab({ templates, categories, filters, can, go, onEdit, 
                   </td>
                   <td><Chip intent="neutral">{t.category}</Chip></td>
                   <td className="nc-dim">{truncate(t.subject, 40)}</td>
-                  <td><Chip intent={t.is_locked ? 'info' : 'neutral'}>{t.is_locked ? 'Locked' : 'Custom'}</Chip></td>
+                  <td>
+                    {/* On a tenant, a global is a read-only shared-library entry until cloned. */}
+                    {t.is_global
+                      ? <Chip intent="success">Shared library</Chip>
+                      : <Chip intent={t.is_locked ? 'info' : 'neutral'}>{t.is_locked ? 'Locked' : 'Custom'}</Chip>}
+                  </td>
                   <td>
                     <button type="button" className="nc-sw" role="switch" aria-checked={!!t.is_active}
                       aria-label={`${t.is_active ? 'Deactivate' : 'Activate'} ${t.name}`}
-                      disabled={!can?.templateUpdate}
-                      onClick={() => act(`/notifications/templates/${t.id}/toggle`, t.is_active ? 'Template deactivated.' : 'Template activated.')} />
+                      disabled={!can?.templateUpdate || (t.is_global && !isPlatform)}
+                      onClick={() => act(`${base}/templates/${t.id}/toggle`, t.is_active ? 'Template deactivated.' : 'Template activated.')} />
                   </td>
                   <td className="nc-r">
                     <span className="nc-rowacts">
                       <button type="button" className="pc-btn pc-btn--sm" onClick={() => onPreview(t)}>Preview</button>
-                      {can?.templateUpdate && <button type="button" className="pc-btn pc-btn--sm" onClick={() => onEdit(t)}>Edit</button>}
-                      {can?.templateDuplicate && (
-                        <button type="button" className="pc-btn pc-btn--sm"
-                          onClick={() => act(`/notifications/templates/${t.id}/duplicate`, 'Template duplicated.')}>Duplicate</button>
-                      )}
-                      {can?.templateDelete && !t.is_locked && (
-                        <button type="button" className="pc-btn pc-btn--sm pc-btn--danger"
-                          onClick={() => {
-                            if (!window.confirm(`Delete "${t.name}"? This cannot be undone.`)) return;
-                            router.delete(`/notifications/templates/${t.id}`, { ...opts, onSuccess: () => toast.success('Template deleted.') });
-                          }}>Delete</button>
+                      {/* A tenant can't edit a shared-library global directly — it clones it first. */}
+                      {t.is_global && !isPlatform ? (
+                        can?.templateDuplicate && (
+                          <button type="button" className="pc-btn pc-btn--sm pc-btn--primary"
+                            onClick={() => act(`${base}/templates/${t.id}/clone`, 'Copied to your workspace — it starts inactive.')}>Copy to edit</button>
+                        )
+                      ) : (
+                        <>
+                          {can?.templateUpdate && <button type="button" className="pc-btn pc-btn--sm" onClick={() => onEdit(t)}>Edit</button>}
+                          {can?.templateDuplicate && (
+                            <button type="button" className="pc-btn pc-btn--sm"
+                              onClick={() => act(`${base}/templates/${t.id}/duplicate`, 'Template duplicated.')}>Duplicate</button>
+                          )}
+                          {can?.templateDelete && !t.is_locked && (
+                            <button type="button" className="pc-btn pc-btn--sm pc-btn--danger"
+                              onClick={() => {
+                                if (!window.confirm(`Delete "${t.name}"? This cannot be undone.`)) return;
+                                router.delete(`${base}/templates/${t.id}`, { ...opts, onSuccess: () => toast.success('Template deleted.') });
+                              }}>Delete</button>
+                          )}
+                        </>
                       )}
                     </span>
                   </td>
@@ -652,7 +670,7 @@ const CHANNEL_META = {
   inapp: { label: 'In-app', icon: '📥' },
 };
 
-export function ChannelsTab({ channels, can }) {
+export function ChannelsTab({ channels, can, base, inheritance }) {
   const toast = useToast();
   const [f, setF] = useState(() => ({
     email_enabled: !!channels?.email?.enabled,
@@ -670,11 +688,11 @@ export function ChannelsTab({ channels, can }) {
   }));
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
 
-  const save = () => router.post('/notifications/channels', f, {
+  const save = () => router.post(`${base}/channels`, f, {
     ...opts, onSuccess: () => toast.success('Channel settings saved.'), onError: () => toast.error('Could not save.'),
   });
 
-  const test = (channel) => router.post('/notifications/channels/test', { channel }, {
+  const test = (channel) => router.post(`${base}/channels/test`, { channel }, {
     ...opts,
     onSuccess: () => toast.success(`Test queued via ${CHANNEL_META[channel].label}.`),
     onError: () => toast.error('Test failed.'),
@@ -684,6 +702,16 @@ export function ChannelsTab({ channels, can }) {
     const c = channels?.[key] ?? {};
     if (!c.configured) return <Chip intent="warning">Not configured</Chip>;
     return c.enabled ? <Chip intent="success">Live</Chip> : <Chip intent="neutral">Off</Chip>;
+  };
+
+  // Provider inheritance: is this channel using this workspace's own credentials,
+  // or falling back to the platform/deployment default? (ProviderResolutionService)
+  const inh = (key) => {
+    const src = inheritance?.[key]?.source;
+    if (!src) return null;
+    return src === 'tenant'
+      ? <div className="nc-dim" style={{ marginBottom: 'var(--aeos-space-2)' }}>Using this workspace’s own credentials</div>
+      : <div className="nc-dim" style={{ marginBottom: 'var(--aeos-space-2)' }}>Inheriting the platform default — set your own to override</div>;
   };
 
   const Field = ({ label, k, type = 'text', placeholder }) => (
@@ -767,7 +795,7 @@ export function ChannelsTab({ channels, can }) {
 }
 
 /* ============================================================= PREFERENCES */
-export function PreferencesTab({ preferences }) {
+export function PreferencesTab({ preferences, base }) {
   const toast = useToast();
   const [matrix, setMatrix] = useState(() => {
     const m = {};
@@ -787,7 +815,7 @@ export function PreferencesTab({ preferences }) {
     ...m, [event]: { ...m[event], [channel]: !m[event]?.[channel] },
   }));
 
-  const save = () => router.post('/notifications/preferences', {
+  const save = () => router.post(`${base}/preferences`, {
     matrix, digest, quiet_hours_start: quiet.start || null, quiet_hours_end: quiet.end || null,
   }, { ...opts, onSuccess: () => toast.success('Preferences saved.'), onError: () => toast.error('Could not save.') });
 
@@ -800,13 +828,13 @@ export function PreferencesTab({ preferences }) {
         </div>
         <div className="pc-actions">
           <button type="button" className="pc-btn pc-btn--sm"
-            onClick={() => router.post('/notifications/preferences/reset', {}, { ...opts, preserveState: false, onSuccess: () => toast.success('Reset to defaults.') })}>
+            onClick={() => router.post(`${base}/preferences/reset`, {}, { ...opts, preserveState: false, onSuccess: () => toast.success('Reset to defaults.') })}>
             Reset to defaults
           </button>
           <button type="button" className="pc-btn pc-btn--sm pc-btn--danger"
             onClick={() => {
               if (!window.confirm('Turn off every notification on every channel?')) return;
-              router.post('/notifications/preferences/mute', {}, { ...opts, preserveState: false, onSuccess: () => toast.success('Everything muted.') });
+              router.post(`${base}/preferences/mute`, {}, { ...opts, preserveState: false, onSuccess: () => toast.success('Everything muted.') });
             }}>
             Mute everything
           </button>
@@ -864,5 +892,156 @@ export function PreferencesTab({ preferences }) {
         </div>
       </div>
     </CardBody></Card>
+  );
+}
+
+/* ============================================ FLEET (platform-only) ======== */
+export function FleetTab({ fleet }) {
+  const summary = fleet?.summary;
+  const worst = fleet?.worstOffenders ?? [];
+
+  if (!summary) {
+    return (
+      <Card><CardBody>
+        <div className="nc-ph"><div><h3 className="nc-ph__t">Fleet deliverability</h3>
+          <div className="nc-ph__s">Cross-tenant mail health across the platform</div></div></div>
+        <div className="nc-empty">No rollup data yet. It fills in once <span className="nc-mono">notifications:rollup</span> has run.</div>
+      </CardBody></Card>
+    );
+  }
+
+  const rate = summary.delivery_rate ?? 0;
+  const kpis = [
+    { l: 'Sent', v: (summary.sent + summary.delivered).toLocaleString() },
+    { l: 'Delivery rate', v: `${rate}%`, mod: rate >= 95 ? 'up' : 'warn' },
+    { l: 'Failed', v: (summary.failed ?? 0).toLocaleString(), mod: (summary.failed ?? 0) > 0 ? 'bad' : '' },
+    { l: 'Bounced', v: (summary.bounced ?? 0).toLocaleString(), mod: (summary.bounced ?? 0) > 0 ? 'warn' : '' },
+    { l: 'Suppressed', v: (summary.suppressed ?? 0).toLocaleString() },
+  ];
+
+  return (
+    <Card><CardBody>
+      <div className="nc-ph">
+        <div><h3 className="nc-ph__t">Fleet deliverability</h3>
+          <div className="nc-ph__s">Every tenant&rsquo;s mail health over the last {summary.days} days — read from the central rollup, never per-tenant queries</div></div>
+      </div>
+
+      <div className="nc-kpis" style={{ gridTemplateColumns: 'repeat(5,1fr)', marginBottom: 'var(--aeos-space-4)' }}>
+        {kpis.map((k) => (
+          <div className="nc-kpi" key={k.l} style={{ padding: '4px 0' }}>
+            <div className="nc-kpi__label">{k.l}</div>
+            <div className="nc-kpi__value">{k.v}</div>
+            {k.mod && <div className={`nc-kpi__delta nc-kpi__delta--${k.mod}`}>{k.mod === 'up' ? 'healthy' : 'watch'}</div>}
+          </div>
+        ))}
+      </div>
+
+      <div className="nc-ph__s" style={{ textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 650, marginBottom: 8 }}>
+        Worst offenders
+      </div>
+      {worst.length === 0 ? (
+        <div className="nc-empty">No tenants are bouncing — the fleet is healthy.</div>
+      ) : (
+        <div className="nc-tw"><table className="nc-table">
+          <thead><tr><th>Tenant</th><th className="nc-r">Sent</th><th className="nc-r">Delivered</th><th className="nc-r">Failed</th><th className="nc-r">Bounced</th><th className="nc-r">Bounce/fail</th></tr></thead>
+          <tbody>
+            {worst.map((t) => (
+              <tr key={t.tenant_id}>
+                <td className="nc-strong">{t.tenant_name}</td>
+                <td className="nc-r nc-mono">{(t.sent + t.delivered).toLocaleString()}</td>
+                <td className="nc-r nc-mono">{t.delivered.toLocaleString()}</td>
+                <td className="nc-r nc-mono">{t.failed.toLocaleString()}</td>
+                <td className="nc-r nc-mono">{t.bounced.toLocaleString()}</td>
+                <td className="nc-r"><Chip intent={t.bounce_fail_rate > 10 ? 'danger' : t.bounce_fail_rate > 3 ? 'warning' : 'success'}>{t.bounce_fail_rate}%</Chip></td>
+              </tr>
+            ))}
+          </tbody>
+        </table></div>
+      )}
+    </CardBody></Card>
+  );
+}
+
+/* ====================================== BROADCASTS (platform-only) ========= */
+export function BroadcastsTab({ broadcast, can, base }) {
+  const toast = useToast();
+  const tenants = broadcast?.tenants ?? [];
+  const [f, setF] = useState({ title: '', body: '', type: 'info', priority: 'normal', is_pinned: false });
+  const [target, setTarget] = useState('all'); // 'all' | 'select'
+  const [ids, setIds] = useState([]);
+  const [sending, setSending] = useState(false);
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+
+  const toggleTenant = (id) => setIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+
+  const send = () => {
+    if (!f.title.trim() || !f.body.trim()) return toast.error('A title and a message are required.');
+    if (target === 'select' && ids.length === 0) return toast.error('Choose at least one tenant, or broadcast to all.');
+    setSending(true);
+    router.post(`${base}/broadcasts`, { ...f, tenant_ids: target === 'all' ? [] : ids }, {
+      ...opts,
+      onSuccess: () => { toast.success('Broadcast sent.'); setF({ title: '', body: '', type: 'info', priority: 'normal', is_pinned: false }); setIds([]); setTarget('all'); },
+      onError: () => toast.error('The broadcast could not be sent.'),
+      onFinish: () => setSending(false),
+    });
+  };
+
+  return (
+    <div className="nc-chgrid" style={{ gridTemplateColumns: 'minmax(0,1.3fr) minmax(0,1fr)', alignItems: 'start' }}>
+      <Card><CardBody>
+        <div className="nc-ph"><div><h3 className="nc-ph__t">Broadcast to tenants</h3>
+          <div className="nc-ph__s">Push an announcement into tenant workspaces — it appears in their in-app notices</div></div></div>
+
+        <label className="pc-field" style={{ marginBottom: 'var(--aeos-space-3)' }}>
+          <span className="pc-field__label">Title</span>
+          <input className="pc-input" value={f.title} onChange={(e) => set('title', e.target.value)} placeholder="Scheduled maintenance this weekend" maxLength={160} />
+        </label>
+        <label className="pc-field" style={{ marginBottom: 'var(--aeos-space-3)' }}>
+          <span className="pc-field__label">Message</span>
+          <textarea className="pc-input" rows={5} value={f.body} onChange={(e) => set('body', e.target.value)} placeholder="What do you want every tenant to know?" maxLength={5000} />
+        </label>
+        <div className="pc-row2">
+          <label className="pc-field"><span className="pc-field__label">Type</span>
+            <select className="pc-input" value={f.type} onChange={(e) => set('type', e.target.value)}>
+              {['info', 'success', 'warning', 'danger'].map((t) => <option key={t} value={t}>{t}</option>)}
+            </select></label>
+          <label className="pc-field"><span className="pc-field__label">Priority</span>
+            <select className="pc-input" value={f.priority} onChange={(e) => set('priority', e.target.value)}>
+              {['low', 'normal', 'high', 'urgent'].map((p) => <option key={p} value={p}>{p}</option>)}
+            </select></label>
+        </div>
+        <label className="pc-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 'var(--aeos-space-3)' }}>
+          <button type="button" className="nc-sw" role="switch" aria-checked={f.is_pinned} aria-label="Pin" onClick={() => set('is_pinned', !f.is_pinned)} />
+          <span className="pc-field__label">Pin it to the top of their notices</span>
+        </label>
+
+        {can?.broadcasts && (
+          <button type="button" className="pc-btn pc-btn--primary" style={{ width: '100%', justifyContent: 'center', marginTop: 'var(--aeos-space-4)' }}
+            onClick={send} disabled={sending}>
+            {sending ? 'Sending…' : target === 'all' ? `Send to all ${tenants.length} tenants` : `Send to ${ids.length} tenant(s)`}
+          </button>
+        )}
+      </CardBody></Card>
+
+      <Card><CardBody>
+        <div className="nc-ph"><div><h3 className="nc-ph__t">Audience</h3><div className="nc-ph__s">{tenants.length} active tenants</div></div></div>
+        <div className="pc-seg" role="tablist" style={{ marginBottom: 'var(--aeos-space-3)' }}>
+          <button type="button" className="pc-seg__b" aria-pressed={target === 'all'} onClick={() => setTarget('all')}>All tenants</button>
+          <button type="button" className="pc-seg__b" aria-pressed={target === 'select'} onClick={() => setTarget('select')}>Choose</button>
+        </div>
+        {target === 'select' && (
+          <div className="nc-slist" style={{ maxHeight: '46vh', overflow: 'auto' }}>
+            {tenants.map((t) => (
+              <label className="nc-srow" key={t.id} style={{ cursor: 'pointer' }}>
+                <input type="checkbox" checked={ids.includes(t.id)} onChange={() => toggleTenant(t.id)} />
+                <span className="nc-srow__nm">{t.name}</span>
+                <span className="nc-srow__ip nc-mono">{t.id}</span>
+              </label>
+            ))}
+          </div>
+        )}
+        {target === 'all' && <div className="nc-dim">This message goes to every active tenant workspace.</div>}
+      </CardBody></Card>
+    </div>
   );
 }

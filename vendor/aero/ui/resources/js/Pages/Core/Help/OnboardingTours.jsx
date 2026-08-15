@@ -37,7 +37,7 @@ export default function OnboardingTours({ tours = [] }) {
       description="Step-by-step guides to help you get up and running quickly."
       actions={
         <HStack gap={2}>
-          <Button intent="primary" leftIcon="sparkles" onClick={() => startGuidedTour(theme.motion !== 'full')}>
+          <Button intent="primary" leftIcon="sparkles" onClick={() => startGuidedTour('highlights', theme.motion !== 'full')}>
             Start interactive tour
           </Button>
           <Button intent="ghost" leftIcon="arrowLeft" onClick={() => router.get('/help')}>

@@ -202,10 +202,13 @@ class Kernel extends ConsoleKernel
             ->runInBackground()
             ->appendOutputTo(storage_path('logs/trial-expirations.log'));
 
-        // Nightly restore of the live-demo tenant(s) so public visitors always
+        // Six-hourly restore of the live-demo tenant(s) so public visitors always
         // land on a clean, realistic state (Asia/Dhaka).
+        // NOTE: this Kernel is legacy/unbound — the LIVE registration is in
+        // AeroPlatformServiceProvider::boot(); kept in sync so the two never
+        // disagree if this Kernel is ever wired up.
         $schedule->command('demo:reset')
-            ->dailyAt('03:30')
+            ->cron('0 */6 * * *')
             ->timezone('Asia/Dhaka')
             ->withoutOverlapping()
             ->runInBackground()

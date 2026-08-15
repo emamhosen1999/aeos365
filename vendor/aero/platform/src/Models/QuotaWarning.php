@@ -2,7 +2,7 @@
 
 namespace Aero\Platform\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Aero\Auth\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class QuotaWarning extends CentralModel
@@ -38,7 +38,10 @@ class QuotaWarning extends CentralModel
     }
 
     /**
-     * Get the user who dismissed the warning.
+     * The platform staffer who dismissed the warning.
+     *
+     * dismissed_by_user_id is FK'd to `users` (Aero\Auth\Models\User). It
+     * previously resolved to the non-existent Aero\Platform\Models\User.
      */
     public function dismissedBy(): BelongsTo
     {

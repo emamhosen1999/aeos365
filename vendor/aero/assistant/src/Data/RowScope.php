@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Aero\Assistant\Data;
 
+use Aero\Contracts\RoleModuleAccessInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -114,7 +115,7 @@ class RowScope
     private function resolveScope(string $moduleCode): string
     {
         try {
-            if (! function_exists('auth') || ! app()->bound(\Aero\Contracts\RoleModuleAccessInterface::class)) {
+            if (! function_exists('auth') || ! app()->bound(RoleModuleAccessInterface::class)) {
                 return 'all';
             }
 
@@ -124,7 +125,7 @@ class RowScope
                 return 'all';
             }
 
-            $scope = app(\Aero\Contracts\RoleModuleAccessInterface::class)->getUserModuleScope($user, $moduleCode);
+            $scope = app(RoleModuleAccessInterface::class)->getUserModuleScope($user, $moduleCode);
 
             return in_array($scope, ['all', 'department', 'team', 'own'], true) ? $scope : 'own';
         } catch (\Throwable) {

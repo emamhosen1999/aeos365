@@ -386,7 +386,7 @@ export default function UsersIndex({
         </CardBody></Card>
       </div>
 
-      <Card><CardBody>
+      <Card data-tour="users-table"><CardBody>
         <WbToolbar>
           <WbSearch value={wb.q} onChange={wb.setQ} placeholder="Search name or email…" ariaLabel="Search members" />
           <select className="pc-input sc-statusfilter" value={wb.facetValues.role} onChange={(e) => wb.setFacet('role', e.target.value)} aria-label="Role filter">

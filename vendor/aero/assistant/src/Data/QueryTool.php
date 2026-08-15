@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Aero\Assistant\Data;
 
 use Aero\Contracts\Ai\AeonToolContract;
+use Aero\Contracts\AuditServiceInterface;
+use Aero\Contracts\RoleModuleAccessInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -380,6 +382,7 @@ class QueryTool implements AeonToolContract
             if (Str::endsWith($col, '_id') && ! is_numeric($value)) {
                 $ids = $this->resolveNameToIds($col, (string) $value);
                 $query->whereIn($col, $ids ?: [-1]); // no match → match nothing (honest)
+
                 continue;
             }
 
@@ -537,7 +540,7 @@ class QueryTool implements AeonToolContract
     private function userCanQuery(string $table): bool
     {
         try {
-            if (! function_exists('auth') || ! app()->bound(\Aero\Contracts\RoleModuleAccessInterface::class)) {
+            if (! function_exists('auth') || ! app()->bound(RoleModuleAccessInterface::class)) {
                 return true;
             }
             $user = auth()->user();
@@ -545,7 +548,7 @@ class QueryTool implements AeonToolContract
                 return true; // console / jobs — route middleware already requires auth for HTTP
             }
 
-            $svc = app(\Aero\Contracts\RoleModuleAccessInterface::class);
+            $svc = app(RoleModuleAccessInterface::class);
             $moduleCode = $this->catalog->moduleFor($table);
 
             // Fast path: super-admin bypass + any explicit module-level grant.
@@ -581,10 +584,10 @@ class QueryTool implements AeonToolContract
     private function audit(string $event, string $table, array $args, string $outcome): void
     {
         try {
-            if (! app()->bound(\Aero\Contracts\AuditServiceInterface::class)) {
+            if (! app()->bound(AuditServiceInterface::class)) {
                 return;
             }
-            app(\Aero\Contracts\AuditServiceInterface::class)->log(
+            app(AuditServiceInterface::class)->log(
                 $event,
                 'query',
                 null,
@@ -602,10 +605,10 @@ class QueryTool implements AeonToolContract
     private function logAccess(string $table, int|string|null $id, ?string $label, array $fields): void
     {
         try {
-            if (! app()->bound(\Aero\Contracts\AuditServiceInterface::class)) {
+            if (! app()->bound(AuditServiceInterface::class)) {
                 return;
             }
-            app(\Aero\Contracts\AuditServiceInterface::class)->logAccess('aeon:'.$table, $id, $label, $fields);
+            app(AuditServiceInterface::class)->logAccess('aeon:'.$table, $id, $label, $fields);
         } catch (\Throwable) {
             // access-log failure must never break the chat turn
         }
